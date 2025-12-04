@@ -1,0 +1,717 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String          @id @default(cuid())
+  email                String          @unique
+  name                 String?
+  avatarUrl            String?         // 用户头像URL（可选，如果为空则使用默认头像）
+  role                 String          @default("member")
+  invitedBy            String?
+  passwordHash         String
+  createdAt            DateTime        @default(now())
+  topics               Topic[]
+  documents            Document[]
+  userConsensusAsUser1 UserConsensus[] @relation("User1Consensus")
+  userConsensusAsUser2 UserConsensus[] @relation("User2Consensus")
+  editorTraces         Trace[]        @relation("EditorTraces")
+  topicComments        TopicComment[]  // 用户发表的评论
+  topicParticipants    TopicParticipant[] // 用户参与的话题讨论
+  // 聊天室关系
+  createdRooms         ChatRoom[]      @relation("CreatedRooms")
+  participatedRooms    ChatRoom[]      @relation("ParticipatedRooms")
+  sentMessages         ChatMessage[]   @relation("SentMessages")
+  sentInvitations      ChatInvitation[] @relation("SentInvitations")
+  receivedInvitations  ChatInvitation[] @relation("ReceivedInvitations")
+  messageLikes         ChatMessageLike[] @relation("MessageLikes")
+}
+
+model Topic {
+  id                 String              @id @default(cuid())
+  title              String
+  subtitle           String? // AI 生成的副标题（异步处理）
+  authorId           String
+  author             User                @relation(fields: [authorId], references: [id])
+  discipline         String?
+  createdAt          DateTime            @default(now())
+  documents          Document[]
+  consensusSnapshots ConsensusSnapshot[] // 共识快照
+  userConsensus      UserConsensus[] // 用户对共识
+  comments           TopicComment[]      // 评论列表（不参与分析）
+  commentCount       Int                 @default(0) // 评论计数（用于性能优化）
+  participants       TopicParticipant[] // 参与讨论的用户
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([discipline])
+}
+
+model Document {
+  id               String       @id @default(cuid())
+  topicId          String
+  topic            Topic        @relation(fields: [topicId], references: [id])
+  parentId         String? // 父文档ID，null表示是主题文档
+  parent           Document?    @relation("DocumentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies          Document[]   @relation("DocumentReplies") // 子文档列表
+  authorId         String
+  author           User         @relation(fields: [authorId], references: [id])
+  fileKey          String
+  mime             String
+  size             Int
+  checksum         String?
+  extractedText    Bytes?
+  processingStatus Json? // 处理状态：{ extract: 'pending|processing|completed|failed', summarize: ..., evaluate: ... }
+  lastProcessedAt  DateTime? // 最后处理时间
+  createdAt        DateTime     @default(now())
+  summaries        Summary[]
+  evaluations      Evaluation[]
+
+  @@index([topicId])
+  @@index([parentId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model Summary {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id])
+  title         String
+  overview      String
+  structure     Json
+  claims        Json
+  counterpoints Json
+  keywords      String[]
+}
+
+model Evaluation {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id])
+  discipline    String
+  rubricVersion String
+  scores        Json
+  verdict       String
+  createdAt     DateTime @default(now())
+}
+
+model UserAiConfig {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  provider    String
+  model       String
+  encApiKey   String
+  apiEndpoint String? // Optional custom API endpoint
+  aiNickname  String? // AI昵称（用户自定义）
+  persist     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model SystemAiConfig {
+  id          String   @id @default(cuid())
+  provider    String
+  model       String
+  encApiKey   String
+  apiEndpoint String? // Optional custom API endpoint
+  updatedBy   String // 最后更新的管理员用户ID
+  updatedAt   DateTime @default(now()) @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([id]) // 确保只有一个系统配置
+}
+
+model AiUsageLog {
+  id               String   @id @default(cuid())
+  userId           String
+  provider         String
+  model            String
+  promptTokens     Int
+  completionTokens Int
+  costCents        Int
+  status           String
+  createdAt        DateTime @default(now())
+}
+
+model Invitation {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  issuedBy  String?
+  usedBy    String?
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+}
+
+model Book {
+  id         String          @id @default(cuid())
+  title      String
+  author     String?
+  coverUrl   String?
+  overview   String?
+  source     String? // openlibrary/google/manual
+  createdAt  DateTime        @default(now())
+  shelfItems BookshelfItem[]
+  assets     BookAsset[]
+}
+
+model BookshelfItem {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model BookAsset {
+  id        String   @id @default(cuid())
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  fileKey   String
+  mime      String
+  createdAt DateTime @default(now())
+}
+
+model Disagreement {
+  id              String    @id @default(cuid())
+  topicId         String
+  title           String
+  description     String? // AI 生成的详细描述
+  status          String    @default("open") // open | researching | resolved | invalid
+  ownerId         String?
+  docIds          String[] // 涉及的文档ID数组
+  doc1Id          String? // 文档1 ID（主要分歧方）
+  doc2Id          String? // 文档2 ID（主要分歧方）
+  claim1          String? // 观点1
+  claim2          String? // 观点2
+  severity        String? // high | medium | low
+  confidence      Float? // AI 置信度 0-1
+  aiGenerated     Boolean   @default(true) // 是否AI生成
+  verified        Boolean   @default(false) // 是否经过人工验证
+  falsePositive   Boolean   @default(false) // 是否被标记为误判
+  analysisHash    String? // 分析时的文档内容hash（用于缓存验证）
+  branchPath      String[] // 分歧发生的分支路径（树形结构）
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastValidatedAt DateTime? // 最后验证时间
+
+  @@index([topicId])
+  @@index([doc1Id])
+  @@index([doc2Id])
+  @@index([status])
+  @@index([lastValidatedAt])
+}
+
+model ConsensusSnapshot {
+  id              String   @id @default(cuid())
+  topicId         String
+  topic           Topic    @relation(fields: [topicId], references: [id])
+  snapshotAt      DateTime @default(now())
+  consensusData   Json // 存储共识分析结果
+  consensusScore  Float? // 共识度分数（0-1，1表示完全一致）
+  divergenceScore Float? // 分歧度分数（0-1，1表示完全分歧）
+
+  @@index([topicId])
+  @@index([snapshotAt])
+}
+
+model UserConsensus {
+  id      String @id @default(cuid())
+  topicId String
+  userId1 String
+  userId2 String
+  user1   User   @relation("User1Consensus", fields: [userId1], references: [id])
+  user2   User   @relation("User2Consensus", fields: [userId2], references: [id])
+  topic   Topic  @relation(fields: [topicId], references: [id])
+
+  consensus       Json // 共识点列表
+  disagreements   Json // 分歧点列表
+  consensusScore  Float? // 用户对之间的共识度（0-1）
+  divergenceScore Float? // 用户对之间的分歧度（0-1）
+
+  docIds          String[] // 涉及的所有文档ID
+  discussionPaths Json // 讨论路径数组：[{path: [docId1, docId2, ...], depth: number, direction: string}]
+  lastAnalyzedAt  DateTime? // 最后分析时间
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([topicId, userId1, userId2])
+  @@index([topicId])
+  @@index([userId1])
+  @@index([userId2])
+  @@index([topicId, userId1])
+  @@index([topicId, userId2])
+}
+
+// 溯源类型枚举
+enum TraceType {
+  CONCEPT    // 概念
+  EVENT      // 事件
+  FACT       // 事实
+  PERSON     // 人物
+  THEORY     // 理论
+  DEFINITION // 定义
+}
+
+// 溯源状态枚举
+enum TraceStatus {
+  DRAFT      // 草稿（编辑中）
+  PUBLISHED  // 已发布（AI分析完成，等待采纳）
+  ANALYZING  // 分析中
+  APPROVED   // 已采纳（进入词条）
+}
+
+// 语义溯源模型（编辑创建）
+model Trace {
+  id              String   @id @default(cuid())
+  editorId        String   // 编辑ID（必须是editor或admin角色）
+  editor          User     @relation("EditorTraces", fields: [editorId], references: [id])
+  
+  // 溯源目标
+  title           String   // 溯源标题（如"什么是量子纠缠？"）
+  traceType       TraceType // 溯源类型
+  target          String   // 溯源目标描述
+  
+  // 内容结构
+  body            String   // 正文内容（Markdown）
+  citations       Json     // 引用列表：[{id, url, title, quote, author, year, type, order}]（冗余存储，用于快速访问）
+  
+  // 状态管理
+  status          TraceStatus @default(DRAFT)
+  publishedAt     DateTime? // 发布时间（提交AI分析）
+  analyzedAt      DateTime? // AI分析完成时间
+  approvedAt      DateTime? // 采纳时间（进入词条）
+  
+  // AI分析结果
+  analysis        TraceAnalysis?
+  
+  // 引用列表
+  citationsList   Citation[]
+  
+  // 词条关联（如果被采纳）
+  entry           Entry?
+  entryId         String?  @unique
+  
+  // 版本历史（编辑可以修改）
+  version         Int      @default(1)
+  previousVersionId String? // 上一版本ID
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([editorId])
+  @@index([status])
+  @@index([traceType])
+  @@index([publishedAt])
+  @@index([status, publishedAt])
+  @@index([editorId, status])
+  @@index([traceType, status])
+}
+
+// 引用模型（结构化）
+model Citation {
+  id          String   @id @default(cuid())
+  traceId     String
+  trace       Trace    @relation(fields: [traceId], references: [id], onDelete: Cascade)
+  
+  // 引用信息
+  url         String?  // 来源URL
+  title       String   // 标题
+  author      String?  // 作者
+  publisher   String?  // 出版机构
+  year        Int?     // 年份
+  type        String   // 类型：web, book, paper, journal, other
+  quote       String?  // 引用片段
+  page        String?  // 页码
+  
+  // 在正文中的位置
+  bodyRefs    String[] // 正文中引用此来源的位置标记（如["[1]", "[2]"]）
+  
+  // 元数据
+  order       Int      // 引用顺序
+  createdAt   DateTime @default(now())
+  
+  @@index([traceId])
+  @@index([order])
+}
+
+// AI分析结果模型
+model TraceAnalysis {
+  id              String   @id @default(cuid())
+  traceId         String   @unique
+  trace           Trace    @relation(fields: [traceId], references: [id], onDelete: Cascade)
+  
+  // 综合评分（0-1）
+  credibilityScore Float   // 可信度评分（核心指标）
+  completenessScore Float? // 完整性评分
+  accuracyScore    Float?  // 准确性评分
+  sourceQualityScore Float? // 来源质量评分
+  
+  // 详细分析
+  analysis        Json     // 详细分析结果
+  strengths       String[] // 优点
+  weaknesses      String[] // 不足
+  missingAspects  String[] // 缺失的方面
+  sourceEvaluation Json    // 来源评估详情
+  conflicts       Json?    // 与其他来源的冲突
+  
+  // 建议
+  suggestions     String[] // 改进建议
+  canApprove      Boolean  // 是否可采纳（≥0.7）
+  
+  analyzedAt      DateTime @default(now())
+  
+  @@index([traceId])
+  @@index([credibilityScore])
+}
+
+// 词条模型（采纳自高可信度溯源）
+model Entry {
+  id              String   @id @default(cuid())
+  
+  // 词条基本信息
+  title           String   @unique // 词条标题（唯一）
+  slug            String   @unique // URL友好标识
+  traceType       TraceType // 类型
+  
+  // 内容（从溯源采纳并整理）
+  content         String   // 正文内容（Markdown，可能经过AI整理）
+  citations       Json     // 引用列表（从溯源继承）
+  
+  // 来源溯源
+  sourceTraceId   String   @unique
+  sourceTrace     Trace    @relation(fields: [sourceTraceId], references: [id])
+  
+  // 版本管理
+  version         Int      @default(1)
+  previousVersionId String? // 上一版本ID（如果被更新）
+  
+  // 更新标记
+  needsUpdate     Boolean  @default(false) // 是否需要更新
+  updateReason    String?  // 更新原因
+  
+  // 元数据
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lastReviewedAt DateTime? // 最后审核时间
+  
+  @@index([slug])
+  @@index([traceType])
+  @@index([createdAt])
+  @@index([traceType, createdAt])
+  @@index([needsUpdate])
+}
+
+// 话题评论模型（非正式评论，不参与共识分析）
+model TopicComment {
+  id          String   @id @default(cuid())
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  
+  // 简单嵌套（无深度限制，但需考虑显示方式）
+  parentId    String?  // 父评论ID，null表示顶级评论
+  parent      TopicComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies     TopicComment[] @relation("CommentReplies")
+  
+  // 评论内容
+  authorId    String
+  author      User    @relation(fields: [authorId], references: [id])
+  content     String  // Markdown格式的评论内容
+  
+  // 元数据
+  depth       Int     @default(0) // 评论深度（用于显示，不做限制）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // 软删除
+  
+  @@index([topicId])
+  @@index([parentId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([topicId, parentId]) // 用于查询某个话题下的顶级评论
+}
+
+// 话题参与者模型（记录用户参与讨论的意图）
+model TopicParticipant {
+  id        String   @id @default(cuid())
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now()) // 参与时间
+  
+  @@unique([topicId, userId]) // 每个用户在每个话题只能参与一次
+  @@index([topicId])
+  @@index([userId])
+  @@index([topicId, userId])
+}
+
+// ==================== 聊天室相关模型 ====================
+
+// 聊天室类型枚举
+enum ChatRoomType {
+  SOLO  // 单人模式（用户与自己的 AI 对话）
+  DUO   // 双人模式（两个用户讨论）
+}
+
+// 聊天室状态枚举
+enum ChatRoomStatus {
+  ACTIVE     // 活跃中
+  ARCHIVED   // 已归档
+  DISSOLVED  // 已解散
+}
+
+// 消息类型枚举
+enum MessageType {
+  USER          // 用户直接发送的消息
+  AI_SUGGESTION // AI 生成的建议（未采纳）
+  AI_ADOPTED    // AI 建议被采纳后作为用户消息
+}
+
+// 监督状态枚举
+enum ModerationStatus {
+  PENDING  // 待分析
+  SAFE     // 安全
+  WARNING  // 警告（轻微偏离）
+  BLOCKED  // 阻止（严重偏离，需要管理员审核）
+}
+
+// 引用类型枚举
+enum ReferenceType {
+  QUOTE   // 引用
+  REPLY   // 回复
+  REFUTE  // 反驳
+  SUPPORT // 支持
+  EXPAND  // 扩展
+}
+
+// 邀请状态枚举
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+// 聊天室模型
+model ChatRoom {
+  id                String          @id @default(cuid())
+  type              ChatRoomType    @default(SOLO)
+  creatorId         String
+  creator           User            @relation("CreatedRooms", fields: [creatorId], references: [id])
+  participantId     String?
+  participant       User?           @relation("ParticipatedRooms", fields: [participantId], references: [id])
+  
+  // AI 配置（每个用户使用自己的 AI）
+  creatorAiConfigId     String? // 创建者的 UserAiConfig ID
+  participantAiConfigId String? // 参与者的 UserAiConfig ID
+  
+  // 话题管理
+  topic                 String?  // 讨论主题
+  topicDescription      String?  // 主题描述（可由AI辅助完善）
+  topicChangeRequest    String?  // 更换话题请求（待另一方同意）
+  topicChangeRequestedBy String?  // 请求更换话题的用户ID
+  topicChangeRequestedAt DateTime? // 请求更换话题的时间
+  
+  // 宪章同意状态
+  creatorCharterAccepted    Boolean   @default(false) // 创建者是否同意宪章
+  participantCharterAccepted Boolean   @default(false) // 参与者是否同意宪章
+  
+  // 状态管理
+  status            ChatRoomStatus  @default(ACTIVE)
+  invitedAt         DateTime?
+  joinedAt          DateTime?
+  dissolvedAt       DateTime?
+  archivedAt        DateTime?
+  
+  // 单方面删除（用户视角的删除，不影响对方）
+  creatorDeletedAt     DateTime?  // 创建者删除时间
+  participantDeletedAt DateTime?  // 参与者删除时间
+  
+  // 关联数据
+  messages          ChatMessage[]
+  invitations       ChatInvitation[]
+  analysis          ChatAnalysis?
+  
+  // 元数据
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  @@index([creatorId])
+  @@index([participantId])
+  @@index([status])
+  @@index([creatorId, status])
+  @@index([participantId, status])
+  @@index([creatorId, creatorDeletedAt])
+  @@index([participantId, participantDeletedAt])
+}
+
+// 聊天消息模型
+model ChatMessage {
+  id                    String          @id @default(cuid())
+  roomId                String
+  room                  ChatRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  // 发送者信息
+  senderId              String
+  sender                User            @relation("SentMessages", fields: [senderId], references: [id])
+  
+  // 消息内容
+  content               String          // Markdown 格式
+  contentType           MessageType     @default(USER)
+  
+  // AI 相关字段
+  aiProvider            String?         // 生成此消息的 AI 提供商
+  aiModel               String?         // 生成此消息的 AI 模型
+  isAdopted             Boolean         @default(false) // 是否被用户采纳
+  originalSuggestionId  String?         // 如果是采纳的，指向原始建议消息ID
+  originalSuggestion    ChatMessage?    @relation("MessageAdoption", fields: [originalSuggestionId], references: [id])
+  adoptedMessages       ChatMessage[]   @relation("MessageAdoption")
+  
+  // 流式输出状态
+  isStreaming           Boolean         @default(false) // 是否正在流式输出
+  streamingCompleted    Boolean         @default(false) // 流式输出是否完成
+  
+  // 引用关系
+  references            ChatMessageReference[] @relation("ReferencingMessage")
+  referencedBy          ChatMessageReference[] @relation("ReferencedMessage")
+  
+  // 监督 AI 分析结果
+  moderationStatus      ModerationStatus @default(PENDING)
+  moderationNote        String?         // 监督 AI 的提醒内容
+  moderationScore       Float?          // 偏离度评分 0-1（1表示严重偏离）
+  moderationDetails     Json?           // 详细分析结果
+  
+  // 点赞功能
+  likes                 ChatMessageLike[] // 点赞列表
+  
+  // 元数据
+  sequence              Int             // 消息序号（用于排序和分页）
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  deletedAt             DateTime?       // 软删除
+  
+  @@index([roomId])
+  @@index([senderId])
+  @@index([sequence])
+  @@index([roomId, sequence])
+  @@index([contentType])
+  @@index([moderationStatus])
+  @@index([isAdopted])
+  @@index([originalSuggestionId])
+  @@index([roomId, createdAt])
+}
+
+// 消息引用关系
+model ChatMessageReference {
+  id                    String          @id @default(cuid())
+  messageId             String          // 引用者消息ID
+  message               ChatMessage     @relation("ReferencingMessage", fields: [messageId], references: [id], onDelete: Cascade)
+  referencedMessageId   String          // 被引用的消息ID
+  referencedMessage     ChatMessage     @relation("ReferencedMessage", fields: [referencedMessageId], references: [id], onDelete: Cascade)
+  
+  // 引用类型和内容
+  referenceType         ReferenceType   @default(QUOTE)
+  quote                 String?         // 引用的具体片段（用于显示）
+  quoteStart            Int?            // 引用片段在原消息中的起始位置
+  quoteEnd              Int?            // 引用片段在原消息中的结束位置
+  
+  createdAt             DateTime        @default(now())
+  
+  @@unique([messageId, referencedMessageId]) // 防止重复引用
+  @@index([messageId])
+  @@index([referencedMessageId])
+  @@index([referenceType])
+}
+
+// 消息点赞
+model ChatMessageLike {
+  id                    String          @id @default(cuid())
+  messageId             String
+  message               ChatMessage     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User            @relation("MessageLikes", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt             DateTime        @default(now())
+  
+  @@unique([messageId, userId]) // 每个用户对每条消息只能点赞一次
+  @@index([messageId])
+  @@index([userId])
+}
+
+// 讨论分析模型（实时统计）
+model ChatAnalysis {
+  id                    String          @id @default(cuid())
+  roomId                String          @unique
+  room                  ChatRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  // 共识统计
+  consensusPoints       Json            // [{messageId, content, confidence, createdAt, participants: [userId1, userId2]}]
+  consensusScore        Float           @default(0) // 0-1，1表示完全一致
+  consensusTrend        Json            // 时间序列数据 [{timestamp, score, count}]
+  
+  // 分歧统计
+  disagreementPoints    Json            // [{messageId1, messageId2, type, severity, reason, createdAt}]
+  divergenceScore       Float           @default(0) // 0-1，1表示完全分歧
+  divergenceTrend       Json            // 时间序列数据
+  
+  // 讨论质量指标
+  averageDepth          Float           @default(0) // 平均引用深度
+  maxDepth              Int             @default(0) // 最大引用深度
+  totalReferences       Int             @default(0) // 总引用数
+  aiAdoptionRate        Float           @default(0) // AI 采纳率（采纳数/建议数）
+  
+  // 参与度统计
+  creatorMessageCount       Int         @default(0)
+  participantMessageCount   Int         @default(0)
+  creatorAiAdoptionCount    Int         @default(0)
+  participantAiAdoptionCount Int        @default(0)
+  creatorAiSuggestionCount  Int         @default(0)
+  participantAiSuggestionCount Int      @default(0)
+  
+  // 监督 AI 统计
+  totalWarnings         Int             @default(0) // 总警告数
+  creatorWarnings        Int             @default(0) // 创建者警告数
+  participantWarnings    Int             @default(0) // 参与者警告数
+  blockedMessages        Int             @default(0) // 被阻止的消息数
+  
+  // 时间戳
+  lastAnalyzedAt        DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  @@index([roomId])
+  @@index([lastAnalyzedAt])
+}
+
+// 聊天室邀请模型
+model ChatInvitation {
+  id                    String            @id @default(cuid())
+  roomId                String
+  room                  ChatRoom          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  inviterId             String
+  inviter               User              @relation("SentInvitations", fields: [inviterId], references: [id])
+  inviteeId             String
+  invitee               User              @relation("ReceivedInvitations", fields: [inviteeId], references: [id])
+  
+  // 邀请状态
+  status                InvitationStatus  @default(PENDING)
+  token                 String            @unique // 邀请令牌（用于 URL 分享）
+  
+  // 时间戳
+  expiresAt             DateTime
+  acceptedAt            DateTime?
+  rejectedAt            DateTime?
+  createdAt             DateTime          @default(now())
+  
+  @@unique([roomId, inviteeId]) // 每个用户对每个房间只能有一个邀请
+  @@index([inviteeId])
+  @@index([status])
+  @@index([token])
+  @@index([expiresAt])
+}

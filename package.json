@@ -1,0 +1,27 @@
+{
+  "name": "linklore",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @linklore/web dev",
+    "build": "pnpm -r run build",
+    "start": "pnpm --filter @linklore/web start",
+    "lint": "pnpm -r run lint",
+    "format": "pnpm -r run format",
+    "test": "pnpm --filter @linklore/web test",
+    "test:ui": "pnpm --filter @linklore/web test:ui",
+    "test:coverage": "pnpm --filter @linklore/web test:coverage",
+    "prisma:generate": "pnpm --filter @linklore/web prisma:generate",
+    "prisma:migrate": "pnpm --filter @linklore/web prisma:migrate"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "devDependencies": {
+    "prisma": "5.19.0"
+  },
+  "dependencies": {
+    "@prisma/client": "5.19.0"
+  }
+}
