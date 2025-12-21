@@ -12,7 +12,8 @@ import { marked } from 'marked';
 const getPdfParse = async () => {
 	const pdfParse = await import('pdf-parse');
 	// pdf-parse 可能是 default export 或者 named export
-	return (pdfParse as any).default || pdfParse;
+	// 使用类型断言避免类型检查错误
+	return (pdfParse as any).default || (pdfParse as any);
 };
 
 const pExecFile = promisify(execFile);

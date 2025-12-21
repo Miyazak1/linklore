@@ -3,18 +3,19 @@
 		"target": "ES2022",
 		"lib": ["es2022"],
 		"module": "esnext",
-		"moduleResolution": "bundler",
+		"moduleResolution": "node",
 		"outDir": "dist",
 		"esModuleInterop": true,
 		"strict": true,
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
+		"types": ["node"],
 		"baseUrl": "../..",
 		"paths": {
 			"@/*": ["apps/web/*"]
 		}
 	},
-	"include": ["./**/*.ts", "../shim/**/*.ts"],
+	"include": ["./**/*.ts", "../shim/**/*.ts", "./global.d.ts"],
 	"ts-node": {
 		"require": ["tsconfig-paths/register"]
 	}
