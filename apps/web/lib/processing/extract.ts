@@ -9,7 +9,10 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { marked } from 'marked';
 // pdf-parse is a CommonJS module, use dynamic import
-const getPdfParse = () => import('pdf-parse').then(m => m.default || m);
+const getPdfParse = async () => {
+	const pdfParse = await import('pdf-parse');
+	return pdfParse.default || pdfParse;
+};
 
 const pExecFile = promisify(execFile);
 

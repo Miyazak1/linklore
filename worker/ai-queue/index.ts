@@ -166,12 +166,7 @@ async function processUserPairAnalysis(job: any) {
 	return job.id;
 }
 
-async function processTraceAnalysis(job: any) {
-	const { traceId } = job.data as { traceId: string };
-	const { analyzeTrace } = await import('../shim/traceAnalysis.js');
-	await analyzeTrace(traceId);
-	return job.id;
-}
+// 语义溯源功能已移除
 
 async function processModeration(job: any) {
 	const { messageId, roomId } = job.data as { messageId: string; roomId: string };
@@ -248,7 +243,7 @@ export function registerWorkers() {
 					if (job.name === 'analyzeDisagreements') return await processAnalyzeDisagreements(job);
 					if (job.name === 'trackConsensus') return await processTrackConsensus(job);
 					if (job.name === 'userPairAnalysis') return await processUserPairAnalysis(job);
-					if (job.name === 'traceAnalysis') return await processTraceAnalysis(job);
+					// 语义溯源功能已移除
 					if (job.name === 'moderate') return await processModeration(job);
 					if (job.name === 'chatAnalysis') return await processChatAnalysis(job);
 					throw new Error(`Unknown job: ${job.name}`);

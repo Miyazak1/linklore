@@ -206,7 +206,7 @@ async function analyzePair(
 	try {
 		const result = await routeAiCall({
 			userId: doc1.authorId, // 使用文档1的作者ID
-			task: 'analyze',
+			task: 'evaluate',
 			estimatedMaxCostCents: 30,
 			prompt
 		});

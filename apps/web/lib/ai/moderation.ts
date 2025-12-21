@@ -372,13 +372,9 @@ async function updateRoomAnalysisStats(
 				totalWarnings: result.status === 'WARNING' ? { increment: 1 } : undefined,
 				blockedMessages: result.status === 'BLOCKED' ? { increment: 1 } : undefined,
 				creatorWarnings:
-					result.status === 'WARNING' && senderId === room.creatorId
-						? { increment: 1 }
-						: undefined,
+					result.status === 'WARNING' && senderId === room.creatorId ? { increment: 1 } : undefined,
 				participantWarnings:
-					result.status === 'WARNING' && senderId === room.participantId
-						? { increment: 1 }
-						: undefined,
+					result.status === 'WARNING' && senderId === room.participantId ? { increment: 1 } : undefined,
 				lastAnalyzedAt: new Date()
 			},
 			create: {
@@ -389,6 +385,16 @@ async function updateRoomAnalysisStats(
 				disagreementPoints: [],
 				divergenceScore: 0,
 				divergenceTrend: [],
+				averageDepth: 0,
+				maxDepth: 0,
+				totalReferences: 0,
+				aiAdoptionRate: 0,
+				creatorMessageCount: 0,
+				participantMessageCount: 0,
+				creatorAiAdoptionCount: 0,
+				participantAiAdoptionCount: 0,
+				creatorAiSuggestionCount: 0,
+				participantAiSuggestionCount: 0,
 				totalWarnings: result.status === 'WARNING' ? 1 : 0,
 				blockedMessages: result.status === 'BLOCKED' ? 1 : 0,
 				creatorWarnings:

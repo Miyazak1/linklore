@@ -187,7 +187,7 @@ export async function getDocumentDepth(documentId: string): Promise<number> {
 
 	// 向上遍历到根节点
 	while (currentId) {
-		const doc = await prisma.document.findUnique({
+		const doc: { parentId: string | null } | null = await prisma.document.findUnique({
 			where: { id: currentId },
 			select: { parentId: true }
 		});
@@ -216,7 +216,7 @@ export async function getDocumentPath(documentId: string): Promise<string[]> {
 	let currentId: string | null = documentId;
 
 	while (currentId) {
-		const doc = await prisma.document.findUnique({
+		const doc: { id: string; parentId: string | null } | null = await prisma.document.findUnique({
 			where: { id: currentId },
 			select: { id: true, parentId: true }
 		});
