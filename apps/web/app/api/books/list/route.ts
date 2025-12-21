@@ -45,13 +45,13 @@ export async function GET(req: NextRequest) {
 		};
 		console.log('[Books List API] 原始查询参数:', JSON.stringify(rawParams, null, 2));
 		console.log('[Books List API] search原始值:', rawParams.search, '类型:', typeof rawParams.search);
-		log.info('原始查询参数:', JSON.stringify(rawParams, null, 2));
-		log.info('search原始值:', rawParams.search, '类型:', typeof rawParams.search);
+		log.info('原始查询参数', { rawParams });
+		log.info('search原始值', { search: rawParams.search, type: typeof rawParams.search });
 		const params = querySchema.parse(rawParams);
 		console.log('[Books List API] 解析后的参数:', JSON.stringify(params, null, 2));
 		console.log('[Books List API] params.search值:', params.search, '类型:', typeof params.search, 'trim后:', params.search?.trim());
-		log.info('解析后的参数:', JSON.stringify(params, null, 2));
-		log.info('params.search值:', params.search, '类型:', typeof params.search, 'trim后:', params.search?.trim());
+		log.info('解析后的参数', { params });
+		log.info('params.search值', { search: params.search, type: typeof params.search, trimmed: params.search?.trim() });
 
 		const skip = (params.page - 1) * params.limit;
 
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
 				],
 			};
 			console.log('[Books List API] 搜索条件对象:', JSON.stringify(searchCondition, null, 2));
-			log.info('搜索条件对象:', JSON.stringify(searchCondition, null, 2));
+			log.info('搜索条件对象', { searchCondition });
 			whereConditions.push(searchCondition);
 		} else {
 			console.log('[Books List API] 没有搜索条件或搜索条件为空');
@@ -115,8 +115,8 @@ export async function GET(req: NextRequest) {
 		// 调试：打印查询条件
 		console.log('[Books List API] 构建的查询条件:', JSON.stringify(where, null, 2));
 		console.log('[Books List API] whereConditions数量:', whereConditions.length);
-		log.info('构建的查询条件:', JSON.stringify(where, null, 2));
-		log.info('whereConditions数量:', whereConditions.length);
+		log.info('构建的查询条件', { where });
+		log.info('whereConditions数量', { count: whereConditions.length });
 
 		// 获取总数
 		const total = await prisma.book.count({ where });
@@ -135,9 +135,9 @@ export async function GET(req: NextRequest) {
 		}
 
 		// 查询书籍
-		log.info('查询条件:', JSON.stringify(where, null, 2));
-		log.info('排序:', JSON.stringify(orderBy, null, 2));
-		log.info('分页: skip=', skip, 'take=', params.limit);
+		log.info('查询条件', { where });
+		log.info('排序', { orderBy });
+		log.info('分页', { skip, take: params.limit });
 		
 		const books = await prisma.book.findMany({
 			where,
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
 		log.info(`查询结果: ${books.length} 本书`);
 		if (books.length > 0) {
 			console.log('[Books List API] 书籍列表:', books.map(b => ({ id: b.id, title: b.title, author: b.author })));
-			log.info('书籍列表:', books.map(b => ({ id: b.id, title: b.title, author: b.author })));
+			log.info('书籍列表', { books: books.map(b => ({ id: b.id, title: b.title, author: b.author })) });
 		} else {
 			console.log('[Books List API] 未找到匹配的书籍');
 			log.warn('未找到匹配的书籍');
@@ -173,7 +173,7 @@ export async function GET(req: NextRequest) {
 			if (allBooksCount > 0) {
 				const sampleBooks = await prisma.book.findMany({ take: 3, select: { id: true, title: true, author: true } });
 				console.log('[Books List API] 示例书籍:', sampleBooks);
-				log.info('示例书籍:', sampleBooks);
+				log.info('示例书籍', { sampleBooks });
 			}
 		}
 
@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
 			]);
 		} catch (err) {
 			// 如果字段不存在，使用空数组
-			log.warn('获取分类和标签失败，可能字段尚未迁移', err as Error);
+			log.warn('获取分类和标签失败，可能字段尚未迁移', { error: err });
 		}
 
 		const uniqueCategories = Array.from(new Set(
