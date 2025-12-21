@@ -127,7 +127,7 @@ export default function DailyIssueAnalyticsPage() {
 						}}
 					/>
 					<button
-						onClick={loadAnalytics}
+						onClick={() => loadAnalytics()}
 						style={{
 							padding: '10px 20px',
 							background: 'var(--color-primary)',
