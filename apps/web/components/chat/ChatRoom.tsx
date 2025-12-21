@@ -2551,14 +2551,14 @@ export default function ChatRoom({ roomId, inviteToken: propInviteToken, onRoomJ
 								// 判断消息是否属于当前用户
 								// 无论是用户消息还是AI消息，只要senderId是当前用户，就是"我的消息"
 								// AI主持人消息不属于任何用户，始终左对齐
-								const isAiHostMessage = message.contentType === 'AI_SUGGESTION' && message.content.includes('AI主持人');
-								const isMyMessage = currentUserId && message.senderId === currentUserId;
-								
-								// AI消息（AI_SUGGESTION）始终左对齐，因为这是AI的回答，面向整个房间
-								// 无论是SOLO还是DUO，当前用户的消息（非AI）在左边，对方的消息在右边
-								// AI主持人消息始终左对齐
-								const isAiMessage = message.contentType === 'AI_SUGGESTION' || message.contentType === 'AI_ADOPTED';
-								const isLeftAligned = isAiHostMessage || isAiMessage || isMyMessage;
+							const isAiHostMessage = message.contentType === 'AI_SUGGESTION' && message.content.includes('AI主持人');
+							const isMyMessage = !!(currentUserId && message.senderId === currentUserId);
+							
+							// AI消息（AI_SUGGESTION）始终左对齐，因为这是AI的回答，面向整个房间
+							// 无论是SOLO还是DUO，当前用户的消息（非AI）在左边，对方的消息在右边
+							// AI主持人消息始终左对齐
+							const isAiMessage = message.contentType === 'AI_SUGGESTION' || message.contentType === 'AI_ADOPTED';
+							const isLeftAligned = !!(isAiHostMessage || isAiMessage || isMyMessage);
 								
 								// 调试日志（仅在开发环境）
 								if (process.env.NODE_ENV === 'development' && messages.length <= 2) {
