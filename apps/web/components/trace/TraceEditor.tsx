@@ -598,133 +598,133 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 							<span>选中文本后，点击引用列表中的"插入引用"按钮，可在选中文本后插入引用标记</span>
 						</div>
 						<div style={{ position: 'relative' }}>
-									<textarea
-										ref={bodyTextareaRef}
-										name="body"
-										value={formData.body}
-										onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-										onSelect={(e) => {
-											const target = e.target as HTMLTextAreaElement;
-											setSelectionRange({
-												start: target.selectionStart,
-												end: target.selectionEnd
-											});
-										}}
-										placeholder="输入正文内容（Markdown格式）...选中文本后点击引用列表的插入引用按钮"
-										rows={20}
-										style={{
-											width: '100%',
-											padding: '16px',
-											border: '2px solid var(--color-border)',
-											borderRadius: 'var(--radius-md)',
-											fontSize: 'var(--font-size-base)',
-											fontFamily: 'monospace',
-											resize: 'vertical',
-											lineHeight: 1.8,
-											position: 'relative',
-											zIndex: 1,
-											background: 'var(--color-background-paper)',
-											color: 'var(--color-text-primary)',
-											transition: 'all var(--transition-fast)',
-											boxShadow: 'var(--shadow-xs)'
-										}}
-										onFocus={(e) => {
-											e.currentTarget.style.borderColor = 'var(--color-primary)';
-											e.currentTarget.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.1)';
-										}}
-										onBlur={(e) => {
-											e.currentTarget.style.borderColor = 'var(--color-border)';
-											e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-										}}
-									/>
-									{/* 选中文本的高亮覆盖层 */}
-									{selectionRange && selectionRange.start !== selectionRange.end && (
-										<div
-											style={{
-												position: 'absolute',
-												top: '12px',
-												left: '12px',
-												right: '12px',
-												bottom: '12px',
-												pointerEvents: 'none',
-												fontSize: 'var(--font-size-base)',
-												fontFamily: 'monospace',
-												lineHeight: 1.6,
-												whiteSpace: 'pre-wrap',
-												overflow: 'hidden',
-												zIndex: 0
-											}}
-										>
-											<span style={{ color: 'transparent' }}>
-												{formData.body.slice(0, selectionRange.start)}
-											</span>
-											<span
-												style={{
-													background: 'rgba(33, 150, 243, 0.12)',
-													borderRadius: '2px',
-													padding: '0 1px',
-													borderBottom: '1.5px solid rgba(33, 150, 243, 0.3)',
-													color: 'transparent'
-												}}
-											>
-												{formData.body.slice(selectionRange.start, selectionRange.end)}
-											</span>
-											<span style={{ color: 'transparent' }}>
-												{formData.body.slice(selectionRange.end)}
-											</span>
-										</div>
-									)}
-								</div>
-								<div style={{ 
-									fontSize: 'var(--font-size-sm)', 
-									color: 'var(--color-text-secondary)', 
-									marginTop: 'var(--spacing-sm)',
-									display: 'flex',
-									alignItems: 'center',
-									gap: 'var(--spacing-md)'
-								}}>
-									<span>字数: <strong style={{ color: 'var(--color-text-primary)' }}>{formData.body.length}</strong> / 50000</span>
-									{selectionRange && selectionRange.start !== selectionRange.end && (
-										<span style={{ 
-											color: 'var(--color-primary)', 
-											fontWeight: 600,
-											display: 'inline-flex',
-											alignItems: 'center',
-											gap: 'var(--spacing-xs)'
-										}}>
-											<span>✓</span>
-											<span>已选中 {selectionRange.end - selectionRange.start} 个字符</span>
-										</span>
-									)}
-								</div>
-							</div>
-							{/* 预览区域 */}
-							<div>
-								<div style={{ 
-									marginBottom: 'var(--spacing-sm)',
-									fontSize: 'var(--font-size-sm)',
-									color: 'var(--color-text-secondary)',
-									fontWeight: 500
-								}}>
-									实时预览
-								</div>
+							<textarea
+								ref={bodyTextareaRef}
+								name="body"
+								value={formData.body}
+								onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+								onSelect={(e) => {
+									const target = e.target as HTMLTextAreaElement;
+									setSelectionRange({
+										start: target.selectionStart,
+										end: target.selectionEnd
+									});
+								}}
+								placeholder="输入正文内容（Markdown格式）...选中文本后点击引用列表的插入引用按钮"
+								rows={20}
+								style={{
+									width: '100%',
+									padding: '16px',
+									border: '2px solid var(--color-border)',
+									borderRadius: 'var(--radius-md)',
+									fontSize: 'var(--font-size-base)',
+									fontFamily: 'monospace',
+									resize: 'vertical',
+									lineHeight: 1.8,
+									position: 'relative',
+									zIndex: 1,
+									background: 'var(--color-background-paper)',
+									color: 'var(--color-text-primary)',
+									transition: 'all var(--transition-fast)',
+									boxShadow: 'var(--shadow-xs)'
+								}}
+								onFocus={(e) => {
+									e.currentTarget.style.borderColor = 'var(--color-primary)';
+									e.currentTarget.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.1)';
+								}}
+								onBlur={(e) => {
+									e.currentTarget.style.borderColor = 'var(--color-border)';
+									e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
+								}}
+							/>
+							{/* 选中文本的高亮覆盖层 */}
+							{selectionRange && selectionRange.start !== selectionRange.end && (
 								<div
 									style={{
-										position: 'relative',
-										padding: '16px',
-										border: '2px solid var(--color-border-light)',
-										borderRadius: 'var(--radius-md)',
-										background: 'var(--color-background-subtle)',
-										minHeight: '400px',
-										maxHeight: '500px',
-										overflow: 'auto',
+										position: 'absolute',
+										top: '12px',
+										left: '12px',
+										right: '12px',
+										bottom: '12px',
+										pointerEvents: 'none',
 										fontSize: 'var(--font-size-base)',
-										lineHeight: 1.8,
+										fontFamily: 'monospace',
+										lineHeight: 1.6,
 										whiteSpace: 'pre-wrap',
-										boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.02)'
+										overflow: 'hidden',
+										zIndex: 0
 									}}
 								>
-									{formData.body ? (
+									<span style={{ color: 'transparent' }}>
+										{formData.body.slice(0, selectionRange.start)}
+									</span>
+									<span
+										style={{
+											background: 'rgba(33, 150, 243, 0.12)',
+											borderRadius: '2px',
+											padding: '0 1px',
+											borderBottom: '1.5px solid rgba(33, 150, 243, 0.3)',
+											color: 'transparent'
+										}}
+									>
+										{formData.body.slice(selectionRange.start, selectionRange.end)}
+									</span>
+									<span style={{ color: 'transparent' }}>
+										{formData.body.slice(selectionRange.end)}
+									</span>
+								</div>
+							)}
+						</div>
+						<div style={{ 
+							fontSize: 'var(--font-size-sm)', 
+							color: 'var(--color-text-secondary)', 
+							marginTop: 'var(--spacing-sm)',
+							display: 'flex',
+							alignItems: 'center',
+							gap: 'var(--spacing-md)'
+						}}>
+							<span>字数: <strong style={{ color: 'var(--color-text-primary)' }}>{formData.body.length}</strong> / 50000</span>
+							{selectionRange && selectionRange.start !== selectionRange.end && (
+								<span style={{ 
+									color: 'var(--color-primary)', 
+									fontWeight: 600,
+									display: 'inline-flex',
+									alignItems: 'center',
+									gap: 'var(--spacing-xs)'
+								}}>
+									<span>✓</span>
+									<span>已选中 {selectionRange.end - selectionRange.start} 个字符</span>
+								</span>
+							)}
+						</div>
+					</div>
+					{/* 预览区域 */}
+					<div>
+						<div style={{ 
+							marginBottom: 'var(--spacing-sm)',
+							fontSize: 'var(--font-size-sm)',
+							color: 'var(--color-text-secondary)',
+							fontWeight: 500
+						}}>
+							实时预览
+						</div>
+						<div
+							style={{
+								position: 'relative',
+								padding: '16px',
+								border: '2px solid var(--color-border-light)',
+								borderRadius: 'var(--radius-md)',
+								background: 'var(--color-background-subtle)',
+								minHeight: '400px',
+								maxHeight: '500px',
+								overflow: 'auto',
+								fontSize: 'var(--font-size-base)',
+								lineHeight: 1.8,
+								whiteSpace: 'pre-wrap',
+								boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.02)'
+							}}
+						>
+							{formData.body ? (
 										<>
 											<CitationRenderer
 												body={formData.body}
@@ -807,8 +807,6 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 											预览将在这里显示，引用标记会高亮显示
 										</div>
 									)}
-								</div>
-							</div>
 						</div>
 					</div>
 				</div>

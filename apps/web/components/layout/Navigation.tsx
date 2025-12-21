@@ -84,7 +84,8 @@ export default function Navigation() {
 	const navItems = [
 		{ href: '/', label: '首页', icon: HomeIcon },
 		{ href: '/upload', label: '讨论版', icon: MessageIcon },
-		{ href: '/traces', label: '语义溯源', icon: SearchIcon },
+		// 暂时禁用语义溯源功能，后期改造后再启用
+		// { href: '/traces', label: '语义溯源', icon: SearchIcon },
 		{ href: '/library', label: '图书馆', icon: LibraryIcon },
 		{ href: '/digest', label: '周报摘要', icon: ChartIcon },
 	];

@@ -159,21 +159,8 @@ export async function updateTrace(traceId: string, data: UpdateTraceData, userId
 
 	// 更新溯源（使用事务）
 	const updated = await prisma.$transaction(async (tx) => {
-		// 更新溯源
-		const updatedTrace = await tx.trace.update({
-			where: { id: traceId },
-			data: {
-				...(data.title && { title: data.title }),
-				...(data.traceType && { traceType: data.traceType }),
-				...(data.target && { target: data.target }),
-				...(data.body && { body: data.body }),
-				...(data.citations && { citations: data.citations as any }),
-				version: trace.version + 1,
-				previousVersionId: traceId // 记录上一版本
-			}
-		});
-
-		// 如果更新了引用，同步更新Citation表
+		// 如果更新了引用，先处理引用关系字段
+		let citationsJson: any[] | undefined;
 		if (data.citations) {
 			// 删除旧引用
 			await tx.citation.deleteMany({
@@ -181,7 +168,7 @@ export async function updateTrace(traceId: string, data: UpdateTraceData, userId
 			});
 
 			// 创建新引用
-			await Promise.all(
+			const newCitations = await Promise.all(
 				data.citations.map((citation, idx) =>
 					tx.citation.create({
 						data: {
@@ -200,7 +187,54 @@ export async function updateTrace(traceId: string, data: UpdateTraceData, userId
 					})
 				)
 			);
+			
+			// 从关系字段生成 JSON 字段，确保数据一致性
+			citationsJson = newCitations.map((c) => ({
+				id: c.id,
+				url: c.url,
+				title: c.title,
+				author: c.author,
+				publisher: c.publisher,
+				year: c.year,
+				type: c.type,
+				quote: c.quote,
+				page: c.page,
+				order: c.order
+			}));
 		}
+
+		// 更新溯源
+		// previousVersionId 逻辑说明：
+		// 由于版本号递增但ID不变，previousVersionId 的设计存在局限性
+		// 当前实现：只在首次更新（version 1 -> 2）时设置 previousVersionId = null
+		// 后续更新不改变 previousVersionId，因为ID不变，无法真正指向"上一版本"
+		// 注意：如果需要真正的版本历史，应该考虑创建新记录（新ID）而不是更新现有记录
+		const updateData: any = {
+			...(data.title && { title: data.title }),
+			...(data.traceType && { traceType: data.traceType }),
+			...(data.target && { target: data.target }),
+			...(data.body && { body: data.body }),
+			// 如果更新了引用，使用从关系字段生成的 JSON（确保一致性）
+			// 否则使用传入的 citations（如果没有更新引用，保持原值）
+			...(citationsJson !== undefined 
+				? { citations: citationsJson as any }
+				: data.citations !== undefined 
+					? { citations: data.citations as any }
+					: {}
+			),
+			version: trace.version + 1
+		};
+		
+		// 只在首次更新时设置 previousVersionId = null（表示这是第一次更新，没有上一版本）
+		// 后续更新不改变 previousVersionId，因为ID不变，无法真正指向"上一版本"
+		if (trace.version === 1) {
+			updateData.previousVersionId = null;
+		}
+		
+		const updatedTrace = await tx.trace.update({
+			where: { id: traceId },
+			data: updateData
+		});
 
 		return updatedTrace;
 	});

@@ -85,6 +85,17 @@ export async function createEntryFromTrace(
 		throw new Error('只能采纳已发布的溯源');
 	}
 
+	// 检查AI分析结果和可信度
+	if (!trace.analysis) {
+		throw new Error('溯源尚未完成AI分析，无法批准');
+	}
+
+	if (!trace.analysis.canApprove) {
+		throw new Error(
+			`溯源可信度不足（可信度 ${trace.analysis.credibilityScore.toFixed(2)} < 0.7），无法批准。请根据AI分析建议改进后重新发布。`
+		);
+	}
+
 	// 检查是否已有词条
 	const existingEntry = await tx.entry.findUnique({
 		where: { sourceTraceId: traceId },

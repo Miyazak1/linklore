@@ -250,9 +250,13 @@ export default function EntryDetail({ slug }: Props) {
 				<div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
 					<p style={{ margin: 'var(--spacing-xs) 0' }}>
 						<strong>来源溯源：</strong>
-						<Link href={`/traces/${entry.sourceTrace.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+						{/* 暂时禁用语义溯源功能，后期改造后再启用 */}
+						{/* <Link href={`/traces/${entry.sourceTrace.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
 							{entry.sourceTrace.title}
-						</Link>
+						</Link> */}
+						<span style={{ color: 'var(--color-text-secondary)' }}>
+							{entry.sourceTrace.title}（功能暂时禁用）
+						</span>
 					</p>
 					<p style={{ margin: 'var(--spacing-xs) 0' }}>
 						<strong>编辑：</strong>
