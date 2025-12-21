@@ -864,7 +864,7 @@ export default function ChatMessage({
 							return isAiSuggestion && onRegenerate && !isAdopted;
 						})() && (
 							<button
-								onClick={() => onRegenerate(id)}
+								onClick={() => onRegenerate?.(id)}
 								disabled={isStreaming}
 								title="重新生成回答"
 								style={{
