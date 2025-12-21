@@ -15,13 +15,16 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 		} else {
 			const client = getOssClient();
 			const object = await client.get(doc.fileKey);
+			if (!object.content) {
+				return NextResponse.json({ error: '文件内容为空' }, { status: 404 });
+			}
 			buffer = Buffer.isBuffer(object.content) ? object.content : Buffer.from(object.content);
 		}
 
 		// Determine filename from fileKey
 		const filename = doc.fileKey.split('/').pop() || `document-${doc.id}`;
 
-		return new NextResponse(buffer, {
+		return new NextResponse(new Uint8Array(buffer), {
 			headers: {
 				'Content-Type': doc.mime,
 				'Content-Disposition': `attachment; filename="${filename}"`
