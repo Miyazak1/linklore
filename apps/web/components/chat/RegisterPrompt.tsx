@@ -238,10 +238,7 @@ export default function RegisterPrompt({ isGuest, onRegisterSuccess }: RegisterP
 							fontSize: '14px',
 							outline: 'none',
 							boxSizing: 'border-box',
-							transition: 'border-color 0.2s',
-							'&:focus': {
-								borderColor: 'var(--color-primary)'
-							}
+							transition: 'border-color 0.2s'
 						}}
 						onFocus={(e) => {
 							e.currentTarget.style.borderColor = 'var(--color-primary)';
