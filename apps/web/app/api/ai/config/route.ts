@@ -8,7 +8,6 @@ const Schema = z.object({
 	model: z.string().min(1),
 	apiKey: z.string().min(10),
 	apiEndpoint: z.string().url().optional().or(z.literal('')),
-	aiNickname: z.string().max(50).optional(), // AI昵称（可选，最多50字符）
 	persist: z.boolean().optional().default(true)
 });
 
@@ -40,7 +39,6 @@ export async function POST(req: Request) {
 				model, 
 				encApiKey, 
 				apiEndpoint: apiEndpoint || null,
-				aiNickname: aiNickname || null,
 				persist 
 			},
 			create: { 
@@ -49,7 +47,6 @@ export async function POST(req: Request) {
 				model, 
 				encApiKey,
 				apiEndpoint: apiEndpoint || null,
-				aiNickname: aiNickname || null,
 				persist 
 			}
 		});
