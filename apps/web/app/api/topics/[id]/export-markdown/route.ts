@@ -48,14 +48,19 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
 				if (Array.isArray(summary.claims) && summary.claims.length > 0) {
 					markdown += `**核心观点**:\n`;
-					summary.claims.forEach((claim: string) => {
-						markdown += `- ${claim}\n`;
+					summary.claims.forEach((claim) => {
+						if (typeof claim === 'string' && claim) {
+							markdown += `- ${claim}\n`;
+						}
 					});
 					markdown += `\n`;
 				}
 
 				if (Array.isArray(summary.keywords) && summary.keywords.length > 0) {
-					markdown += `**关键词**: ${summary.keywords.join(', ')}\n\n`;
+					const validKeywords = summary.keywords.filter((k): k is string => typeof k === 'string' && k);
+					if (validKeywords.length > 0) {
+						markdown += `**关键词**: ${validKeywords.join(', ')}\n\n`;
+					}
 				}
 			}
 
