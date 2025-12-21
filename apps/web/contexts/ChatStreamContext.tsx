@@ -22,7 +22,8 @@ interface ChatStreamContextType {
 		context?: Array<{ role: 'user' | 'assistant'; content: string }>,
 		taskType?: 'structure' | 'tone' | 'consensus' | 'library',
 		pluginType?: 'concept_clarifier' | 'reasoning_analyzer' | 'counter_perspective' | 'socratic_guide' | 'writing_structurer' | 'learning_navigator' | 'thought_log' | 'practice_framework',
-		facilitatorMode?: 'v1' | 'v2' | 'v3'
+		facilitatorMode?: 'v1' | 'v2' | 'v3',
+		aiRole?: 'assistant' | 'facilitator'
 	) => void;
 	stopStream: (messageId: string) => void;
 	getStreamState: (messageId: string) => StreamState | undefined;
