@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
+import { prisma } from '@/lib/db/client';
 import { chatDb } from '@/lib/modules/chat/db';
 import { requireRoomAccess } from '@/lib/security/roomAccess';
 import { broadcastDefaultMessage } from '@/lib/realtime/roomConnections';
@@ -180,7 +181,7 @@ export async function POST(
 							}
 						}
 					}
-				});
+				}) as any; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 
 				// 立即通过SSE广播新消息给房间内所有用户
 				const messageData = {
@@ -194,11 +195,11 @@ export async function POST(
 					moderationNote: hostMessage.moderationNote,
 					moderationDetails: hostMessage.moderationDetails,
 					isAdopted: hostMessage.isAdopted,
-					references: (hostMessage.references || []).map((ref) => ({
+					references: (hostMessage.references || []).map((ref: any) => ({
 						id: ref.id,
 						content: ref.referencedMessage?.content || '',
 						senderName: ref.referencedMessage?.sender?.name || ref.referencedMessage?.sender?.email || '未知用户'
-					})).filter(ref => ref.content)
+					})).filter((ref: any) => ref.content)
 				};
 
 				console.log(`[Charter] ✅ 创建AI主持人消息完成，准备广播`, {

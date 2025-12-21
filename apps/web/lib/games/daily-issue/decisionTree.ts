@@ -199,7 +199,7 @@ export async function findResultTemplate(
 	let bestMatchLength = 0;
 
 	for (const result of results) {
-		const pattern = result.pathPattern as PathPattern;
+			const pattern = result.pathPattern as unknown as PathPattern;
 
 		// 检查阶段匹配
 		const pathStages = path.map((step) => step.stage);
@@ -216,7 +216,7 @@ export async function findResultTemplate(
 		if (patternNodeKeys.length === 0) {
 			// 如果没有指定节点key，匹配所有路径
 			if (patternNodeKeys.length > bestMatchLength) {
-				bestMatch = result;
+				bestMatch = result as unknown as IssueResult;
 				bestMatchLength = patternNodeKeys.length;
 			}
 			continue;
@@ -235,7 +235,7 @@ export async function findResultTemplate(
 		// 如果所有pattern节点都匹配了
 		if (patternIndex === patternNodeKeys.length) {
 			if (patternNodeKeys.length > bestMatchLength) {
-				bestMatch = result;
+				bestMatch = result as unknown as IssueResult;
 				bestMatchLength = patternNodeKeys.length;
 			}
 		}

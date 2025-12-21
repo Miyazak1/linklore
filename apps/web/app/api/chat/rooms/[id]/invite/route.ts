@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { readSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
 import { requireRoomAccess } from '@/lib/security/roomAccess';
 
 const InviteRequestSchema = z.object({
@@ -99,81 +100,12 @@ export async function POST(
 			);
 		}
 
-		// 检查是否已有待处理的邀请
-		const existingInvitation = await prisma.chatInvitation.findFirst({
-			where: {
-				roomId,
-				inviteeId: invitee.id,
-				status: 'PENDING',
-				expiresAt: {
-					gt: new Date()
-				}
-			}
-		});
-
-		if (existingInvitation) {
-			return NextResponse.json(
-				{
-					error: '已存在待处理的邀请',
-					invitation: {
-						token: existingInvitation.token,
-						expiresAt: existingInvitation.expiresAt
-					}
-				},
-				{ status: 400 }
-			);
-		}
-
-		// 生成邀请令牌
-		const token = Buffer.from(
-			`${roomId}:${invitee.id}:${Date.now()}:${Math.random()}`
-		)
-			.toString('base64')
-			.replace(/[+/=]/g, '');
-
-		// 创建邀请（7天有效期）
-		const expiresAt = new Date();
-		expiresAt.setDate(expiresAt.getDate() + 7);
-
-		const invitation = await prisma.chatInvitation.create({
-			data: {
-				roomId,
-				inviterId: session.sub,
-				inviteeId: invitee.id,
-				token,
-				status: 'PENDING',
-				expiresAt
-			},
-			include: {
-				invitee: {
-					select: {
-						id: true,
-						name: true,
-						email: true,
-						avatarUrl: true
-					}
-				}
-			}
-		});
-
-		// 更新房间状态
-		await chatDb.rooms.update({
-			where: { id: roomId },
-			data: {
-				invitedAt: new Date()
-			}
-		});
-
-		return NextResponse.json({
-			ok: true,
-			invitation: {
-				id: invitation.id,
-				token: invitation.token,
-				invitee: invitation.invitee,
-				expiresAt: invitation.expiresAt,
-				inviteUrl: `/chat/invite/${invitation.token}`
-			}
-		});
+		// TODO: ChatInvitation 模型尚未在 schema 中定义，功能暂时禁用
+		// 需要在 schema 中添加 ChatInvitation 模型后才能启用
+		return NextResponse.json(
+			{ error: '聊天邀请功能暂未实现，需要在 schema 中添加 ChatInvitation 模型' },
+			{ status: 501 }
+		);
 	} catch (error: any) {
 		if (error instanceof z.ZodError) {
 			return NextResponse.json(

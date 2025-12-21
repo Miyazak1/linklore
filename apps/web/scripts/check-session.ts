@@ -50,8 +50,7 @@ async function checkSession() {
 					email: true,
 					name: true,
 					role: true,
-					createdAt: true,
-					updatedAt: true
+					createdAt: true
 				}
 			});
 
@@ -66,7 +65,6 @@ async function checkSession() {
 				console.log(`   - Name: ${user.name || 'N/A'}`);
 				console.log(`   - Role: ${user.role}`);
 				console.log(`   - Created: ${user.createdAt.toISOString()}`);
-				console.log(`   - Updated: ${user.updatedAt.toISOString()}`);
 			}
 		}
 

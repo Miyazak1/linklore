@@ -82,7 +82,7 @@ export default function BookFilterBar({
 	};
 
 	const handleClearFilters = () => {
-		const cleared = { sort: 'latest' };
+		const cleared: FilterOptions = { sort: 'latest' };
 		setLocalFilters(cleared);
 		setSearchInput('');
 		onFiltersChange(cleared);

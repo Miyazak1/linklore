@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { SearchIcon } from '@/components/ui/Icons';
+import { SearchIcon, PlusIcon } from '@/components/ui/Icons';
 
 export default function BookSearch() {
 	const [query, setQuery] = useState('');

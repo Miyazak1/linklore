@@ -159,7 +159,7 @@ export default function DocumentViewer({ doc, docIndex, blind }: { doc: Doc; doc
 														       typeof value === 'number' && value >= 6 ? 'var(--color-warning)' : 
 														       'var(--color-text-primary)'
 													}}>
-														{typeof value === 'number' ? `${value}/10` : value || 'N/A'}
+														{typeof value === 'number' ? `${value}/10` : (typeof value === 'string' ? value : 'N/A')}
 													</span>
 												</div>
 											))}

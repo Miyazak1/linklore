@@ -42,7 +42,15 @@ export function cleanHtml(dirty: string) {
 		},
 		allowProtocolRelative: false,
 		transformTags: {
-			a: sanitizeHtml.simpleTransform('a', { rel: 'nofollow noreferrer noopener' })
+			a: (tagName: string, attribs: any) => {
+				return {
+					tagName: 'a',
+					attribs: {
+						...attribs,
+						rel: 'nofollow noreferrer noopener'
+					}
+				};
+			}
 		},
 		enforceHtmlBoundary: true
 	});

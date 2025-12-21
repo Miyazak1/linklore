@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
 import { requireRoomAccess } from '@/lib/security/roomAccess';
 
 /**
@@ -32,50 +33,12 @@ export async function POST(
 		// 检查房间访问权限
 		await requireRoomAccess(message.roomId, session.sub);
 
-		// 检查是否已点赞
-		const existingLike = await prisma.chatMessageLike.findUnique({
-			where: {
-				messageId_userId: {
-					messageId,
-					userId: session.sub
-				}
-			}
-		});
-
-		if (existingLike) {
-			// 取消点赞
-			await prisma.chatMessageLike.delete({
-				where: { id: existingLike.id }
-			});
-
-			// 获取点赞数
-			const likeCount = await prisma.chatMessageLike.count({
-				where: { messageId }
-			});
-
-			return NextResponse.json({
-				liked: false,
-				likeCount
-			});
-		} else {
-			// 添加点赞
-			await prisma.chatMessageLike.create({
-				data: {
-					messageId,
-					userId: session.sub
-				}
-			});
-
-			// 获取点赞数
-			const likeCount = await prisma.chatMessageLike.count({
-				where: { messageId }
-			});
-
-			return NextResponse.json({
-				liked: true,
-				likeCount
-			});
-		}
+		// TODO: ChatMessageLike 模型尚未在 schema 中定义，功能暂时禁用
+		// 需要在 schema 中添加 ChatMessageLike 模型后才能启用
+		return NextResponse.json(
+			{ error: '点赞功能暂未实现，需要在 schema 中添加 ChatMessageLike 模型' },
+			{ status: 501 }
+		);
 	} catch (error: any) {
 		console.error('[Message Like API] Error:', error);
 		return NextResponse.json(
@@ -114,25 +77,12 @@ export async function GET(
 		// 检查房间访问权限
 		await requireRoomAccess(message.roomId, session.sub);
 
-		// 获取点赞数
-		const likeCount = await prisma.chatMessageLike.count({
-			where: { messageId }
-		});
-
-		// 检查当前用户是否已点赞
-		const userLike = await prisma.chatMessageLike.findUnique({
-			where: {
-				messageId_userId: {
-					messageId,
-					userId: session.sub
-				}
-			}
-		});
-
-		return NextResponse.json({
-			liked: !!userLike,
-			likeCount
-		});
+		// TODO: ChatMessageLike 模型尚未在 schema 中定义，功能暂时禁用
+		// 需要在 schema 中添加 ChatMessageLike 模型后才能启用
+		return NextResponse.json(
+			{ error: '点赞功能暂未实现，需要在 schema 中添加 ChatMessageLike 模型' },
+			{ status: 501 }
+		);
 	} catch (error: any) {
 		console.error('[Message Like API] Error:', error);
 		return NextResponse.json(

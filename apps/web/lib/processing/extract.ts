@@ -52,9 +52,12 @@ export async function extractAndStore(documentId: string) {
 		if (isLocalStorage()) {
 			buffer = await getFile(doc.fileKey);
 		} else {
-			const client = getOssClient();
-			const object = await client.get(doc.fileKey);
-			buffer = Buffer.isBuffer(object.content) ? object.content : Buffer.from(object.content);
+					const client = getOssClient();
+					const object = await client.get(doc.fileKey);
+					if (!object.content) {
+						throw new Error('File content is empty');
+					}
+					buffer = Buffer.isBuffer(object.content) ? object.content : Buffer.from(object.content);
 		}
 		console.log(`[Extract] File loaded, size: ${buffer.length} bytes`);
 	} catch (fileErr: any) {

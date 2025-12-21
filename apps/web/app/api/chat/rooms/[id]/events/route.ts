@@ -21,10 +21,11 @@ export async function GET(
 		}
 
 		const { id: roomId } = await params;
-		console.log('[Chat Events SSE] 🔍 检查房间访问权限:', { roomId, userId: session.sub });
+		const userId = session.sub; // 确保 userId 不为 undefined
+		console.log('[Chat Events SSE] 🔍 检查房间访问权限:', { roomId, userId });
 
 		// 检查访问权限
-		await requireRoomAccess(roomId, session.sub);
+		await requireRoomAccess(roomId, userId);
 		console.log('[Chat Events SSE] ✅ 权限检查通过，开始创建SSE流');
 
 		// 创建SSE流
@@ -39,11 +40,11 @@ export async function GET(
 				};
 
 				// 注册连接到房间连接池
-				addRoomConnection(roomId, session.sub, controller);
+				addRoomConnection(roomId, userId, controller);
 
 				sendEvent('connected', {
 					roomId,
-					userId: session.sub,
+					userId: userId,
 					timestamp: Date.now()
 				});
 
@@ -120,13 +121,13 @@ export async function GET(
 						}
 					},
 					orderBy: { sequence: 'asc' }
-				});
+				}) as any[]; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 				
 				// 推送最近创建的消息（确保不遗漏）
 				if (recentMessages.length > 0) {
 					console.log(`[Chat Events SSE] 🔔 连接建立时发现 ${recentMessages.length} 条遗漏的消息，立即推送`, {
 						roomId,
-						userId: session.sub,
+						userId: userId,
 						lastCheckedSequence,
 						messageSequences: recentMessages.map(m => m.sequence),
 						messageIds: recentMessages.map(m => m.id)
@@ -143,11 +144,11 @@ export async function GET(
 							moderationNote: message.moderationNote,
 							moderationDetails: message.moderationDetails,
 							isAdopted: message.isAdopted,
-							references: (message.references || []).map((ref) => ({
+							references: (message.references || []).map((ref: any) => ({
 								id: ref.id,
 								content: ref.referencedMessage?.content || '',
 								senderName: ref.referencedMessage?.sender?.name || ref.referencedMessage?.sender?.email || '未知用户'
-							})).filter(ref => ref.content)
+							})).filter((ref: any) => ref.content)
 						};
 						
 						// 立即推送消息给新连接的用户
@@ -159,7 +160,7 @@ export async function GET(
 							lastCheckedSequence = message.sequence;
 						}
 						
-						console.log(`[Chat Events SSE] ✅ 连接建立时推送消息给用户 ${session.sub}`, {
+						console.log(`[Chat Events SSE] ✅ 连接建立时推送消息给用户 ${userId}`, {
 							messageId: message.id,
 							sequence: message.sequence,
 							contentPreview: message.content?.substring(0, 50)
@@ -181,7 +182,7 @@ export async function GET(
 					messageContentMap.set(msg.id, msg.content || '');
 				});
 				
-				console.log(`[Chat Events SSE] 🚀 开始监听房间 ${roomId}，起始sequence: ${lastCheckedSequence}，用户: ${session.sub}，已初始化 ${messageContentMap.size} 条消息的内容映射`);
+				console.log(`[Chat Events SSE] 🚀 开始监听房间 ${roomId}，起始sequence: ${lastCheckedSequence}，用户: ${userId}，已初始化 ${messageContentMap.size} 条消息的内容映射`);
 
 				// 检查新消息和消息更新
 				const checkNewMessages = async () => {
@@ -234,7 +235,7 @@ export async function GET(
 							},
 							orderBy: { sequence: 'asc' },
 							take: 50 // 最多一次返回50条
-						});
+						}) as any[]; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 
 						// 检查最近的消息是否有内容更新（用于检测AI流式输出的更新）
 						// 只检查最近3分钟内创建或更新的AI消息，提高效率
@@ -290,7 +291,7 @@ export async function GET(
 							},
 							orderBy: { sequence: 'desc' },
 							take: 20 // 只检查最近20条AI消息
-						});
+						}) as any[]; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 
 						// 检查消息内容是否有更新
 						const updatedMessages: typeof recentMessages = [];
@@ -337,11 +338,11 @@ export async function GET(
 									moderationNote: message.moderationNote,
 									moderationDetails: message.moderationDetails,
 									isAdopted: message.isAdopted,
-									references: (message.references || []).map((ref) => ({
+									references: (message.references || []).map((ref: any) => ({
 										id: ref.id,
 										content: ref.referencedMessage?.content || '',
 										senderName: ref.referencedMessage?.sender?.name || ref.referencedMessage?.sender?.email || '未知用户'
-									})).filter(ref => ref.content)
+									})).filter((ref: any) => ref.content)
 								};
 								const messageStr = `data: ${JSON.stringify(messageData)}\n\n`;
 								controller.enqueue(encoder.encode(messageStr));
@@ -350,7 +351,7 @@ export async function GET(
 									contentLength: message.content?.length || 0,
 									contentPreview: message.content?.substring(0, 100),
 									roomId,
-									userId: session.sub
+									userId: userId
 								});
 							}
 						}
@@ -376,11 +377,11 @@ export async function GET(
 									moderationNote: message.moderationNote,
 									moderationDetails: message.moderationDetails,
 									isAdopted: message.isAdopted,
-									references: (message.references || []).map((ref) => ({
+									references: (message.references || []).map((ref: any) => ({
 										id: ref.id,
 										content: ref.referencedMessage?.content || '',
 										senderName: ref.referencedMessage?.sender?.name || ref.referencedMessage?.sender?.email || '未知用户'
-									})).filter(ref => ref.content) // 过滤掉无效的引用
+									})).filter((ref: any) => ref.content) // 过滤掉无效的引用
 								};
 								// 使用默认的'message'事件类型（不指定event字段）
 								const messageStr = `data: ${JSON.stringify(messageData)}\n\n`;
@@ -394,7 +395,7 @@ export async function GET(
 									sequence: message.sequence,
 									contentType: message.contentType,
 									roomId,
-									userId: session.sub
+									userId: userId
 								});
 							}
 						}
@@ -430,7 +431,7 @@ export async function GET(
 					clearInterval(checkInterval);
 					clearInterval(heartbeatInterval);
 					// 从房间连接池中移除
-					removeRoomConnection(roomId, session.sub, controller);
+					removeRoomConnection(roomId, userId, controller);
 					controller.close();
 				});
 			}

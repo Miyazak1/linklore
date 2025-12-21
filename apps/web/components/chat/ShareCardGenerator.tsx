@@ -3,7 +3,8 @@
 import { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import ShareCardTemplate from './ShareCardTemplate';
-import type { ShareCardMessage, ShareCardConfig, ShareError } from '@/types/share';
+import type { ShareCardMessage, ShareCardConfig } from '@/types/share';
+import { ShareError } from '@/types/share';
 import { compressImage } from '@/lib/utils/shareCard';
 import { createModuleLogger } from '@/lib/utils/logger';
 
@@ -52,11 +53,10 @@ export default function ShareCardGenerator({
 				backgroundColor: config.backgroundColor,
 				useCORS: true,
 				logging: false,
-				allowTaint: false,
-				fontEmbedCSS: true, // 嵌入字体 CSS
-				foreignObjectRendering: false, // 禁用 foreignObject 渲染，提高兼容性
-				letterRendering: true, // 启用字母渲染，改善文字质量
-			});
+				allowTaint: false
+				// 注意：fontEmbedCSS、foreignObjectRendering、letterRendering 在当前 html2canvas 类型定义中不存在
+				// 如果 html2canvas 支持这些选项，可以使用类型断言：as any
+			} as any);
 
 			// 压缩图片
 			const blob = await compressImage(canvas, 0.9, 2);

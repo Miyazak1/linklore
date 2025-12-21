@@ -49,7 +49,7 @@ export async function assessRisk(
 	const fullText = (input + ' ' + contextText).toLowerCase();
 
 	// 初始化标签
-	const tags = {
+	const tags: RiskAssessment['tags'] = {
 		pointingToRealPeople: false,
 		pointingToRealOrganizations: false,
 		pointingToRealEvents: false,
@@ -57,7 +57,7 @@ export async function assessRisk(
 		emotionalIntensity: 0,
 		valueJudgmentIntensity: 0,
 		timeliness: 0,
-		narrativeType: 'none' as const
+		narrativeType: 'none'
 	};
 
 	const reasoning: string[] = [];

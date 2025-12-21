@@ -32,9 +32,9 @@ export async function POST(
 					}
 				}
 			}
-		});
+		}) as any; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 
-		if (!originalMessage) {
+		if (!originalMessage || !originalMessage.room) {
 			return NextResponse.json({ error: '消息不存在' }, { status: 404 });
 		}
 

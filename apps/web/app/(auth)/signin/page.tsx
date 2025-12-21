@@ -1,12 +1,15 @@
 'use client';
-import { useState } from 'react';
+
+// 禁用静态生成，强制动态渲染
+export const dynamic = 'force-dynamic';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createModuleLogger } from '@/lib/utils/logger';
 import { useAuth } from '@/contexts/AuthContext';
 
 const log = createModuleLogger('SignInPage');
 
-export default function SignInPage() {
+function SignInPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const redirect = searchParams.get('redirect') || '/';
@@ -288,5 +291,13 @@ export default function SignInPage() {
 				</div>
 			</div>
 		</main>
+	);
+}
+
+export default function SignInPage() {
+	return (
+		<Suspense fallback={<div style={{ padding: '24px', textAlign: 'center' }}>加载中...</div>}>
+			<SignInPageContent />
+		</Suspense>
 	);
 }

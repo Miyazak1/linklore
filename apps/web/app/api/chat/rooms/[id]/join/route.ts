@@ -113,7 +113,7 @@ export async function POST(
 						}
 					}
 				}
-			});
+			}) as any; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 
 			// 重要：当参与者加入时，通知创建者房间类型已变为DUO
 			// 这样创建者可以立即建立SSE连接
@@ -163,7 +163,7 @@ export async function POST(
 						}
 					}
 				}
-			});
+			}) as any; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 
 			// 重要：当参与者加入时，通知创建者
 			broadcastToRoom(roomId, 'room-type-changed', {

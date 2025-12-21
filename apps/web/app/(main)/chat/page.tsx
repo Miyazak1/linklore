@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ChatRoom from '@/components/chat/ChatRoom';
 import ChatSidebar from '@/components/chat/ChatSidebar';
@@ -11,7 +11,10 @@ import ChatPageLoader from '@/components/ui/ChatPageLoader';
 
 const log = createModuleLogger('ChatPage');
 
-export default function ChatPage() {
+// 禁用静态生成，强制动态渲染
+export const dynamic = 'force-dynamic';
+
+function ChatPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { isAuthenticated, loading: authLoading } = useAuth();
@@ -433,6 +436,14 @@ export default function ChatPage() {
 				/>
 			)}
 		</div>
+	);
+}
+
+export default function ChatPage() {
+	return (
+		<Suspense fallback={<ChatPageLoader message="加载中..." subMessage="正在初始化聊天页面" />}>
+			<ChatPageContent />
+		</Suspense>
 	);
 }
 

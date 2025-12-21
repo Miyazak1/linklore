@@ -300,7 +300,7 @@ export async function POST(
 					}
 				}
 			}
-		});
+		}) as any; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 
 		console.log(`[POST /api/chat/rooms/${roomId}/messages] ✅ 消息已创建:`, {
 			messageId: message.id,
@@ -359,7 +359,7 @@ export async function POST(
 						}
 					}
 				}
-			});
+			}) as any; // 临时类型断言，因为 chatDb 的类型定义可能不完整
 
 			return NextResponse.json({ message: messageWithRefs });
 		}

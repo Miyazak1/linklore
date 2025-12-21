@@ -85,6 +85,7 @@ async function fixStuckDocuments() {
 			take: 20,
 			include: { 
 				topic: { select: { title: true } },
+				summaries: { take: 1 },
 				evaluations: { take: 1 }
 			}
 		});

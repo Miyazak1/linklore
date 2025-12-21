@@ -1,17 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createModuleLogger } from '@/lib/utils/logger';
 import ChatPageLoader from '@/components/ui/ChatPageLoader';
 
 const log = createModuleLogger('DailyIssueAnalyticsPage');
 
+// 禁用静态生成，强制动态渲染
+export const dynamic = 'force-dynamic';
+
 /**
  * 管理员分析后台
  * 路径分布可视化，完成率统计，反馈汇总，异常检测
  */
-export default function DailyIssueAnalyticsPage() {
+function DailyIssueAnalyticsPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [loading, setLoading] = useState(false); // 初始不加载
@@ -426,6 +429,14 @@ export default function DailyIssueAnalyticsPage() {
 				</div>
 			)}
 		</div>
+	);
+}
+
+export default function DailyIssueAnalyticsPage() {
+	return (
+		<Suspense fallback={<ChatPageLoader message="加载中..." subMessage="正在初始化页面" />}>
+			<DailyIssueAnalyticsPageContent />
+		</Suspense>
 	);
 }
 

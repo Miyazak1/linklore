@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useChatStream } from '@/contexts/ChatStreamContext';
 import type { SoloPluginType } from '@/lib/chat/prompts/solo';
 import { createModuleLogger } from '@/lib/utils/logger';
+import { SearchIcon, LinkIcon, FileIcon, QuestionIcon, RefreshIcon, LibraryIcon, BookMarkedIcon, TargetIcon } from '@/components/ui/Icons';
 
 const log = createModuleLogger('SoloPluginPanel');
 

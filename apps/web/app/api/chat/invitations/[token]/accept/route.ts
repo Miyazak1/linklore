@@ -13,10 +13,8 @@ export async function POST(
 		const { token } = await params;
 		
 		// TODO: 实现邀请接受逻辑
-		return NextResponse.json(
-			createErrorResponse('功能暂未实现'),
-			{ status: 501 }
-		);
+		const { response, status } = createErrorResponse('NOT_IMPLEMENTED', '功能暂未实现', 501);
+		return NextResponse.json(response, { status });
 	} catch (err: any) {
 		const { response, status } = handleError(err, 'POST /api/chat/invitations/[token]/accept');
 		return NextResponse.json(response, { status });

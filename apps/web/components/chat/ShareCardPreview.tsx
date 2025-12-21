@@ -264,8 +264,8 @@ export default function ShareCardPreview({
 							<select
 								value={config.theme || 'default'}
 								onChange={(e) => {
-									const theme = e.target.value as ShareCardConfig['theme'];
-									const themeConfig = THEME_CONFIGS[theme] || {};
+									const theme = (e.target.value as ShareCardConfig['theme']) || 'default';
+									const themeConfig = theme ? (THEME_CONFIGS[theme] || {}) : {};
 									onConfigChange({
 										...config,
 										theme,

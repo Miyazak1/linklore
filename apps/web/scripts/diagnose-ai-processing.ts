@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/client';
+import { Prisma } from '@prisma/client';
 import IORedis from 'ioredis';
 
 async function diagnoseAIProcessing() {
@@ -102,7 +103,7 @@ async function diagnoseAIProcessing() {
 							{
 								processingStatus: {
 									path: ['summarize'],
-									equals: null
+									equals: Prisma.JsonNull
 								}
 							}
 						]
@@ -142,7 +143,7 @@ async function diagnoseAIProcessing() {
 							{
 								processingStatus: {
 									path: ['evaluate'],
-									equals: null
+									equals: Prisma.JsonNull
 								}
 							}
 						]

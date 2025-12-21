@@ -83,6 +83,14 @@ export async function GET(
 			});
 		}
 
+		// 确保 analysis 不为 null（upsert 应该总是返回一个值）
+		if (!analysis) {
+			return NextResponse.json(
+				{ error: '无法获取分析结果' },
+				{ status: 500 }
+			);
+		}
+
 		return NextResponse.json({
 			analysis: {
 				consensusPoints: analysis.consensusPoints,

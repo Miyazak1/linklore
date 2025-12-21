@@ -23,7 +23,8 @@ export async function PUT(
 		// 检查登录
 		const session = await readSession();
 		if (!session?.sub) {
-			return NextResponse.json(createErrorResponse('需要登录'), { status: 401 });
+			const { response, status } = createErrorResponse('UNAUTHORIZED', '需要登录', 401);
+			return NextResponse.json(response, { status });
 		}
 
 		const userId = String(session.sub);
@@ -40,20 +41,24 @@ export async function PUT(
 		});
 
 		if (!comment) {
-			return NextResponse.json(createErrorResponse('评论不存在'), { status: 404 });
+			const { response, status } = createErrorResponse('NOT_FOUND', '评论不存在', 404);
+			return NextResponse.json(response, { status });
 		}
 
 		if (comment.topicId !== topicId) {
-			return NextResponse.json(createErrorResponse('评论不属于该话题'), { status: 400 });
+			const { response, status } = createErrorResponse('BAD_REQUEST', '评论不属于该话题', 400);
+			return NextResponse.json(response, { status });
 		}
 
 		if (comment.deletedAt) {
-			return NextResponse.json(createErrorResponse('评论已删除'), { status: 400 });
+			const { response, status } = createErrorResponse('BAD_REQUEST', '评论已删除', 400);
+			return NextResponse.json(response, { status });
 		}
 
 		// 检查权限：必须是评论作者
 		if (comment.authorId !== userId) {
-			return NextResponse.json(createErrorResponse('无权编辑此评论'), { status: 403 });
+			const { response, status } = createErrorResponse('FORBIDDEN', '无权编辑此评论', 403);
+			return NextResponse.json(response, { status });
 		}
 
 		// 解析和验证请求体
@@ -80,10 +85,8 @@ export async function PUT(
 		return NextResponse.json(createSuccessResponse(updated));
 	} catch (err: any) {
 		if (err instanceof z.ZodError) {
-			return NextResponse.json(
-				createErrorResponse(err.errors[0]?.message || '请求参数错误'),
-				{ status: 400 }
-			);
+			const { response, status } = createErrorResponse('VALIDATION_ERROR', err.errors[0]?.message || '请求参数错误', 400);
+			return NextResponse.json(response, { status });
 		}
 
 		logError(err, { context: 'PUT /api/topics/[id]/comments/[commentId]' });
@@ -106,7 +109,8 @@ export async function DELETE(
 		// 检查登录
 		const session = await readSession();
 		if (!session?.sub) {
-			return NextResponse.json(createErrorResponse('需要登录'), { status: 401 });
+			const { response, status } = createErrorResponse('UNAUTHORIZED', '需要登录', 401);
+			return NextResponse.json(response, { status });
 		}
 
 		const userId = String(session.sub);
@@ -125,15 +129,18 @@ export async function DELETE(
 		});
 
 		if (!comment) {
-			return NextResponse.json(createErrorResponse('评论不存在'), { status: 404 });
+			const { response, status } = createErrorResponse('NOT_FOUND', '评论不存在', 404);
+			return NextResponse.json(response, { status });
 		}
 
 		if (comment.topicId !== topicId) {
-			return NextResponse.json(createErrorResponse('评论不属于该话题'), { status: 400 });
+			const { response, status } = createErrorResponse('BAD_REQUEST', '评论不属于该话题', 400);
+			return NextResponse.json(response, { status });
 		}
 
 		if (comment.deletedAt) {
-			return NextResponse.json(createErrorResponse('评论已删除'), { status: 400 });
+			const { response, status } = createErrorResponse('BAD_REQUEST', '评论已删除', 400);
+			return NextResponse.json(response, { status });
 		}
 
 		// 检查权限：必须是评论作者或话题作者
@@ -141,7 +148,8 @@ export async function DELETE(
 		const isTopicAuthor = comment.topic.authorId === userId;
 
 		if (!isCommentAuthor && !isTopicAuthor) {
-			return NextResponse.json(createErrorResponse('无权删除此评论'), { status: 403 });
+			const { response, status } = createErrorResponse('FORBIDDEN', '无权删除此评论', 403);
+			return NextResponse.json(response, { status });
 		}
 
 		// 软删除评论

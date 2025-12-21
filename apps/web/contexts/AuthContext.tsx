@@ -98,9 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						isAuthenticated: !!user,
 						user: user
 					}));
-				} catch (err) {
-					log.warn('Failed to save auth state to localStorage', err);
-				}
+							} catch (err) {
+								log.warn('Failed to save auth state to localStorage', err as Error);
+							}
 				
 				// 触发事件，通知其他组件（但不触发Navigation的refreshAuth，避免循环）
 				// 注意：这里不触发auth:changed，因为Navigation已经会调用refreshAuth

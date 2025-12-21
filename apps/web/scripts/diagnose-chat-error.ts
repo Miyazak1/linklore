@@ -21,7 +21,7 @@ async function main() {
 				AND table_name = 'ChatRoom'
 			);
 		`;
-		log.info('ChatRoom 表存在:', tableCheck);
+		log.info('ChatRoom 表存在:', { tableCheck });
 
 		// 2. 检查字段是否存在
 		log.info('检查 ChatRoom 表字段...');
@@ -31,12 +31,12 @@ async function main() {
 			WHERE table_name = 'ChatRoom'
 			ORDER BY ordinal_position;
 		`;
-		log.info('ChatRoom 表字段:', columns);
+		log.info('ChatRoom 表字段:', { columns });
 
 		// 3. 尝试简单查询
 		log.info('尝试查询 ChatRoom...');
 		const count = await prisma.chatRoom.count();
-		log.info('ChatRoom 记录数:', count);
+		log.info('ChatRoom 记录数:', { count });
 
 		// 4. 尝试查询一条记录（如果有）
 		if (count > 0) {
@@ -51,7 +51,7 @@ async function main() {
 					participantDeletedAt: true
 				}
 			});
-			log.info('第一条记录:', firstRoom);
+			log.info('第一条记录:', { firstRoom });
 		}
 
 		log.info('诊断完成，未发现明显问题');

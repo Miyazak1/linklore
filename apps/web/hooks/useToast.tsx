@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import Toast from '@/components/ui/Toast';
 
 interface ToastState {
@@ -22,8 +22,8 @@ export function useToast() {
 		setToasts((prev) => prev.filter((toast) => toast.id !== id));
 	}, []);
 
-	const ToastContainer = (): JSX.Element => (
-		<>
+	const ToastContainer = () => (
+		<div>
 			{toasts.map((toast) => (
 				<Toast
 					key={toast.id}
@@ -32,7 +32,7 @@ export function useToast() {
 					onClose={() => removeToast(toast.id)}
 				/>
 			))}
-		</>
+		</div>
 	);
 
 	return { showToast, ToastContainer };

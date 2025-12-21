@@ -122,23 +122,24 @@ export async function associateGuestData(
 			data: { senderId: registeredUserId }
 		});
 
-		// 4. 转移消息点赞
-		await tx.chatMessageLike.updateMany({
-			where: { userId: guestUserId },
-			data: { userId: registeredUserId }
-		});
+		// 4. 转移消息点赞（ChatMessageLike 模型尚未在 schema 中定义，暂时跳过）
+		// TODO: 在 schema 中添加 ChatMessageLike 模型后启用
+		// await tx.chatMessageLike.updateMany({
+		// 	where: { userId: guestUserId },
+		// 	data: { userId: registeredUserId }
+		// });
 
-		// 5. 转移聊天邀请（发送的）
-		await tx.chatInvitation.updateMany({
-			where: { inviterId: guestUserId },
-			data: { inviterId: registeredUserId }
-		});
+		// 5. 转移聊天邀请（ChatInvitation 模型尚未在 schema 中定义，暂时跳过）
+		// TODO: 在 schema 中添加 ChatInvitation 模型后启用
+		// await tx.chatInvitation.updateMany({
+		// 	where: { inviterId: guestUserId },
+		// 	data: { inviterId: registeredUserId }
+		// });
 
-		// 6. 转移聊天邀请（接收的）
-		await tx.chatInvitation.updateMany({
-			where: { inviteeId: guestUserId },
-			data: { inviteeId: registeredUserId }
-		});
+		// await tx.chatInvitation.updateMany({
+		// 	where: { inviteeId: guestUserId },
+		// 	data: { inviteeId: registeredUserId }
+		// });
 
 		// 7. 删除匿名用户记录（数据已转移）
 		await tx.user.delete({
@@ -160,12 +161,12 @@ export async function cleanupInactiveGuestUsers(): Promise<number> {
 	const inactiveGuests = await prisma.user.findMany({
 		where: {
 			email: { endsWith: '@temp.local' },
-			createdRooms: {
+			chatRoomsAsCreator: {
 				none: {
 					updatedAt: { gte: thirtyDaysAgo }
 				}
 			},
-			participatedRooms: {
+			chatRoomsAsParticipant: {
 				none: {
 					updatedAt: { gte: thirtyDaysAgo }
 				}

@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '../lib/db/client';
+import { Prisma } from '@prisma/client';
 import { enqueueSummarize, enqueueEvaluate } from '../lib/queue/jobs';
 
 async function fixPendingDocuments() {
@@ -31,7 +32,7 @@ async function fixPendingDocuments() {
 						{
 							processingStatus: {
 								path: ['summarize'],
-								equals: null
+								equals: Prisma.JsonNull
 							}
 						},
 						{
@@ -83,7 +84,7 @@ async function fixPendingDocuments() {
 							{
 								processingStatus: {
 									path: ['evaluate'],
-									equals: null
+									equals: Prisma.JsonNull
 								}
 							}
 						]

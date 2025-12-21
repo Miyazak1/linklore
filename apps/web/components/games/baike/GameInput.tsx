@@ -88,10 +88,10 @@ export default function GameInput({ onGuess, disabled = false, guessedChars = []
 						background: 'var(--color-background)',
 						color: 'var(--color-text-primary)',
 						textAlign: 'center',
-						disabled: disabled ? {
+						...(disabled ? {
 							opacity: 0.6,
 							cursor: 'not-allowed'
-						} : {}
+						} : {})
 					}}
 				/>
 				<button

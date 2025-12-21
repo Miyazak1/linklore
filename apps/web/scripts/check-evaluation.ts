@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '../lib/db/client';
+import { Prisma } from '@prisma/client';
 
 async function checkEvaluation() {
 	console.log('=== 检查评价功能 ===\n');
@@ -107,7 +108,7 @@ async function checkEvaluation() {
 							{
 								processingStatus: {
 									path: ['evaluate'],
-									equals: null
+									equals: Prisma.JsonNull
 								}
 							}
 						]
