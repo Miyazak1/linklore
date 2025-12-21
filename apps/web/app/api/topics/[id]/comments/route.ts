@@ -29,7 +29,8 @@ export async function GET(
 		});
 
 		if (!topic) {
-			return NextResponse.json(createErrorResponse('话题不存在'), { status: 404 });
+			const { response, status } = createErrorResponse('NOT_FOUND', '话题不存在', 404);
+			return NextResponse.json(response, { status });
 		}
 
 		const { searchParams } = new URL(req.url);
@@ -85,8 +86,12 @@ export async function GET(
 				const bVal = new Date(b.createdAt).getTime();
 				return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
 			}
-			const aVal = a[sortBy as keyof typeof a];
-			const bVal = b[sortBy as keyof typeof b];
+			const aVal = a[sortBy as keyof typeof a] ?? null;
+			const bVal = b[sortBy as keyof typeof b] ?? null;
+			// 处理 null 值：null 排在最后
+			if (aVal === null && bVal === null) return 0;
+			if (aVal === null) return 1;
+			if (bVal === null) return -1;
 			if (sortOrder === 'desc') {
 				return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
 			}
@@ -131,7 +136,8 @@ export async function POST(
 		// 检查登录
 		const session = await readSession();
 		if (!session?.sub) {
-			return NextResponse.json(createErrorResponse('需要登录'), { status: 401 });
+			const { response, status } = createErrorResponse('UNAUTHORIZED', '需要登录', 401);
+			return NextResponse.json(response, { status });
 		}
 
 		const userId = String(session.sub);
@@ -143,7 +149,8 @@ export async function POST(
 		});
 
 		if (!topic) {
-			return NextResponse.json(createErrorResponse('话题不存在'), { status: 404 });
+			const { response, status } = createErrorResponse('NOT_FOUND', '话题不存在', 404);
+			return NextResponse.json(response, { status });
 		}
 
 		// 解析和验证请求体
@@ -159,11 +166,13 @@ export async function POST(
 			});
 
 			if (!parent) {
-				return NextResponse.json(createErrorResponse('父评论不存在'), { status: 404 });
+				const { response, status } = createErrorResponse('NOT_FOUND', '父评论不存在', 404);
+				return NextResponse.json(response, { status });
 			}
 
 			if (parent.topicId !== topicId) {
-				return NextResponse.json(createErrorResponse('父评论不属于该话题'), { status: 400 });
+				const { response, status } = createErrorResponse('BAD_REQUEST', '父评论不属于该话题', 400);
+				return NextResponse.json(response, { status });
 			}
 
 			depth = parent.depth + 1;
@@ -202,10 +211,8 @@ export async function POST(
 		return NextResponse.json(createSuccessResponse(comment), { status: 201 });
 	} catch (err: any) {
 		if (err instanceof z.ZodError) {
-			return NextResponse.json(
-				createErrorResponse(err.errors[0]?.message || '请求参数错误'),
-				{ status: 400 }
-			);
+			const { response, status } = createErrorResponse('VALIDATION_ERROR', err.errors[0]?.message || '请求参数错误', 400);
+			return NextResponse.json(response, { status });
 		}
 
 		logError(err, { context: 'POST /api/topics/[id]/comments' });

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
 		log.info('收到更新题目请求', { date: date || 'today' });
 
-		const result = await updateDailyQuestion(date);
+		const result = await updateDailyQuestion(date ?? undefined);
 
 		if (!result.success) {
 			return NextResponse.json(

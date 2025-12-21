@@ -50,7 +50,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ key: str
 		else if (ext === 'gif') contentType = 'image/gif';
 		else if (ext === 'webp') contentType = 'image/webp';
 		
-		return new NextResponse(buffer, {
+		return new NextResponse(new Uint8Array(buffer), {
 			headers: {
 				'Content-Type': contentType,
 				'Content-Disposition': `inline; filename="${key.split('/').pop()}"`,
