@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 		
 		const client = getOssClient();
 		// Generate signed PUT URL valid for 5 minutes
-		const url = client.signatureUrl(key, { method: 'PUT', expires: 300, 'Content-Type': contentType });
+		const url = client.signatureUrl(key, { method: 'PUT', expires: 300, headers: { 'Content-Type': contentType } });
 		return NextResponse.json({ uploadUrl: url, key, contentType, topicId: topicId || null, local: false }, {
 			headers: { 'Content-Type': 'application/json' }
 		});

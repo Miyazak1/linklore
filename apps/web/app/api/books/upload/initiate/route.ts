@@ -38,7 +38,7 @@ export async function POST(req: Request) {
 		}
 
 		const client = getOssClient();
-		const url = client.signatureUrl(key, { method: 'PUT', expires: 300, 'Content-Type': contentType });
+		const url = client.signatureUrl(key, { method: 'PUT', expires: 300, headers: { 'Content-Type': contentType } });
 		return NextResponse.json({ uploadUrl: url, key, contentType, bookId: bookId || null, local: false });
 	} catch (err: any) {
 		return NextResponse.json({ error: err.message || '初始化上传失败' }, { status: 400 });
