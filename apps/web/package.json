@@ -24,6 +24,8 @@
     "@prisma/client": "^5.19.0",
     "@sentry/nextjs": "^10.25.0",
     "ali-oss": "^6.20.0",
+    "bullmq": "^5.7.14",
+    "ioredis": "^5.3.2",
     "bcryptjs": "^2.4.3",
     "epubjs": "^0.3.93",
     "html2canvas": "^1.4.1",

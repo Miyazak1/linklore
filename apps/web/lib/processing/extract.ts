@@ -11,7 +11,8 @@ import { marked } from 'marked';
 // pdf-parse is a CommonJS module, use dynamic import
 const getPdfParse = async () => {
 	const pdfParse = await import('pdf-parse');
-	return pdfParse.default || pdfParse;
+	// pdf-parse 可能是 default export 或者 named export
+	return (pdfParse as any).default || pdfParse;
 };
 
 const pExecFile = promisify(execFile);

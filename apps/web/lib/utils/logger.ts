@@ -15,14 +15,16 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 
 // 从环境变量获取日志级别，默认生产环境只显示 warn 和 error
 const getLogLevel = (): LogLevel => {
-	if (typeof window !== 'undefined') {
+	// 检查是否在浏览器环境
+	if (typeof globalThis !== 'undefined' && 'window' in globalThis && typeof (globalThis as any).window !== 'undefined') {
 		// 客户端：从环境变量或 localStorage 获取
+		const win = (globalThis as any).window;
 		const level = process.env.NEXT_PUBLIC_LOG_LEVEL || 
-			(typeof localStorage !== 'undefined' ? (localStorage.getItem('logLevel') as LogLevel) : null) ||
+			(win.localStorage ? (win.localStorage.getItem('logLevel') as LogLevel) : null) ||
 			(process.env.NODE_ENV === 'production' ? 'warn' : 'debug');
 		return level as LogLevel;
 	} else {
-		// 服务端：从环境变量获取
+		// 服务端/Worker：从环境变量获取
 		const level = process.env.LOG_LEVEL || 
 			(process.env.NODE_ENV === 'production' ? 'warn' : 'debug');
 		return level as LogLevel;
@@ -76,8 +78,10 @@ export const logger = {
 			console.error(formatMessage('ERROR', message, context), errorObj);
 			
 			// 在客户端，如果有 Sentry，发送错误
-			if (typeof window !== 'undefined' && (window as any).Sentry) {
-				(window as any).Sentry.captureException(errorObj, {
+			if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+				const win = (globalThis as any).window;
+				if (win && win.Sentry) {
+					win.Sentry.captureException(errorObj, {
 					contexts: {
 						custom: context || {},
 					},
@@ -85,6 +89,7 @@ export const logger = {
 						message,
 					},
 				});
+				}
 			}
 		}
 	},
