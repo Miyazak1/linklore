@@ -857,8 +857,8 @@ export default function ChatRoom({ roomId, inviteToken: propInviteToken, onRoomJ
 				
 				// 获取所有待审核或可能有更新的消息ID
 				const pendingMessageIds = currentMessages
-					.filter(m => !m.moderationStatus || m.moderationStatus === 'PENDING')
-					.map(m => m.id);
+					.filter((m: Message) => !m.moderationStatus || m.moderationStatus === 'PENDING')
+					.map((m: Message) => m.id);
 
 				if (pendingMessageIds.length === 0) {
 					isChecking = false;
@@ -994,9 +994,9 @@ export default function ChatRoom({ roomId, inviteToken: propInviteToken, onRoomJ
 	useEffect(() => {
 		// 调试：记录AI主持人消息显示条件（现在AI主持人消息由后端自动创建，前端只需从消息列表中显示）
 		if (roomType === 'DUO') {
-			const hasAiHostMessage = messages.some(m => 
-				m.contentType === 'AI_SUGGESTION' && m.content.includes('AI主持人')
-			);
+		const hasAiHostMessage = messages.some((m: Message) => 
+			m.contentType === 'AI_SUGGESTION' && m.content.includes('AI主持人')
+		);
 			log.debug('AI主持人消息检查', {
 				roomType,
 				messagesLength: messages.length,
@@ -1454,28 +1454,28 @@ export default function ChatRoom({ roomId, inviteToken: propInviteToken, onRoomJ
 			
 			// 添加新消息到列表
 			setMessages((prev) => {
-				const existingIds = new Set(prev.map(m => m.id));
+				const existingIds = new Set(prev.map((m: Message) => m.id));
 				const isNewMessage = !existingIds.has(newMessage.id);
 				
 				if (!isNewMessage) {
 					// 消息已存在，更新它（可能是AI流式输出的更新或监管状态更新）
 					log.debug('更新已存在的消息', { messageId: newMessage.id });
 					// 更新后再次去重，确保没有重复
-					const updated = prev.map(m => 
+					const updated = prev.map((m: Message) => 
 						m.id === newMessage.id ? { ...m, ...newMessage } : m
 					);
 					// 最终去重：使用Map确保唯一性
-					return Array.from(new Map(updated.map(m => [m.id, m])).values());
+					return Array.from(new Map(updated.map((m: Message) => [m.id, m])).values());
 				}
 				
 				// 新消息，添加到列表
 				log.debug('添加新消息到列表', { currentCount: prev.length, newMessageId: newMessage.id });
 				// 先检查是否真的不存在（防止竞态条件）
-				const alreadyExists = prev.some(m => m.id === newMessage.id);
+				const alreadyExists = prev.some((m: Message) => m.id === newMessage.id);
 				if (alreadyExists) {
 					log.warn('消息已存在，跳过添加', { messageId: newMessage.id });
 					// 更新已存在的消息
-					return prev.map(m => 
+					return prev.map((m: Message) => 
 						m.id === newMessage.id ? { ...m, ...newMessage } : m
 					);
 				}
@@ -1491,7 +1491,7 @@ export default function ChatRoom({ roomId, inviteToken: propInviteToken, onRoomJ
 				
 				// 最终去重：确保没有重复的消息ID（防止竞态条件）
 				const uniqueMessages = merged.reduce((acc, msg) => {
-					if (!acc.find(m => m.id === msg.id)) {
+					if (!acc.find((m: Message) => m.id === msg.id)) {
 						acc.push(msg);
 					}
 					return acc;
@@ -2142,7 +2142,7 @@ export default function ChatRoom({ roomId, inviteToken: propInviteToken, onRoomJ
 
 	// 引用消息
 	const handleQuote = (messageId: string) => {
-		const message = messages.find(m => m.id === messageId);
+		const message = messages.find((m: Message) => m.id === messageId);
 		if (!message) {
 			log.warn('未找到要引用的消息', { messageId });
 			return;
@@ -2536,7 +2536,7 @@ export default function ChatRoom({ roomId, inviteToken: propInviteToken, onRoomJ
 					) : (
 						<>
 							{/* 最终去重：确保渲染时没有重复的消息ID */}
-							{Array.from(new Map(messages.map(m => [m.id, m])).values()).map((message, index) => {
+							{Array.from(new Map(messages.map((m: Message) => [m.id, m])).values()).map((message, index) => {
 								// 检查是否是正在流式输出的消息
 								const isStreamingMessage = message.id === streamingMessageId;
 								// 获取流式文本：优先使用当前用户的流式输出，否则使用其他用户的流式输出
