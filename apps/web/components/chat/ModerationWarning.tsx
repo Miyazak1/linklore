@@ -4,7 +4,6 @@ interface ModerationWarningProps {
 	status: 'WARNING' | 'BLOCKED';
 	note: string;
 	details?: {
-	showDetails?: boolean; // 是否显示详细内容（己方显示详情，对方只显示标签）
 		// 主题相关
 		topicDrift?: string;
 		topicUnclear?: string;
@@ -36,6 +35,7 @@ interface ModerationWarningProps {
 		// 改进建议
 		suggestions?: string[];
 	};
+	showDetails?: boolean; // 是否显示详细内容（己方显示详情，对方只显示标签）
 	onDismiss?: () => void;
 }
 
