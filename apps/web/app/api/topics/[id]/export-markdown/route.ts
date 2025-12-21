@@ -57,7 +57,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 				}
 
 				if (Array.isArray(summary.keywords) && summary.keywords.length > 0) {
-					const validKeywords = summary.keywords.filter((k): k is string => typeof k === 'string' && k);
+					const validKeywords = summary.keywords.filter((k): k is string => typeof k === 'string' && k !== '');
 					if (validKeywords.length > 0) {
 						markdown += `**关键词**: ${validKeywords.join(', ')}\n\n`;
 					}
