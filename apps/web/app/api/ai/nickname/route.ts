@@ -68,7 +68,6 @@ export async function GET() {
 			userConfig = await prisma.userAiConfig.findUnique({
 				where: { userId: session.sub },
 				select: {
-					aiNickname: true,
 					provider: true,
 					model: true
 				}
@@ -94,11 +93,8 @@ export async function GET() {
 			}
 		}
 
-		// 如果没有设置昵称，生成默认昵称
-		let nickname = userConfig?.aiNickname;
-		if (!nickname) {
-			nickname = generateDefaultNickname(session.sub, user.name, user.email);
-		}
+		// 生成默认昵称（aiNickname 字段已移除，始终使用默认昵称）
+		const nickname = generateDefaultNickname(session.sub, user.name, user.email);
 
 		return NextResponse.json({
 			nickname,
@@ -132,20 +128,9 @@ export async function POST(req: Request) {
 		const body = await req.json();
 		const { nickname } = NicknameSchema.parse(body);
 
-		// 更新或创建用户AI配置
-		await prisma.userAiConfig.upsert({
-			where: { userId: session.sub },
-			update: {
-				aiNickname: nickname || null
-			},
-			create: {
-				userId: session.sub,
-				provider: 'siliconflow', // 默认值
-				model: 'deepseek-chat',
-				encApiKey: '', // 需要后续配置
-				aiNickname: nickname || null
-			}
-		});
+		// aiNickname 字段已移除，此功能暂时禁用
+		// 返回成功，但不实际保存（因为字段不存在）
+		// TODO: 如果需要保存昵称，可以考虑使用其他存储方式（如 localStorage 或单独的配置表）
 
 		return NextResponse.json({ ok: true });
 	} catch (error: any) {
