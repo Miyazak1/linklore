@@ -17,7 +17,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 	zip.file('evaluations.json', JSON.stringify(evals, null, 2));
 
 	const blob = await zip.generateAsync({ type: 'nodebuffer' });
-	return new NextResponse(blob, {
+	return new NextResponse(new Uint8Array(blob), {
 		status: 200,
 		headers: {
 			'Content-Type': 'application/zip',
