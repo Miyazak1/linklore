@@ -18,7 +18,7 @@ const getLogLevel = (): LogLevel => {
 	if (typeof window !== 'undefined') {
 		// 客户端：从环境变量或 localStorage 获取
 		const level = process.env.NEXT_PUBLIC_LOG_LEVEL || 
-			(localStorage.getItem('logLevel') as LogLevel) ||
+			(typeof localStorage !== 'undefined' ? (localStorage.getItem('logLevel') as LogLevel) : null) ||
 			(process.env.NODE_ENV === 'production' ? 'warn' : 'debug');
 		return level as LogLevel;
 	} else {

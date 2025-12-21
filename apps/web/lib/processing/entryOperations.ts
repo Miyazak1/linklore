@@ -4,7 +4,6 @@
  */
 
 import { prisma } from '@/lib/db/client';
-import { TRACE_PROCESSING_CONFIG } from '@/lib/config/trace-processing';
 import { logAudit } from '@/lib/audit/logger';
 
 /**
@@ -56,130 +55,7 @@ export async function generateUniqueSlug(
 	return `${baseSlug}-${Date.now()}`;
 }
 
-/**
- * 从溯源创建词条（在事务中）
- * @param traceId 溯源ID
- * @param tx 事务对象
- * @returns 创建的词条
- */
-export async function createEntryFromTrace(
-	traceId: string,
-	tx: any
-): Promise<any> {
-	// 获取溯源
-	const trace = await tx.trace.findUnique({
-		where: { id: traceId },
-		include: {
-			citationsList: {
-				orderBy: { order: 'asc' }
-			},
-			analysis: true
-		}
-	});
-
-	if (!trace) {
-		throw new Error('溯源不存在');
-	}
-
-	if (trace.status !== 'PUBLISHED') {
-		throw new Error('只能采纳已发布的溯源');
-	}
-
-	// 检查AI分析结果和可信度
-	if (!trace.analysis) {
-		throw new Error('溯源尚未完成AI分析，无法批准');
-	}
-
-	if (!trace.analysis.canApprove) {
-		throw new Error(
-			`溯源可信度不足（可信度 ${trace.analysis.credibilityScore.toFixed(2)} < 0.7），无法批准。请根据AI分析建议改进后重新发布。`
-		);
-	}
-
-	// 检查是否已有词条
-	const existingEntry = await tx.entry.findUnique({
-		where: { sourceTraceId: traceId },
-		select: { id: true }
-	});
-
-	if (existingEntry) {
-		throw new Error('该溯源已被采纳');
-	}
-
-	// 生成slug（在事务内生成，确保唯一性检查包含事务内的数据）
-	const slug = await generateUniqueSlug(trace.title, 5, tx);
-
-	// 创建词条
-	const entry = await tx.entry.create({
-		data: {
-			title: trace.title,
-			slug,
-			traceType: trace.traceType,
-			content: trace.body, // 使用溯源正文
-			citations: trace.citationsList.map((c: any) => ({
-				id: c.id,
-				url: c.url,
-				title: c.title,
-				author: c.author,
-				publisher: c.publisher,
-				year: c.year,
-				type: c.type,
-				quote: c.quote,
-				page: c.page,
-				order: c.order
-			})),
-			sourceTraceId: traceId,
-			version: 1
-		}
-	});
-
-	// 更新溯源状态为APPROVED
-	await tx.trace.update({
-		where: { id: traceId },
-		data: {
-			status: 'APPROVED',
-			approvedAt: new Date(),
-			entryId: entry.id
-		}
-	});
-
-	return entry;
-}
-
-/**
- * 采纳溯源（使用事务，确保原子性）
- * @param traceId 溯源ID
- * @param userId 用户ID（用于审计日志）
- * @returns 创建的词条
- */
-export async function approveTrace(traceId: string, userId: string): Promise<any> {
-	// 使用事务确保原子性
-	const entry = await prisma.$transaction(
-		async (tx) => {
-			return await createEntryFromTrace(traceId, tx);
-		},
-		{
-			isolationLevel: 'Serializable',
-			timeout: 10000 // 10秒超时
-		}
-	);
-
-	// 清除缓存
-	const { invalidateTraceCache, invalidateEntryCache } = await import('@/lib/cache/traceCache');
-	await invalidateTraceCache(traceId);
-	await invalidateEntryCache(entry.slug);
-
-	// 记录审计日志
-	await logAudit({
-		userId,
-		action: 'trace.approve',
-		resourceType: 'trace',
-		resourceId: traceId,
-		metadata: { entryId: entry.id, slug: entry.slug }
-	});
-
-	return entry;
-}
+// 语义溯源功能已移除
 
 /**
  * 更新词条
@@ -220,9 +96,7 @@ export async function updateEntry(
 		select: { slug: true, version: true }
 	});
 
-	// 清除缓存
-	const { invalidateEntryCache } = await import('@/lib/cache/traceCache');
-	await invalidateEntryCache(updated.slug);
+	// 缓存功能已移除
 
 	// 记录审计日志
 	await logAudit({
@@ -235,18 +109,7 @@ export async function updateEntry(
 
 	// 重新获取完整数据
 	const fullEntry = await prisma.entry.findUnique({
-		where: { id: entryId },
-		include: {
-			sourceTrace: {
-				select: {
-					id: true,
-					title: true,
-					editor: {
-						select: { id: true, email: true, name: true }
-					}
-				}
-			}
-		}
+		where: { id: entryId }
 	});
 
 	return fullEntry!;
@@ -258,35 +121,14 @@ export async function updateEntry(
  * @returns 词条详情
  */
 export async function getEntry(slug: string): Promise<any> {
-	// 尝试从缓存获取
-	const { getEntry: getCachedEntry, setEntry: setCachedEntry } = await import('@/lib/cache/traceCache');
-	const cached = await getCachedEntry(slug);
-	if (cached) {
-		return cached;
-	}
-
 	// 从数据库获取
 	const entry = await prisma.entry.findUnique({
-		where: { slug },
-		include: {
-			sourceTrace: {
-				select: {
-					id: true,
-					title: true,
-					editor: {
-						select: { id: true, email: true, name: true }
-					}
-				}
-			}
-		}
+		where: { slug }
 	});
 
 	if (!entry) {
 		throw new Error('词条不存在');
 	}
-
-	// 存入缓存
-	await setCachedEntry(slug, entry);
 
 	return entry;
 }

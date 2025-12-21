@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import CitationRenderer from '@/components/trace/CitationRenderer';
+import SimpleCitationRenderer from './SimpleCitationRenderer';
 
 interface EntryDetail {
 	id: string;
@@ -16,15 +16,6 @@ interface EntryDetail {
 	createdAt: string;
 	updatedAt: string;
 	lastReviewedAt: string | null;
-	sourceTrace: {
-		id: string;
-		title: string;
-		editor: {
-			id: string;
-			email: string;
-			name: string | null;
-		};
-	};
 }
 
 const typeLabels: Record<string, string> = {
@@ -142,7 +133,7 @@ export default function EntryDetail({ slug }: Props) {
 						whiteSpace: 'pre-wrap'
 					}}
 				>
-					<CitationRenderer
+					<SimpleCitationRenderer
 						body={entry.content}
 						citations={entry.citations.map((c: any, idx: number) => ({
 							id: c.id || `citation-${idx}`,
@@ -150,18 +141,6 @@ export default function EntryDetail({ slug }: Props) {
 							title: c.title,
 							url: c.url
 						}))}
-						onCitationClick={(citationId, order) => {
-							// 滚动到对应的引用
-							const citationElement = document.getElementById(`citation-${citationId}`);
-							if (citationElement) {
-								citationElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-								// 高亮效果
-								citationElement.style.background = 'var(--color-warning)';
-								setTimeout(() => {
-									citationElement.style.background = 'var(--color-background-subtle)';
-								}, 2000);
-							}
-						}}
 					/>
 				</div>
 			</div>
@@ -248,20 +227,6 @@ export default function EntryDetail({ slug }: Props) {
 			<div className="card-academic" style={{ padding: 'var(--spacing-lg)' }}>
 				<h3 style={{ fontSize: 'var(--font-size-base)', marginBottom: 'var(--spacing-md)' }}>来源信息</h3>
 				<div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-					<p style={{ margin: 'var(--spacing-xs) 0' }}>
-						<strong>来源溯源：</strong>
-						{/* 暂时禁用语义溯源功能，后期改造后再启用 */}
-						{/* <Link href={`/traces/${entry.sourceTrace.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
-							{entry.sourceTrace.title}
-						</Link> */}
-						<span style={{ color: 'var(--color-text-secondary)' }}>
-							{entry.sourceTrace.title}（功能暂时禁用）
-						</span>
-					</p>
-					<p style={{ margin: 'var(--spacing-xs) 0' }}>
-						<strong>编辑：</strong>
-						{entry.sourceTrace.editor.name || entry.sourceTrace.editor.email}
-					</p>
 					<p style={{ margin: 'var(--spacing-xs) 0' }}>
 						<strong>创建时间：</strong>
 						{new Date(entry.createdAt).toLocaleString('zh-CN')}

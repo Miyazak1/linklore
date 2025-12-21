@@ -3,7 +3,7 @@ import { callAiProvider, getApiKeyFromConfig, type AiProvider } from './adapters
 
 type RouteInput = {
 	userId: string | null;
-	task: 'summarize' | 'evaluate';
+	task: 'summarize' | 'evaluate' | 'moderate';
 	estimatedMaxCostCents: number;
 	prompt: string;
 };

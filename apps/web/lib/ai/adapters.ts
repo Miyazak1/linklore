@@ -378,10 +378,10 @@ export async function callOpenAiCompatibleStream(
 		log.debug('API响应状态', { status: response.status, statusText: response.statusText });
 
 		if (!response.ok) {
-			const error = await response.json().catch(() => ({}));
+			const error = await response.json().catch(() => ({})) as any;
 			log.error('API调用失败', error as Error);
 			throw new Error(
-				error.error?.message || `API 调用失败: ${response.status} ${response.statusText}`
+				error?.error?.message || `API 调用失败: ${response.status} ${response.statusText}`
 			);
 		}
 

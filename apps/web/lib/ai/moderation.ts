@@ -6,6 +6,10 @@ export interface ModerationResult {
 	score: number; // 0-1，偏离度评分（1表示严重偏离）
 	note: string; // 监督AI的提醒内容
 	details: {
+		// 主题相关
+		topicDrift?: string; // 主题偏离说明
+		topicUnclear?: string; // 主题不明确说明
+		
 		// 事实与前提相关
 		premiseError?: string; // 前提错误说明（第5条）
 		premiseUnclear?: string; // 前提不明确说明（第5条）

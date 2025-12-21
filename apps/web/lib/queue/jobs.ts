@@ -230,60 +230,7 @@ export async function enqueueEvaluate(documentId: string) {
 	}
 }
 
-export async function enqueuePracticeAnalysis(practiceId: string) {
-	// If Redis was previously unavailable, process asynchronously
-	if (!redisAvailable) {
-		console.log(`[Queue] Redis unavailable, processing practice analysis asynchronously for ${practiceId}`);
-		setImmediate(async () => {
-			try {
-				const { analyzePracticeJob } = await import('../../../../worker/practices/analyze-practice');
-				await analyzePracticeJob(practiceId);
-			} catch (err: any) {
-				console.error(`[Queue] Async practice analysis failed:`, err);
-			}
-		});
-		return { id: 'async', name: 'analyze-practice', data: { practiceId } };
-	}
-
-	const q = initQueue();
-	if (!q) {
-		redisAvailable = false;
-		// Fallback to async processing
-		console.log(`[Queue] Redis unavailable, processing practice analysis asynchronously for ${practiceId}`);
-		setImmediate(async () => {
-			try {
-				const { analyzePracticeJob } = await import('../../../../worker/practices/analyze-practice');
-				await analyzePracticeJob(practiceId);
-			} catch (err: any) {
-				console.error(`[Queue] Async practice analysis failed:`, err);
-			}
-		});
-		return { id: 'async', name: 'analyze-practice', data: { practiceId } };
-	}
-	
-	try {
-		// 实践分析任务：中等优先级
-		const job = await q.add('analyze-practice', { practiceId }, { 
-			removeOnComplete: 50, 
-			removeOnFail: 50,
-			priority: 2 // 中等优先级
-		});
-		return job;
-	} catch (err: any) {
-		// If enqueue fails, mark Redis as unavailable and process asynchronously
-		console.warn(`[Queue] Failed to enqueue practice analysis (${err.message}), using async fallback`);
-		redisAvailable = false;
-		setImmediate(async () => {
-			try {
-				const { analyzePracticeJob } = await import('../../../../worker/practices/analyze-practice');
-				await analyzePracticeJob(practiceId);
-			} catch (syncErr: any) {
-				console.error(`[Queue] Async practice analysis failed:`, syncErr);
-			}
-		});
-		return { id: 'async', name: 'analyze-practice', data: { practiceId } };
-	}
-}
+// 实践功能已移除
 
 export async function enqueueAnalyzeDisagreements(topicId: string, newDocumentId?: string) {
 	// If Redis was previously unavailable, process asynchronously

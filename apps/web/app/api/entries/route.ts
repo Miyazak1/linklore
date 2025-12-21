@@ -56,19 +56,6 @@ export async function GET(req: Request) {
 				createdAt: true,
 				updatedAt: true,
 				lastReviewedAt: true,
-				sourceTrace: {
-					select: {
-						id: true,
-						title: true,
-						editor: {
-							select: {
-								id: true,
-								email: true,
-								name: true
-							}
-						}
-					}
-				}
 			},
 			orderBy: pagination.sortBy
 				? { [pagination.sortBy]: pagination.sortOrder }

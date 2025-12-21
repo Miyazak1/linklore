@@ -74,10 +74,11 @@ export async function extractAndStore(documentId: string) {
 	} else if (doc.fileKey.endsWith('.md') || doc.mime === 'text/markdown') {
 		// Render markdown to HTML
 		const text = buffer.toString('utf-8');
-		html = marked(text, {
+		const markedResult = marked(text, {
 			breaks: true, // Convert line breaks to <br>
 			gfm: true // GitHub Flavored Markdown
 		});
+		html = typeof markedResult === 'string' ? markedResult : await markedResult;
 	} else if (doc.fileKey.endsWith('.pdf') || doc.mime === 'application/pdf') {
 		// Extract text from PDF
 		try {

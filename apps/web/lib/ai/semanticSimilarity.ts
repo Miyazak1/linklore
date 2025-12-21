@@ -101,7 +101,7 @@ async function calculateSimilarityByEmbedding(
 		throw new Error(`Embedding API failed: ${response.status} - ${errorText}`);
 	}
 
-	const data = await response.json();
+	const data = await response.json() as any;
 	
 	if (!data.data || data.data.length !== 2) {
 		throw new Error('Invalid embedding response');
@@ -182,7 +182,7 @@ async function calculateSimilarityByAI(
 		throw new Error(`AI API failed: ${response.status} - ${errorText}`);
 	}
 
-	const data = await response.json();
+	const data = await response.json() as any;
 	const text = data.choices?.[0]?.message?.content || '0.5';
 	
 	// 提取数字

@@ -6,10 +6,10 @@ export default async function HomePage() {
 	try {
 		// Get statistics with caching
 		const cacheKey = 'home:stats';
-		let cached: { topics: number; documents: number; users: number; books: number; traces: number; entries: number } | null = null;
+		let cached: { topics: number; documents: number; users: number; books: number } | null = null;
 		
 		try {
-			cached = await getCache<{ topics: number; documents: number; users: number; books: number; traces: number; entries: number }>(cacheKey);
+			cached = await getCache<{ topics: number; documents: number; users: number; books: number }>(cacheKey);
 		} catch (cacheErr) {
 			console.warn('[HomePage] Cache error (non-fatal):', cacheErr);
 		}
@@ -18,26 +18,20 @@ export default async function HomePage() {
 		let totalDocuments: number;
 		let totalUsers: number;
 		let totalBooks: number;
-		let totalTraces: number;
-		let totalEntries: number;
 		
 		if (cached) {
 			totalTopics = cached.topics;
 			totalDocuments = cached.documents;
 			totalUsers = cached.users;
 			totalBooks = cached.books;
-			totalTraces = cached.traces || 0;
-			totalEntries = cached.entries || 0;
 		} else {
 			try {
 				// Fetch all counts in parallel
-				[totalTopics, totalDocuments, totalUsers, totalBooks, totalTraces, totalEntries] = await Promise.all([
+				[totalTopics, totalDocuments, totalUsers, totalBooks] = await Promise.all([
 					prisma.topic.count(),
 					prisma.document.count(),
 					prisma.user.count(),
-					prisma.book.count(),
-					prisma.trace.count({ where: { status: 'PUBLISHED' } }).catch(() => 0),
-					prisma.entry.count().catch(() => 0)
+					prisma.book.count()
 				]);
 				
 				// Cache for 5 minutes (non-blocking)
@@ -46,9 +40,7 @@ export default async function HomePage() {
 						topics: totalTopics, 
 						documents: totalDocuments, 
 						users: totalUsers, 
-						books: totalBooks,
-						traces: totalTraces,
-						entries: totalEntries
+						books: totalBooks
 					}, 300);
 				} catch (setCacheErr) {
 					console.warn('[HomePage] Set cache error (non-fatal):', setCacheErr);
@@ -60,8 +52,6 @@ export default async function HomePage() {
 				totalDocuments = 0;
 				totalUsers = 0;
 				totalBooks = 0;
-				totalTraces = 0;
-				totalEntries = 0;
 			}
 		}
 
@@ -74,9 +64,7 @@ export default async function HomePage() {
 					totalTopics, 
 					totalDocuments, 
 					totalUsers, 
-					totalBooks,
-					totalTraces,
-					totalEntries
+					totalBooks
 				}} />
 			</main>
 		);
