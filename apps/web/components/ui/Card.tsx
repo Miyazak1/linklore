@@ -7,9 +7,11 @@ interface CardProps {
 	elevated?: boolean;
 	style?: React.CSSProperties;
 	className?: string;
+	onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
+	onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
-export default function Card({ children, elevated = false, style, className }: CardProps) {
+export default function Card({ children, elevated = false, style, className, onMouseEnter, onMouseLeave }: CardProps) {
 	return (
 		<div
 			className={className}
@@ -22,6 +24,8 @@ export default function Card({ children, elevated = false, style, className }: C
 				transition: 'all var(--transition-fast)',
 				...style,
 			}}
+			onMouseEnter={onMouseEnter}
+			onMouseLeave={onMouseLeave}
 		>
 			{children}
 		</div>

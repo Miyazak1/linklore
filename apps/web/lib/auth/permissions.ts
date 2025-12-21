@@ -49,35 +49,11 @@ export async function isEditor(userId?: string): Promise<boolean> {
 	return user?.role === 'editor' || user?.role === 'admin';
 }
 
-/**
- * 检查溯源所有权
- * @param traceId 溯源ID
- * @param userId 用户ID
- * @param userRole 用户角色
- * @returns {Promise<boolean>} 是否有权限操作该溯源
- */
-export async function checkTraceOwnership(
-	traceId: string,
-	userId: string,
-	userRole: string
-): Promise<boolean> {
-	// 管理员可以操作所有溯源
-	if (userRole === 'admin') {
-		return true;
-	}
-
-	// 检查溯源是否存在且属于该用户
-	const trace = await prisma.trace.findUnique({
-		where: { id: traceId },
-		select: { editorId: true }
-	});
-
-	return trace?.editorId === userId;
-}
+// 语义溯源功能已移除
 
 /**
  * 处理编辑角色变更
- * 当编辑被降级为普通用户时，处理其创建的溯源
+ * 当编辑被降级为普通用户时，处理其创建的内容
  * @param userId 用户ID
  * @param newRole 新角色
  */
@@ -85,22 +61,10 @@ export async function handleEditorRoleChange(
 	userId: string,
 	newRole: string
 ): Promise<void> {
-	// 如果新角色不是editor或admin，需要处理已创建的溯源
+	// 语义溯源功能已移除，此函数保留用于未来扩展
+	// 如果新角色不是editor或admin，可以在这里处理相关内容
 	if (newRole !== 'editor' && newRole !== 'admin') {
-		// 方案：标记为遗留内容，锁定编辑
-		// 已采纳的溯源保持不变，未采纳的溯源标记为遗留
-		await prisma.trace.updateMany({
-			where: {
-				editorId: userId,
-				status: { in: ['DRAFT', 'PUBLISHED'] }
-			},
-			data: {
-				// 注意：这里可能需要添加legacy字段，暂时先记录日志
-				// 实际实现时可以考虑添加legacy字段到Trace模型
-			}
-		});
-
-		console.log(`[Permissions] User ${userId} role changed to ${newRole}, traces marked as legacy`);
+		console.log(`[Permissions] User ${userId} role changed to ${newRole}`);
 	}
 }
 

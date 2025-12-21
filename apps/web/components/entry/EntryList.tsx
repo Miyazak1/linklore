@@ -13,15 +13,6 @@ interface Entry {
 	createdAt: string;
 	updatedAt: string;
 	lastReviewedAt: string | null;
-	sourceTrace: {
-		id: string;
-		title: string;
-		editor: {
-			id: string;
-			email: string;
-			name: string | null;
-		};
-	};
 }
 
 interface PaginatedEntries {
@@ -233,9 +224,6 @@ export default function EntryList() {
 											</div>
 											<div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>
 												<span>版本: {entry.version}</span>
-												<span style={{ marginLeft: 'var(--spacing-md)' }}>
-													来源: {entry.sourceTrace.editor.email}
-												</span>
 												<span style={{ marginLeft: 'var(--spacing-md)' }}>
 													创建: {new Date(entry.createdAt).toLocaleDateString('zh-CN')}
 												</span>
