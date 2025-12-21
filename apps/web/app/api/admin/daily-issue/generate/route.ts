@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 	try {
 		await requireAdmin();
 		const session = await readSession();
-		const userId = session?.userId || 'admin';
+		const userId: string | null = (session?.userId && typeof session.userId === 'string') ? session.userId : null;
 
 		const body = await req.json();
 		const { topic, category, difficulty = 3 } = body;
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 		// 调用AI生成（使用routeAiCall的正确签名）
 		// 生成完整议题需要较多token，估算成本较高
 		const result = await routeAiCall({
-			userId: userId || null,
+			userId: userId,
 			task: 'summarize', // 使用现有任务类型
 			estimatedMaxCostCents: 300, // 估算成本（生成完整议题需要更多token，约3元）
 			prompt
