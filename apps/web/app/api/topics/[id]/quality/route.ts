@@ -25,26 +25,29 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 		docs.forEach((doc) => {
 			const evaluation = doc.evaluations[0];
 			if (evaluation && evaluation.scores) {
-				const scores = typeof evaluation.scores === 'object' ? evaluation.scores : {};
+				// Ensure scores is an object (not an array)
+				const scoresObj = typeof evaluation.scores === 'object' && !Array.isArray(evaluation.scores) 
+					? evaluation.scores as Record<string, any>
+					: {};
 				// Map Chinese field names from evaluation to quality metrics
 				// Rigor = average of 逻辑 and 证据
-				const logic = (scores['逻辑'] as number) || 0;
-				const evidence = (scores['证据'] as number) || 0;
+				const logic = (typeof scoresObj['逻辑'] === 'number' ? scoresObj['逻辑'] : 0) || 0;
+				const evidence = (typeof scoresObj['证据'] === 'number' ? scoresObj['证据'] : 0) || 0;
 				if (logic > 0 || evidence > 0) {
 					totalRigor += (logic + evidence) / 2;
 				}
 				// Clarity = 结构 score
-				const structure = (scores['结构'] as number) || 0;
+				const structure = (typeof scoresObj['结构'] === 'number' ? scoresObj['结构'] : 0) || 0;
 				if (structure > 0) {
 					totalClarity += structure;
 				}
 				// Citation = 引用 score
-				const citation = (scores['引用'] as number) || 0;
+				const citation = (typeof scoresObj['引用'] === 'number' ? scoresObj['引用'] : 0) || 0;
 				if (citation > 0) {
 					totalCitation += citation;
 				}
 				// Originality = 观点 score
-				const viewpoint = (scores['观点'] as number) || 0;
+				const viewpoint = (typeof scoresObj['观点'] === 'number' ? scoresObj['观点'] : 0) || 0;
 				if (viewpoint > 0) {
 					totalOriginality += viewpoint;
 				}
