@@ -7,10 +7,10 @@ import { createSuccessResponse, createErrorResponse, handleError } from '@/lib/a
  */
 export async function POST(
 	req: Request,
-	{ params }: { params: { token: string } }
+	{ params }: { params: Promise<{ token: string }> }
 ) {
 	try {
-		const { token } = params;
+		const { token } = await params;
 		
 		// TODO: 实现邀请接受逻辑
 		return NextResponse.json(
