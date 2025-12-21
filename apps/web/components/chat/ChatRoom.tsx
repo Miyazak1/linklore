@@ -47,10 +47,12 @@ interface Message {
 	moderationDetails?: any;
 	references?: Array<{
 		id: string;
-		content: string;
-		sender: {
-			name: string | null;
-			email: string;
+		referencedMessage?: {
+			content: string;
+			sender: {
+				name: string | null;
+				email: string;
+			};
 		};
 	}>;
 }
