@@ -2668,20 +2668,6 @@ export default function ChatRoom({ roomId, inviteToken: propInviteToken, onRoomJ
 													'未知用户'
 											})) || []
 										}
-										shareMode={shareMode}
-										isSelected={selectedMessageIds.has(message.id)}
-										onToggleSelect={() => {
-											const shareMessage: ShareCardMessage = {
-												id: message.id,
-												content: message.content,
-												senderName: message.sender.name || message.sender.email,
-												senderAvatar: message.sender.avatarUrl || undefined,
-												isCurrentUser: message.senderId === currentUserId,
-												createdAt: message.createdAt,
-												type: message.contentType
-											};
-											toggleMessage(message.id, shareMessage);
-										}}
 									/>
 								);
 							})}
