@@ -12,10 +12,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 				topicId: id,
 				status: { not: 'invalid' } // 排除无效的分歧点
 			}, 
-			orderBy: { createdAt: 'desc' },
-			include: {
-				// 可以添加关联查询如果需要
-			}
+			orderBy: { createdAt: 'desc' }
+			// 可以添加 include 关联查询如果需要
 		});
 		return NextResponse.json({ items }, {
 			headers: { 'Content-Type': 'application/json' }
