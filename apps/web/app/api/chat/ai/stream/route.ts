@@ -193,7 +193,7 @@ export async function POST(req: Request) {
 		const provider = systemConfig.provider as any;
 		const model = systemConfig.model;
 		const apiKey = getApiKeyFromConfig(systemConfig.encApiKey);
-		let endpoint = systemConfig.apiEndpoint;
+		let endpoint: string = systemConfig.apiEndpoint || '';
 
 		if (!endpoint) {
 			switch (provider) {
@@ -209,6 +209,10 @@ export async function POST(req: Request) {
 				default:
 					endpoint = 'https://api.openai.com/v1';
 			}
+		}
+
+		if (!endpoint) {
+			return NextResponse.json({ error: '无法确定API端点' }, { status: 400 });
 		}
 
 		// 8. 构建 AI messages

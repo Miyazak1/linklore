@@ -30,7 +30,7 @@ export async function GET() {
 		const provider = systemConfig.provider as any;
 		const model = systemConfig.model;
 		const apiKey = getApiKeyFromConfig(systemConfig.encApiKey);
-		let endpoint = systemConfig.apiEndpoint;
+		let endpoint: string = systemConfig.apiEndpoint || '';
 
 		if (!endpoint) {
 			switch (provider) {
@@ -43,7 +43,14 @@ export async function GET() {
 				case 'qwen':
 					endpoint = 'https://dashscope.aliyuncs.com/api/v1';
 					break;
+				default:
+					endpoint = 'https://api.openai.com/v1'; // 默认值
+					break;
 			}
+		}
+
+		if (!endpoint) {
+			return NextResponse.json({ error: '无法确定API端点' }, { status: 400 });
 		}
 
 		console.log('[Test Stream] 配置:', {
