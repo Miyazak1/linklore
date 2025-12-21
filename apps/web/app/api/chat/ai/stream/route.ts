@@ -1,105 +1,202 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
+import { prisma } from '@/lib/db/client'; // 保留用于 User 等共享模型
+import { requireRoomAccess } from '@/lib/security/roomAccess';
 import {
 	callOpenAiCompatibleStream,
 	parseStreamResponse,
 	getApiKeyFromConfig
 } from '@/lib/ai/adapters';
-import { requireRoomAccess } from '@/lib/security/roomAccess';
 import { z } from 'zod';
+import {
+	getFacilitatorSystemPrompt,
+	getFacilitatorTaskPrompt,
+	FacilitatorMode
+} from '@/lib/chat/prompts/facilitator';
+import {
+	getSoloSystemPrompt,
+	getSoloPluginPrompt,
+	type SoloPluginType
+} from '@/lib/chat/prompts/solo';
+import { getDuoAssistantSystemPrompt } from '@/lib/chat/prompts/assistant';
+import { createModuleLogger } from '@/lib/utils/logger';
+import { broadcastToRoom } from '@/lib/realtime/roomConnections';
 
+const log = createModuleLogger('AI Stream API');
+
+/**
+ * 请求体 Schema
+ */
 const StreamRequestSchema = z.object({
 	messageId: z.string(),
-	prompt: z.string().min(1),
 	roomId: z.string(),
-	context: z
-		.array(
-			z.object({
-				role: z.enum(['user', 'assistant']),
-				content: z.string()
-			})
-		)
-		.optional(),
-	provider: z.enum(['openai', 'qwen', 'siliconflow']).optional(),
-	model: z.string().optional(),
-	apiKey: z.string().optional(),
-	apiEndpoint: z.string().optional()
+	prompt: z.string(),
+	context: z.array(z.object({
+		role: z.enum(['user', 'assistant']),
+		content: z.string()
+	})).optional(),
+	taskType: z.enum(['structure', 'tone', 'consensus', 'library']).optional(),
+	pluginType: z.enum([
+		'concept_clarifier',
+		'reasoning_analyzer',
+		'counter_perspective',
+		'socratic_guide',
+		'writing_structurer',
+		'learning_navigator',
+		'thought_log',
+		'practice_framework'
+	]).optional(),
+	facilitatorMode: z.enum(['v1', 'v2', 'v3']).optional(),
+	aiRole: z.enum(['assistant', 'facilitator']).optional()
 });
 
 /**
  * POST /api/chat/ai/stream
- * 启动流式 AI 输出（SSE）
+ * AI 流式输出端点
+ * 支持 DUO 房间（taskType）和 SOLO 房间（pluginType）
  */
 export async function POST(req: Request) {
+	log.debug('收到POST请求', {
+		url: req.url,
+		method: req.method,
+	});
+	
 	try {
+		// 1. 登录检查
 		const session = await readSession();
 		if (!session?.sub) {
+			log.warn('未登录用户尝试访问');
 			return NextResponse.json({ error: '未登录' }, { status: 401 });
 		}
+		log.debug('用户已登录', { userId: session.sub });
 
-		const body = await req.json();
+		// 2. 解析请求体
+		let body: any;
+		try {
+			body = await req.json();
+			log.debug('请求体解析成功', {
+				hasMessageId: !!body.messageId,
+				hasRoomId: !!body.roomId,
+				hasPrompt: !!body.prompt,
+				promptLength: body.prompt?.length || 0
+			});
+		} catch (parseError: any) {
+			log.error('请求体解析失败', parseError, {
+				messageId: body?.messageId
+			});
+			throw parseError;
+		}
+		
+		const validatedData = StreamRequestSchema.parse(body);
 		const {
 			messageId,
-			prompt,
 			roomId,
-			context,
-			provider: providedProvider,
-			model: providedModel,
-			apiKey: providedApiKey,
-			apiEndpoint: providedEndpoint
-		} = StreamRequestSchema.parse(body);
+			prompt,
+			context = [],
+			taskType,
+			pluginType,
+			facilitatorMode = 'v1',
+			aiRole
+		} = validatedData;
 
-		// 检查房间访问权限
+		log.info('收到流式请求', {
+			messageId,
+			roomId,
+			userId: session.sub,
+			promptLength: prompt.length,
+			contextLength: context.length,
+			taskType,
+			pluginType,
+			facilitatorMode
+		});
+
+		// 3. 检查房间访问权限
 		await requireRoomAccess(roomId, session.sub);
 
-		// 获取用户 AI 配置或使用传入的参数
-		let finalProvider = providedProvider;
-		let finalModel = providedModel;
-		let finalApiKey = providedApiKey;
-		let finalEndpoint = providedEndpoint;
-
-		if (!finalApiKey) {
-			// 从用户配置获取
-			const userConfig = await prisma.userAiConfig.findUnique({
-				where: { userId: session.sub }
-			});
-
-			if (userConfig) {
-				finalProvider = (userConfig.provider as any) || finalProvider;
-				finalModel = userConfig.model || finalModel;
-				finalApiKey = getApiKeyFromConfig(userConfig.encApiKey);
-				finalEndpoint = userConfig.apiEndpoint || finalEndpoint;
-			} else {
-				// 使用系统默认配置
-				const systemConfig = await prisma.systemAiConfig.findFirst({
-					orderBy: { updatedAt: 'desc' }
-				});
-				if (systemConfig) {
-					finalProvider = (systemConfig.provider as any) || finalProvider;
-					finalModel = systemConfig.model || finalModel;
-					finalApiKey = getApiKeyFromConfig(systemConfig.encApiKey);
-					finalEndpoint = systemConfig.apiEndpoint || finalEndpoint;
-				} else {
-					return NextResponse.json(
-						{ error: '未配置 AI' },
-						{ status: 400 }
-					);
-				}
+		// 4. 获取房间信息（包括房间类型）
+		const room = await chatDb.rooms.findUnique({
+			where: { id: roomId },
+			select: {
+				id: true,
+				type: true,
+				creatorId: true,
+				participantId: true,
+				topic: true,
+				topicDescription: true,
+				status: true
 			}
+		});
+
+		if (!room) {
+			return NextResponse.json({ error: '房间不存在' }, { status: 404 });
 		}
 
-		if (!finalProvider || !finalModel || !finalApiKey) {
+		if (room.status !== 'ACTIVE') {
+			return NextResponse.json({ error: '房间已关闭' }, { status: 400 });
+		}
+
+		// 5. 房间类型验证
+		if (room.type === 'DUO' && pluginType) {
 			return NextResponse.json(
-				{ error: 'AI 配置不完整' },
+				{ error: 'DUO房间不能使用pluginType，请使用taskType' },
 				{ status: 400 }
 			);
 		}
 
-		// 确定 API endpoint
-		let endpoint = finalEndpoint;
+		if (room.type === 'SOLO' && taskType) {
+			return NextResponse.json(
+				{ error: 'SOLO房间不能使用taskType，请使用pluginType' },
+				{ status: 400 }
+			);
+		}
+
+		// 6. 验证消息存在且属于当前用户
+		const message = await chatDb.messages.findUnique({
+			where: { id: messageId },
+			select: {
+				id: true,
+				senderId: true,
+				roomId: true,
+				contentType: true
+			}
+		});
+
+		if (!message) {
+			return NextResponse.json({ error: '消息不存在' }, { status: 404 });
+		}
+
+		if (message.roomId !== roomId) {
+			return NextResponse.json({ error: '消息不属于此房间' }, { status: 400 });
+		}
+
+		if (message.senderId !== session.sub) {
+			return NextResponse.json({ error: '无权操作此消息' }, { status: 403 });
+		}
+
+		if (message.contentType !== 'AI_SUGGESTION') {
+			return NextResponse.json(
+				{ error: '只能流式输出AI建议消息' },
+				{ status: 400 }
+			);
+		}
+
+		// 7. 获取系统 AI 配置
+		const systemConfig = await prisma.systemAiConfig.findFirst({
+			orderBy: { updatedAt: 'desc' }
+		});
+
+		if (!systemConfig) {
+			return NextResponse.json({ error: '未配置系统AI' }, { status: 500 });
+		}
+
+		const provider = systemConfig.provider as any;
+		const model = systemConfig.model;
+		const apiKey = getApiKeyFromConfig(systemConfig.encApiKey);
+		let endpoint = systemConfig.apiEndpoint;
+
 		if (!endpoint) {
-			switch (finalProvider) {
+			switch (provider) {
 				case 'openai':
 					endpoint = 'https://api.openai.com/v1';
 					break;
@@ -109,542 +206,419 @@ export async function POST(req: Request) {
 				case 'qwen':
 					endpoint = 'https://dashscope.aliyuncs.com/api/v1';
 					break;
+				default:
+					endpoint = 'https://api.openai.com/v1';
 			}
 		}
 
-		// 构建消息上下文
-		const messages: Array<{ role: 'user' | 'assistant'; content: string }> =
-			context || [];
-		messages.push({ role: 'user', content: prompt });
+		// 8. 构建 AI messages
+		const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
 
-		console.log('[Stream API] ========== 开始流式输出 ==========');
-		console.log('[Stream API] 参数:', {
-			messageId,
-			provider: finalProvider,
-			model: finalModel,
-			endpoint,
-			hasApiKey: !!finalApiKey,
-			apiKeyLength: finalApiKey?.length || 0,
-			contextLength: messages.length,
-			prompt: prompt.substring(0, 100) + '...'
+		if (room.type === 'DUO') {
+			// DUO 房间：根据 aiRole 选择 Prompt
+			// 如果 aiRole === 'assistant' 或没有 taskType（@AI 调用），使用助手 Prompt
+			// 如果 aiRole === 'facilitator' 或有 taskType（主持人功能），使用主持人 Prompt
+			const useAssistant = aiRole === 'assistant' || (!taskType && aiRole !== 'facilitator');
+			
+			if (useAssistant) {
+				// 使用助手 Prompt
+				const systemPrompt = getDuoAssistantSystemPrompt();
+				messages.push({ role: 'system', content: systemPrompt });
+			} else {
+				// 使用主持人 Prompt
+				let mode: FacilitatorMode = FacilitatorMode.V1;
+				if (facilitatorMode === 'v2') {
+					mode = FacilitatorMode.V2;
+				} else if (facilitatorMode === 'v3') {
+					mode = FacilitatorMode.V3;
+				}
+				const systemPrompt = getFacilitatorSystemPrompt(mode);
+				messages.push({ role: 'system', content: systemPrompt });
+			}
+
+			// 如果有 taskType，添加任务特定的 prompt（仅主持人模式）
+			if (taskType && !useAssistant) {
+				const taskPrompt = getFacilitatorTaskPrompt(taskType, {
+					recentMessages: context.map(m => m.content),
+					topic: room.topic || undefined
+				});
+				messages.push({ role: 'user', content: taskPrompt });
+			}
+
+			// 添加讨论上下文
+			if (context.length > 0) {
+				messages.push(...context);
+			} else {
+				// 如果没有提供上下文，从数据库获取
+				const discussionMessages = await chatDb.messages.findMany({
+					where: {
+						roomId,
+						contentType: { in: ['USER', 'AI_ADOPTED'] },
+						deletedAt: null
+					},
+					include: {
+						sender: { select: { id: true } }
+					},
+					orderBy: { sequence: 'asc' },
+					take: 15
+				});
+
+				discussionMessages.forEach((m) => {
+					let messageContent = m.content;
+					if (m.senderId === room.creatorId) {
+						messageContent = `[用户A] ${m.content}`;
+					} else if (m.senderId === room.participantId) {
+						messageContent = `[用户B] ${m.content}`;
+					}
+					messages.push({
+						role: 'user',
+						content: messageContent
+					});
+				});
+			}
+
+			// 添加当前 prompt
+			if (prompt) {
+				const currentUserLabel = session.sub === room.creatorId ? '[用户A]' : '[用户B]';
+				messages.push({
+					role: 'user',
+					content: `${currentUserLabel} ${prompt}`
+				});
+			}
+		} else {
+			// SOLO 房间：使用 Solo 系统 Prompt
+			const systemPrompt = getSoloSystemPrompt();
+			messages.push({ role: 'system', content: systemPrompt });
+
+			// 如果有 pluginType，添加插件特定的 prompt
+			if (pluginType) {
+				const pluginPrompt = getSoloPluginPrompt(pluginType, prompt, {
+					recentMessages: context.map(m => m.content)
+				});
+				messages.push({ role: 'user', content: pluginPrompt });
+			} else {
+				// 添加上下文
+				if (context.length > 0) {
+					messages.push(...context);
+				}
+
+				// 添加当前 prompt
+				if (prompt) {
+					messages.push({ role: 'user', content: prompt });
+				}
+			}
+		}
+
+		log.debug('构建的 AI messages', {
+			messagesCount: messages.length,
+			roomType: room.type,
+			taskType,
+			pluginType
 		});
 
-		// 创建流式响应
+		// 9. 调用 AI API（流式）
+		const responseStream = await callOpenAiCompatibleStream(endpoint, {
+			apiKey,
+			model,
+			messages: messages as Array<{ role: 'user' | 'assistant'; content: string }>,
+			maxTokens: 2000,
+			temperature: 0.7
+		});
+
+		// 10. 创建 SSE 流式响应
 		const stream = new ReadableStream({
 			async start(controller) {
 				const encoder = new TextEncoder();
+				let fullText = '';
+				let chunkCount = 0;
+				let lastChunkTime = Date.now();
+				let lastUpdateTime = Date.now();
+				const UPDATE_INTERVAL = 1000; // 每1秒更新一次数据库（更频繁，确保实时同步）
+				const UPDATE_CHUNK_COUNT = 3; // 每3个chunk更新一次数据库（更频繁）
+
+				const sendEvent = (event: string, data: any) => {
+					const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+					controller.enqueue(encoder.encode(message));
+				};
+
+				// 心跳机制：每30秒发送一次心跳，保持连接活跃
+				const heartbeatInterval = setInterval(() => {
+					const timeSinceLastChunk = Date.now() - lastChunkTime;
+					if (timeSinceLastChunk > 30000) {
+						// 如果30秒没有收到新chunk，发送心跳
+						sendEvent('heartbeat', { timestamp: Date.now() });
+					}
+				}, 30000);
 
 				try {
-					// 更新消息状态为流式输出中
-					await prisma.chatMessage.update({
-						where: { id: messageId },
-						data: {
-							isStreaming: true,
-							streamingCompleted: false
-						}
-					}).catch(err => console.error('[Stream] Failed to update message status:', err));
+					// 发送开始事件
+					sendEvent('start', { messageId, roomId });
 
-					// 构建OpenAI格式的消息数组
-					const openAiMessages = messages.map(m => ({
-						role: m.role === 'user' ? 'user' : 'assistant',
-						content: m.content
-					}));
+					// 同时广播给房间内所有其他用户
+					broadcastToRoom(
+						roomId,
+						'ai-start',
+						{ messageId, roomId },
+						session.sub // 排除发起请求的用户
+					);
 
-					console.log('[Stream API] 调用AI，消息数量:', openAiMessages.length);
-					console.log('[Stream API] 消息内容:', JSON.stringify(openAiMessages, null, 2));
-					console.log('[Stream API] API配置:', {
-						endpoint,
-						model: finalModel,
-						hasApiKey: !!finalApiKey,
-						apiKeyLength: finalApiKey?.length || 0
-					});
+					// 解析流式响应
+					try {
+						for await (const chunk of parseStreamResponse(responseStream)) {
+							// 检查流是否被中断
+							if (chunk.done) {
+								// 流完成
+							log.info('流完成', {
+								messageId,
+									chunkCount,
+									textLength: fullText.length,
+									usage: chunk.usage
+								});
 
-					// 对于 DeepSeek-V3，直接使用非流式调用（因为流式响应有问题，会被截断）
-					const isDeepSeekV3 = finalModel?.toLowerCase().includes('deepseek-v3');
-					const maxTokens = finalModel?.includes('deepseek') || finalModel?.includes('DeepSeek')
-						? 4000  // DeepSeek-V3 可能需要更大的token限制
-						: 2000;
-					
-					if (isDeepSeekV3) {
-						console.log('[Stream API] DeepSeek-V3 检测到，直接使用非流式调用（流式响应会被截断）');
-						try {
-							const nonStreamBody: any = {
-								model: finalModel,
-								messages: openAiMessages,
-								max_tokens: maxTokens,
-								temperature: 0.7,
-								top_p: 0.95,
-								reasoning_effort: 'low'
-							};
-							
-							const nonStreamResponse = await fetch(`${endpoint}/chat/completions`, {
-								method: 'POST',
-								headers: {
-									Authorization: `Bearer ${finalApiKey}`,
-									'Content-Type': 'application/json'
-								},
-								body: JSON.stringify(nonStreamBody)
-							});
-							
-							if (nonStreamResponse.ok) {
-								const nonStreamData = await nonStreamResponse.json();
-								const content = nonStreamData.choices?.[0]?.message?.content;
-								
-								if (content) {
-									console.log('[Stream API] ✅ 非流式调用成功，模拟流式输出，内容长度:', content.length);
-									
-									// 模拟流式输出：逐字符发送（每5个字符一组，稍微延迟）
-									const chars = content.split('');
-									for (let i = 0; i < chars.length; i++) {
-										const char = chars[i];
-										controller.enqueue(
-											encoder.encode(
-												`event: chunk\ndata: ${JSON.stringify({
-													text: char
-												})}\n\n`
-											)
-										);
-										
-										// 每5个字符稍微延迟，模拟流式效果
-										if (i % 5 === 0 && i > 0) {
-											await new Promise(resolve => setTimeout(resolve, 20));
-										}
-									}
-									
-									// 发送完成事件
-									controller.enqueue(
-										encoder.encode(
-											`event: done\ndata: ${JSON.stringify({
-												messageId,
-												fullText: content,
-												usage: nonStreamData.usage
-											})}\n\n`
-										)
-									);
-									
-									// 更新数据库
-									await prisma.chatMessage.update({
+								// 更新消息内容
+								try {
+									await chatDb.messages.update({
 										where: { id: messageId },
 										data: {
-											content: content,
-											contentType: 'AI_SUGGESTION',
-											isStreaming: false,
-											streamingCompleted: true,
-											aiProvider: finalProvider,
-											aiModel: finalModel
+											content: fullText || '[AI 生成中断]',
+											aiProvider: provider,
+											aiModel: model
 										}
-									}).catch(err => console.error('[Stream] Failed to update message:', err));
-									
-									// 触发监督检查（根据《双人讨论宪章》第14-17条，AI回答也需要被检查）
-									fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/chat/messages/${messageId}/moderate`, {
-										method: 'POST'
-									}).catch((err) => {
-										console.error('[Stream] 触发AI回答监督检查失败:', err);
 									});
-									
-									// 记录使用量
-									if (nonStreamData.usage) {
-										await prisma.aiUsageLog.create({
-											data: {
-												userId: session.sub,
-												provider: finalProvider!,
-												model: finalModel!,
-												promptTokens: nonStreamData.usage.prompt_tokens || 0,
-												completionTokens: nonStreamData.usage.completion_tokens || 0,
-												costCents: 0,
-												status: 'success'
-											}
-										}).catch(err => console.error('[Stream] Failed to log usage:', err));
-									}
-									
-									controller.close();
-									return;
+								} catch (updateError: any) {
+									log.error('更新消息失败', updateError);
+									sendEvent('error', {
+										error: '更新消息失败',
+										details: updateError.message
+									});
 								}
-							}
-						} catch (fallbackError: any) {
-							console.error('[Stream API] 非流式调用失败:', fallbackError);
-							// 如果非流式调用也失败，继续尝试流式调用
-						}
-					}
-					
-					// 对于其他模型或非流式调用失败的情况，使用流式调用
-					console.log('[Stream API] 开始调用 callOpenAiCompatibleStream...');
-					let responseStream: ReadableStream<Uint8Array>;
-					try {
-						console.log('[Stream API] 使用maxTokens:', maxTokens, '模型:', finalModel);
-						
-						responseStream = await callOpenAiCompatibleStream(
-							endpoint!,
-							{
-								apiKey: finalApiKey!,
-								model: finalModel!,
-								messages: openAiMessages, // 使用消息数组而不是字符串
-								maxTokens: maxTokens,
-								temperature: 0.7
-							}
-						);
-						console.log('[Stream API] ✅ API调用成功，收到流式响应');
-					} catch (apiError: any) {
-						console.error('[Stream API] ❌ API调用失败:', apiError);
-						throw apiError;
-					}
 
-					let fullText = '';
-					let usage: any = null;
+								// 发送完成事件（即使内容为空也发送，让客户端知道流已结束）
+								sendEvent('done', {
+									messageId,
+									fullText: fullText || '',
+									usage: chunk.usage
+								});
 
-					// 解析流式响应并发送
-					let chunkCount = 0;
-					let hasReceivedChunks = false;
-					
-					console.log('[Stream API] 开始解析流式响应...');
-					
-					let lastDbUpdateTime = Date.now();
-					const DB_UPDATE_INTERVAL = 500; // 每500ms更新一次数据库
-					
-					for await (const chunk of parseStreamResponse(responseStream)) {
-						if (chunk.text && chunk.text.trim()) {
-							hasReceivedChunks = true;
+								// 同时广播给房间内所有其他用户
+								broadcastToRoom(
+									roomId,
+									'ai-done',
+									{
+										messageId,
+										fullText: fullText || '',
+										usage: chunk.usage
+									},
+									session.sub // 排除发起请求的用户
+								);
+
+								clearInterval(heartbeatInterval);
+								controller.close();
+								return;
+							}
+
+						if (chunk.text) {
 							chunkCount++;
 							fullText += chunk.text;
-							
-							if (chunkCount === 1) {
-								console.log('[Stream API] ✅ 收到第一个chunk:', chunk.text.substring(0, 50));
-							}
-							
-							// 发送增量文本
-							controller.enqueue(
-								encoder.encode(
-									`event: chunk\ndata: ${JSON.stringify({
-										text: chunk.text
-									})}\n\n`
-								)
-							);
+							lastChunkTime = Date.now(); // 更新最后收到chunk的时间
 
-							// 每10个chunk记录一次日志
-							if (chunkCount % 10 === 0) {
-								console.log('[Stream API] Chunks sent:', chunkCount, 'Text length:', fullText.length);
-							}
-							
-							// 实时更新数据库（每500ms或每20个chunk更新一次），确保用户B能看到同步的流式内容
-							const now = Date.now();
-							if (now - lastDbUpdateTime >= DB_UPDATE_INTERVAL || chunkCount % 20 === 0) {
-								lastDbUpdateTime = now;
-								// 异步更新数据库，不阻塞流式输出
-								prisma.chatMessage.update({
-									where: { id: messageId },
-									data: { content: fullText }
-								}).catch(err => {
-									console.error('[Stream API] Failed to update message content in real-time:', err);
-								});
-							}
-						}
-						
-						if (chunk.done) {
-							// 流结束
-							if (chunk.usage) {
-								usage = chunk.usage;
-							}
-
-							console.log('[Stream API] Stream completed:', {
-								messageId,
-								fullTextLength: fullText.length,
-								chunkCount,
-								hasUsage: !!usage,
-								completionTokens: usage?.completion_tokens || 0
+						log.debug('发送chunk', {
+							chunkNumber: chunkCount,
+								chunkText: chunk.text,
+								chunkLength: chunk.text.length,
+								totalLength: fullText.length,
+								messageId
 							});
 
-							// 检查：如果completion_tokens > 0但fullText很短，可能是被截断了
-							// 或者如果fullText很短（< 10字符）且completion_tokens为0，也可能是流式响应有问题
-							const isTruncated = usage && usage.completion_tokens > 0 && fullText.length < usage.completion_tokens;
-							const isSuspiciouslyShort = fullText.length < 10 && (!usage || usage.completion_tokens === 0);
+							// 定期更新数据库（让其他用户能看到流式输出）
+							// 每3个chunk或每1秒更新一次，确保实时同步
+							const shouldUpdate = 
+								chunkCount % UPDATE_CHUNK_COUNT === 0 || 
+								(Date.now() - lastUpdateTime) >= UPDATE_INTERVAL;
 							
-							if (isTruncated || isSuspiciouslyShort) {
-								console.warn('[Stream API] ⚠️ 警告：回复可能被截断');
-								console.warn('[Stream API] completion_tokens:', usage?.completion_tokens || 0, 'fullText长度:', fullText.length);
-								
-								// 对于 DeepSeek-V3，如果回复很短，尝试非流式调用获取完整回复
-								const isDeepSeekV3 = finalModel?.toLowerCase().includes('deepseek-v3');
-								if (isDeepSeekV3 && fullText.length < 50) {
-									console.log('[Stream API] 回复太短，尝试非流式调用获取完整回复...');
-									try {
-										const nonStreamBody: any = {
-											model: finalModel,
-											messages: openAiMessages,
-											max_tokens: maxTokens,
-											temperature: 0.7,
-											top_p: 0.95,
-											reasoning_effort: 'low'
-										};
-										
-										const nonStreamResponse = await fetch(`${endpoint}/chat/completions`, {
-											method: 'POST',
-											headers: {
-												Authorization: `Bearer ${finalApiKey}`,
-												'Content-Type': 'application/json'
-											},
-											body: JSON.stringify(nonStreamBody)
-										});
-										
-										if (nonStreamResponse.ok) {
-											const nonStreamData = await nonStreamResponse.json();
-											const fullContent = nonStreamData.choices?.[0]?.message?.content;
-											
-											if (fullContent && fullContent.length > fullText.length) {
-												console.log('[Stream API] ✅ 非流式调用获取到完整回复，长度:', fullContent.length);
-												
-												// 发送剩余部分（如果还没有发送完）
-												const remainingText = fullContent.substring(fullText.length);
-												if (remainingText) {
-													// 逐字符发送剩余部分
-													const chars = remainingText.split('');
-													for (const char of chars) {
-														controller.enqueue(
-															encoder.encode(
-																`event: chunk\ndata: ${JSON.stringify({
-																	text: char
-																})}\n\n`
-															)
-														);
-													}
-													fullText = fullContent; // 更新fullText
-													usage = nonStreamData.usage; // 更新usage
-												}
-											}
-										}
-									} catch (fallbackError: any) {
-										console.error('[Stream API] 获取完整回复失败:', fallbackError);
-									}
-								}
-							}
-
-							// 发送完成事件
-							controller.enqueue(
-								encoder.encode(
-									`event: done\ndata: ${JSON.stringify({
+							if (shouldUpdate && fullText.length > 0) { // 确保有内容才更新
+								try {
+									await chatDb.messages.update({
+										where: { id: messageId },
+										data: { content: fullText }
+									});
+									lastUpdateTime = Date.now();
+									log.info('✅ 定期更新消息内容到数据库', {
 										messageId,
-										fullText,
-										usage
-									})}\n\n`
-								)
-							);
+										contentLength: fullText.length,
+										chunkCount,
+										preview: fullText.substring(0, 50)
+									});
+								} catch (updateError: any) {
+									log.error('❌ 定期更新消息失败', updateError);
+									// 不中断流式输出，继续处理
+								}
+							}
 
-							// 更新数据库中的消息内容
-							await prisma.chatMessage
-								.update({
-									where: { id: messageId },
-									data: {
-										content: fullText,
-										contentType: 'AI_SUGGESTION', // 确保类型正确
-										isStreaming: false,
-										streamingCompleted: true,
-										aiProvider: finalProvider,
-										aiModel: finalModel
-									}
-								})
-								.catch((err) =>
-									console.error(
-										'[Stream] Failed to update message:',
-										err
-									)
-								);
-							
-							// 触发监督检查（根据《双人讨论宪章》第14-17条，AI回答也需要被检查）
-							fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/chat/messages/${messageId}/moderate`, {
-								method: 'POST'
-							}).catch((err) => {
-								console.error('[Stream] 触发AI回答监督检查失败:', err);
+							// 发送文本块给发起请求的用户
+							sendEvent('chunk', {
+								text: chunk.text
 							});
 
-							// 记录使用量
-							if (usage) {
-								await prisma.aiUsageLog
-									.create({
-										data: {
-											userId: session.sub,
-											provider: finalProvider!,
-											model: finalModel!,
-											promptTokens: usage.prompt_tokens || 0,
-											completionTokens:
-												usage.completion_tokens || 0,
-											costCents: 0, // 将在后续计算
-											status: 'success'
-										}
-									})
-									.catch((err) =>
-										console.error(
-											'[Stream] Failed to log usage:',
-											err
-										)
-									);
-							}
-
-							break;
+							// 同时广播给房间内所有其他用户（实现真正的实时同步）
+							broadcastToRoom(
+								roomId,
+								'ai-chunk',
+								{
+									messageId,
+									text: chunk.text,
+									chunkNumber: chunkCount,
+									totalLength: fullText.length
+								},
+								session.sub // 排除发起请求的用户（他已经通过流式输出收到了）
+							);
+						} else {
+							// 记录没有text的chunk（可能是done或其他状态）
+						log.warn('收到没有text的chunk', {
+							done: chunk.done,
+								hasUsage: !!chunk.usage,
+								chunkCount,
+								totalLength: fullText.length,
+								messageId
+							});
 						}
-					}
+						}
+					} catch (parseError: any) {
+						// 流解析错误（可能是AI服务端连接中断）
+					log.error('流解析错误', parseError, {
+							stack: parseError.stack,
+							messageId,
+							chunkCount,
+							textLength: fullText.length
+						});
 
-					// 如果没有收到任何chunk，尝试回退到非流式调用（特别是对于 DeepSeek-V3）
-					if (!hasReceivedChunks) {
-						console.error('[Stream API] No chunks received from AI provider');
-						
-						// 对于 DeepSeek-V3，尝试非流式调用作为回退
-						const isDeepSeekV3 = finalModel?.toLowerCase().includes('deepseek-v3');
-						if (isDeepSeekV3) {
-							console.log('[Stream API] 尝试回退到非流式调用...');
-							try {
-								const nonStreamBody: any = {
-									model: finalModel,
-									messages: openAiMessages,
-									max_tokens: maxTokens,
-									temperature: 0.7,
-									top_p: 0.95,
-									reasoning_effort: 'low'
-								};
-								
-								const nonStreamResponse = await fetch(`${endpoint}/chat/completions`, {
-									method: 'POST',
-									headers: {
-										Authorization: `Bearer ${finalApiKey}`,
-										'Content-Type': 'application/json'
-									},
-									body: JSON.stringify(nonStreamBody)
-								});
-								
-								if (nonStreamResponse.ok) {
-									const nonStreamData = await nonStreamResponse.json();
-									const content = nonStreamData.choices?.[0]?.message?.content;
-									
-									if (content) {
-										console.log('[Stream API] ✅ 非流式调用成功，模拟流式输出');
-										
-										// 模拟流式输出：逐字符发送
-										const chars = content.split('');
-										for (let i = 0; i < chars.length; i++) {
-											const char = chars[i];
-											controller.enqueue(
-												encoder.encode(
-													`event: chunk\ndata: ${JSON.stringify({
-														text: char
-													})}\n\n`
-												)
-											);
-											
-											// 每10个字符稍微延迟，模拟流式效果
-											if (i % 10 === 0 && i > 0) {
-												await new Promise(resolve => setTimeout(resolve, 10));
-											}
-										}
-										
-										// 发送完成事件
-										controller.enqueue(
-											encoder.encode(
-												`event: done\ndata: ${JSON.stringify({
-													messageId,
-													fullText: content,
-													usage: nonStreamData.usage
-												})}\n\n`
-											)
-										);
-										
-										// 更新数据库
-										await prisma.chatMessage.update({
-											where: { id: messageId },
-											data: {
-												content: content,
-												contentType: 'AI_SUGGESTION',
-												isStreaming: false,
-												streamingCompleted: true,
-												aiProvider: finalProvider,
-												aiModel: finalModel
-											}
-										}).catch(err => console.error('[Stream] Failed to update message:', err));
-										
-										// 触发监督检查（根据《双人讨论宪章》第14-17条，AI回答也需要被检查）
-										fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/chat/messages/${messageId}/moderate`, {
-											method: 'POST'
-										}).catch((err) => {
-											console.error('[Stream] 触发AI回答监督检查失败:', err);
-										});
-										
-										// 记录使用量
-										if (nonStreamData.usage) {
-											await prisma.aiUsageLog.create({
-												data: {
-													userId: session.sub,
-													provider: finalProvider!,
-													model: finalModel!,
-													promptTokens: nonStreamData.usage.prompt_tokens || 0,
-													completionTokens: nonStreamData.usage.completion_tokens || 0,
-													costCents: 0,
-													status: 'success'
-												}
-											}).catch(err => console.error('[Stream] Failed to log usage:', err));
-										}
-										
-										controller.close();
-										return;
-									}
+						// 发送错误事件（保留已生成的内容）
+						sendEvent('error', {
+							error: parseError.message || '流解析失败',
+							details: parseError.toString()
+						});
+
+						// 更新消息为错误状态（保留已生成的内容）
+						try {
+							await chatDb.messages.update({
+								where: { id: messageId },
+								data: {
+									content: fullText || '[AI 生成中断]',
+									moderationStatus: 'ERROR',
+									aiProvider: provider,
+									aiModel: model
 								}
-							} catch (fallbackError: any) {
-								console.error('[Stream API] 回退到非流式调用也失败:', fallbackError);
-							}
+							});
+						} catch (updateError) {
+							log.error('更新错误消息失败', updateError);
 						}
-						
-						// 如果回退也失败，发送错误
-						controller.enqueue(
-							encoder.encode(
-								`event: error\ndata: ${JSON.stringify({
-									error: 'AI 未返回任何内容，请检查API配置'
-								})}\n\n`
-							)
-						);
+
+						clearInterval(heartbeatInterval);
+						controller.close();
+						return;
+					}
+					
+					// 如果循环正常结束但没有收到done标记，手动发送完成事件
+					// 即使fullText为空，也发送done事件，让客户端知道流已结束
+					log.warn('流正常结束但未收到done标记，手动完成', { contentLength: fullText.length });
+					clearInterval(heartbeatInterval);
+					sendEvent('done', {
+						messageId,
+						fullText: fullText || '',
+						usage: null
+					});
+					
+					// 更新消息内容（即使为空也保存，避免丢失）
+					try {
+						await chatDb.messages.update({
+							where: { id: messageId },
+							data: {
+								content: fullText || '[AI 生成中断]',
+								aiProvider: provider,
+								aiModel: model
+							}
+						});
+					} catch (updateError: any) {
+						console.error('[AI Stream API] ❌ 更新消息失败:', updateError);
 					}
 					
 					controller.close();
 				} catch (error: any) {
-					console.error('[Stream API] Error in stream:', error);
-					// 更新消息状态为失败
-					await prisma.chatMessage
-						.update({
+					log.error('流处理错误', error, {
+						stack: error.stack,
+						messageId,
+						chunkCount,
+						textLength: fullText.length
+					});
+
+					// 发送错误事件
+					sendEvent('error', {
+						error: error.message || '流处理失败',
+						details: error.toString()
+					});
+
+					// 更新消息为错误状态（保留已生成的内容）
+					try {
+						await chatDb.messages.update({
 							where: { id: messageId },
 							data: {
-								isStreaming: false,
-								streamingCompleted: false
+								content: fullText || '[AI 生成失败]',
+								moderationStatus: 'ERROR'
 							}
-						})
-						.catch(() => {});
+						});
+					} catch (updateError) {
+						log.error('更新错误消息失败', updateError);
+					}
 
-					// 发送错误
-					controller.enqueue(
-						encoder.encode(
-							`event: error\ndata: ${JSON.stringify({
-								error: error.message || '流式输出失败'
-							})}\n\n`
-						)
-					);
+					clearInterval(heartbeatInterval);
 					controller.close();
 				}
 			}
 		});
 
+		// 11. 返回 SSE 响应
 		return new Response(stream, {
 			headers: {
 				'Content-Type': 'text/event-stream',
 				'Cache-Control': 'no-cache',
-				Connection: 'keep-alive',
+				'Connection': 'keep-alive',
 				'X-Accel-Buffering': 'no' // 禁用 nginx 缓冲
 			}
 		});
 	} catch (error: any) {
+		log.error('请求处理错误', error);
+
+		// Zod 验证错误
 		if (error instanceof z.ZodError) {
 			return NextResponse.json(
-				{ error: '请求参数错误', details: error.errors },
+				{
+					error: '请求参数错误',
+					details: error.errors
+				},
 				{ status: 400 }
 			);
 		}
+
+		// 权限错误
+		if (
+			error.message === '房间不存在' ||
+			error.message === '无权访问此房间' ||
+			error.message === '消息不存在' ||
+			error.message === '无权操作此消息'
+		) {
+			return NextResponse.json(
+				{ error: error.message },
+				{ status: error.message.includes('不存在') ? 404 : 403 }
+			);
+		}
+
+		// 其他错误
 		return NextResponse.json(
-			{ error: error.message || '启动流式输出失败' },
+			{
+				error: error.message || '流式输出失败',
+				details: error.toString()
+			},
 			{ status: 500 }
 		);
 	}
 }
-

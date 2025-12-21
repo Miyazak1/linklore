@@ -19,7 +19,7 @@ export default {
 		home: "Home",
 		upload: "Create Topic (Upload Document)",
 		library: "Public Library",
-		digest: "Weekly Digest",
+		practices: "Practices",
 		aiSettings: "My AI",
 		shelf: "My Shelf"
 	},

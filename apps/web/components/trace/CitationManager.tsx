@@ -244,7 +244,7 @@ export default function CitationManager({ citations, onChange, onInsert, hovered
 								onChange={(e) => setFormData({ ...formData, year: e.target.value ? parseInt(e.target.value) : undefined })}
 								placeholder="2024"
 								min="1000"
-								max="2100"
+								max="2200"
 								style={{
 									width: '100%',
 									padding: '6px 8px',

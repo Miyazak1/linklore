@@ -57,6 +57,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ key: str
 				'Access-Control-Allow-Origin': '*', // Allow CORS for EPUB.js
 				'Access-Control-Allow-Methods': 'GET, OPTIONS',
 				'Access-Control-Allow-Headers': 'Content-Type',
+				'X-Frame-Options': 'SAMEORIGIN', // Allow embedding in same-origin iframes (for PDF reading)
+				'Content-Security-Policy': "frame-ancestors 'self'", // Allow embedding in same-origin iframes
 			},
 		});
 	} catch (err: any) {

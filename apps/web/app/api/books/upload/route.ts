@@ -15,7 +15,13 @@ const Schema = z.object({
 	size: z.number().int().positive(),
 	bookId: z.string().min(1),
 	title: z.string().optional(),
-	author: z.string().optional()
+	author: z.string().optional(),
+	category: z.string().optional(),
+	tags: z.array(z.string()).optional(),
+	language: z.string().optional(),
+	isbn: z.string().optional(),
+	publisher: z.string().optional(),
+	publishYear: z.number().int().min(1000).max(3000).optional(),
 });
 
 export async function POST(req: Request) {
@@ -23,7 +29,7 @@ export async function POST(req: Request) {
 		const session = await readSession();
 		if (!session?.sub) return NextResponse.json({ error: '未登录' }, { status: 401 });
 		const json = await req.json();
-		const { key, mime: mimeType, size, bookId, title, author } = Schema.parse(json);
+		const { key, mime: mimeType, size, bookId, title, author, category, tags, language, isbn, publisher, publishYear } = Schema.parse(json);
 
 		// Verify file exists
 		if (isLocalStorage()) {
@@ -47,13 +53,20 @@ export async function POST(req: Request) {
 		}
 
 		// Update book info if provided
-		if (title || author) {
+		const updateData: any = {};
+		if (title) updateData.title = title;
+		if (author !== undefined) updateData.author = author || null;
+		if (category !== undefined) updateData.category = category || null;
+		if (tags !== undefined) updateData.tags = tags || [];
+		if (language !== undefined) updateData.language = language || null;
+		if (isbn !== undefined) updateData.isbn = isbn || null;
+		if (publisher !== undefined) updateData.publisher = publisher || null;
+		if (publishYear !== undefined) updateData.publishYear = publishYear || null;
+		
+		if (Object.keys(updateData).length > 0) {
 			await prisma.book.update({
 				where: { id: bookId },
-				data: {
-					...(title && { title }),
-					...(author && { author })
-				}
+				data: updateData
 			});
 		}
 

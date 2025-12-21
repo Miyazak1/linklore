@@ -12,12 +12,22 @@ interface User {
 	discussionCount: number;
 }
 
+interface User {
+	userId: string;
+	email: string;
+	name?: string;
+	avatarUrl?: string | null;
+	documentCount: number;
+	discussionCount: number;
+}
+
 interface UserListProps {
 	topicId: string;
 	currentUserId?: string;
 	excludeCurrentUser?: boolean;
 	selectedUserId?: string | null;
 	onUserClick?: (userId: string) => void;
+	initialUsers?: User[]; // 初始用户数据（服务端预加载）
 }
 
 export default function UserList({ 
@@ -25,40 +35,44 @@ export default function UserList({
 	currentUserId, 
 	excludeCurrentUser = false,
 	selectedUserId,
-	onUserClick 
+	onUserClick,
+	initialUsers
 }: UserListProps) {
-	const [users, setUsers] = useState<User[]>([]);
-	const [loading, setLoading] = useState(true);
+	const [users, setUsers] = useState<User[]>(initialUsers || []);
+	const [loading, setLoading] = useState(!initialUsers); // 如果有初始数据，不需要loading
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
+		// 如果没有初始数据，才加载
+		if (!initialUsers) {
 			async function fetchUsers() {
-			try {
-				setLoading(true);
-				// 如果提供了currentUserId，只获取与当前用户有直接讨论关系的用户
-				const url = `/api/topics/${topicId}/consensus/users${currentUserId ? `?currentUserId=${currentUserId}` : ''}`;
-				const response = await fetch(url);
-				if (!response.ok) {
-					throw new Error('获取用户列表失败');
+				try {
+					setLoading(true);
+					// 如果提供了currentUserId，只获取与当前用户有直接讨论关系的用户
+					const url = `/api/topics/${topicId}/consensus/users${currentUserId ? `?currentUserId=${currentUserId}` : ''}`;
+					const response = await fetch(url);
+					if (!response.ok) {
+						throw new Error('获取用户列表失败');
+					}
+					const data = await response.json();
+					let filteredUsers = data.users || [];
+					
+					// 如果设置了排除当前用户，过滤掉当前用户
+					if (excludeCurrentUser && currentUserId) {
+						filteredUsers = filteredUsers.filter((user: User) => user.userId !== currentUserId);
+					}
+					
+					setUsers(filteredUsers);
+				} catch (err: any) {
+					setError(err.message || '加载失败');
+				} finally {
+					setLoading(false);
 				}
-				const data = await response.json();
-				let filteredUsers = data.users || [];
-				
-				// 如果设置了排除当前用户，过滤掉当前用户
-				if (excludeCurrentUser && currentUserId) {
-					filteredUsers = filteredUsers.filter((user: User) => user.userId !== currentUserId);
-				}
-				
-				setUsers(filteredUsers);
-			} catch (err: any) {
-				setError(err.message || '加载失败');
-			} finally {
-				setLoading(false);
 			}
-		}
 
-		fetchUsers();
-	}, [topicId, excludeCurrentUser, currentUserId]);
+			fetchUsers();
+		}
+	}, [topicId, excludeCurrentUser, currentUserId, initialUsers]);
 
 	if (loading) {
 		return (

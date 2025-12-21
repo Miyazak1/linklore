@@ -2,57 +2,67 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import Avatar from '@/components/ui/Avatar';
+import { useAuth } from '@/contexts/AuthContext';
+import { createModuleLogger } from '@/lib/utils/logger';
+import { 
+	HomeIcon, 
+	MessageIcon, 
+	SearchIcon, 
+	BookIcon, 
+	LibraryIcon, 
+	ChartIcon,
+	MenuIcon,
+	CloseIcon,
+	UserIcon,
+	SettingsIcon,
+	LogOutIcon,
+	LogInIcon,
+	ChevronDownIcon,
+	ShieldIcon
+} from '@/components/ui/Icons';
+
+const log = createModuleLogger('Navigation');
 
 export default function Navigation() {
 	const pathname = usePathname();
-	const [isAuthenticated, setIsAuthenticated] = useState(false);
-	const [userEmail, setUserEmail] = useState<string | null>(null);
-	const [userName, setUserName] = useState<string | null>(null);
-	const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
-	const [userRole, setUserRole] = useState<string | null>(null);
+	const { user, isAuthenticated, loading: authLoading, refreshAuth } = useAuth();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [userMenuOpen, setUserMenuOpen] = useState(false);
-	const [authLoading, setAuthLoading] = useState(true); // 添加加载状态
+	
+	// 从Context获取用户信息
+	const userEmail = user?.email || null;
+	const userName = user?.name || null;
+	const userAvatarUrl = user?.avatarUrl || null;
+	const userRole = user?.role || null;
 
+	// 组件挂载时刷新认证状态（单一请求源）
+	// 使用ref跟踪是否已初始化，避免重复请求
+	const hasInitializedRef = useRef(false);
+	
 	useEffect(() => {
-		// Check authentication status
-		setAuthLoading(true);
-		fetch('/api/auth/me')
-			.then(res => {
-				// 401/403 是正常的未登录状态，不应该抛出错误
-				if (res.status === 401 || res.status === 403) {
-					setIsAuthenticated(false);
-					setAuthLoading(false);
-					return null;
-				}
-				if (!res.ok) {
-					throw new Error(`API request failed: ${res.status}`);
-				}
-				return res.json();
-			})
-			.then(data => {
-				if (data && data.user) {
-					setIsAuthenticated(true);
-					setUserEmail(data.user.email || null);
-					setUserName(data.user.name || null);
-					setUserAvatarUrl(data.user.avatarUrl || null);
-					setUserRole(data.user.role || null);
-				} else if (data !== null) {
-					// data 为 null 表示已处理（未登录），不需要再设置
-					setIsAuthenticated(false);
-				}
-			})
-			.catch((err) => {
-				console.error('Auth check failed:', err);
-				setIsAuthenticated(false);
-			})
-			.finally(() => {
-				setAuthLoading(false);
-			});
-	}, []);
+		if (!hasInitializedRef.current) {
+			hasInitializedRef.current = true;
+			refreshAuth();
+		}
+	}, [refreshAuth]);
+
+	// 监听auth:changed事件，刷新认证状态
+	useEffect(() => {
+		const handleAuthChange = () => {
+			// 延迟一点再刷新，避免与触发事件的组件冲突
+			setTimeout(() => {
+				refreshAuth();
+			}, 500); // 增加延迟到500ms，确保触发事件的组件完成请求
+		};
+		
+		window.addEventListener('auth:changed', handleAuthChange);
+		return () => {
+			window.removeEventListener('auth:changed', handleAuthChange);
+		};
+	}, [refreshAuth]);
 
 	// 点击外部区域关闭用户菜单
 	useEffect(() => {
@@ -72,10 +82,11 @@ export default function Navigation() {
 	}, [userMenuOpen]);
 
 	const navItems = [
-		{ href: '/', label: '首页', icon: '🏠' },
-		{ href: '/upload', label: '文章', icon: '💬' },
-		{ href: '/library', label: '图书馆', icon: '📚' },
-		{ href: '/digest', label: '周报摘要', icon: '📊' },
+		{ href: '/', label: '首页', icon: HomeIcon },
+		{ href: '/upload', label: '讨论版', icon: MessageIcon },
+		{ href: '/traces', label: '语义溯源', icon: SearchIcon },
+		{ href: '/library', label: '图书馆', icon: LibraryIcon },
+		{ href: '/digest', label: '周报摘要', icon: ChartIcon },
 	];
 
 	const isActive = (href: string) => {
@@ -85,48 +96,55 @@ export default function Navigation() {
 		return pathname?.startsWith(href);
 	};
 
-	const NavLink = ({ item, onClick }: { item: typeof navItems[0]; onClick?: () => void }) => (
-		<Link
-			href={item.href}
-			onClick={onClick}
-			style={{
-				padding: 'var(--spacing-sm) var(--spacing-md)',
-				borderRadius: 'var(--radius-md)',
-				textDecoration: 'none',
-				fontSize: 'var(--font-size-sm)',
-				fontWeight: 500,
-				color: isActive(item.href) 
-					? 'var(--color-primary)' 
-					: 'var(--color-text-secondary)',
-				background: isActive(item.href)
-					? 'var(--color-primary-lighter)'
-					: 'transparent',
-				border: isActive(item.href)
-					? '1px solid var(--color-primary)'
-					: '1px solid transparent',
-				transition: 'all var(--transition-fast)',
-				display: 'flex',
-				alignItems: 'center',
-				gap: 'var(--spacing-xs)',
-				whiteSpace: 'nowrap'
-			}}
-			onMouseEnter={(e) => {
-				if (!isActive(item.href)) {
-					e.currentTarget.style.background = 'var(--color-background-subtle)';
-					e.currentTarget.style.color = 'var(--color-text-primary)';
-				}
-			}}
-			onMouseLeave={(e) => {
-				if (!isActive(item.href)) {
-					e.currentTarget.style.background = 'transparent';
-					e.currentTarget.style.color = 'var(--color-text-secondary)';
-				}
-			}}
-		>
-			<span>{item.icon}</span>
-			<span>{item.label}</span>
-		</Link>
-	);
+	const NavLink = ({ item, onClick }: { item: typeof navItems[0]; onClick?: () => void }) => {
+		const IconComponent = item.icon;
+		return (
+			<Link
+				href={item.href}
+				onClick={onClick}
+				style={{
+					padding: 'var(--spacing-sm) var(--spacing-md)',
+					borderRadius: 'var(--radius-md)',
+					textDecoration: 'none',
+					fontSize: 'var(--font-size-sm)',
+					fontWeight: 500,
+					color: isActive(item.href) 
+						? 'var(--color-primary)' 
+						: 'var(--color-text-secondary)',
+					background: isActive(item.href)
+						? 'var(--color-primary-lighter)'
+						: 'transparent',
+					border: isActive(item.href)
+						? '1px solid var(--color-primary)'
+						: '1px solid transparent',
+					transition: 'all var(--transition-fast)',
+					display: 'flex',
+					alignItems: 'center',
+					gap: 'var(--spacing-xs)',
+					whiteSpace: 'nowrap'
+				}}
+				onMouseEnter={(e) => {
+					if (!isActive(item.href)) {
+						e.currentTarget.style.background = 'var(--color-background-subtle)';
+						e.currentTarget.style.color = 'var(--color-text-primary)';
+					}
+				}}
+				onMouseLeave={(e) => {
+					if (!isActive(item.href)) {
+						e.currentTarget.style.background = 'transparent';
+						e.currentTarget.style.color = 'var(--color-text-secondary)';
+					}
+				}}
+			>
+				<IconComponent 
+					size={18} 
+					color="currentColor"
+					style={{ flexShrink: 0 }}
+				/>
+				<span>{item.label}</span>
+			</Link>
+		);
+	};
 
 	return (
 		<nav style={{
@@ -152,15 +170,20 @@ export default function Navigation() {
 				<Link href="/" style={{
 					display: 'flex',
 					alignItems: 'center',
-					gap: 'var(--spacing-sm)',
+					gap: 'var(--spacing-xs)',
 					textDecoration: 'none',
 					color: 'var(--color-primary)',
 					fontSize: 'var(--font-size-xl)',
 					fontWeight: 700,
 					letterSpacing: '-0.02em',
-					whiteSpace: 'nowrap'
-				}}>
-					<span>LinkLore</span>
+					whiteSpace: 'nowrap',
+					transition: 'opacity 0.2s'
+				}}
+				onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+				onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+				>
+					<BookIcon size={24} color="var(--color-primary)" style={{ flexShrink: 0 }} />
+					<span>Linklore</span>
 				</Link>
 
 				{/* Desktop Navigation Links */}
@@ -192,7 +215,11 @@ export default function Navigation() {
 					}}
 					className="nav-mobile-toggle"
 				>
-					{mobileMenuOpen ? '✕' : '☰'}
+					{mobileMenuOpen ? (
+						<CloseIcon size={20} color="currentColor" />
+					) : (
+						<MenuIcon size={20} color="currentColor" />
+					)}
 				</button>
 
 				{/* Right Side Actions */}
@@ -331,7 +358,7 @@ export default function Navigation() {
 												}
 											}}
 										>
-											📚 我的书架
+											<LibraryIcon size={16} color="currentColor" /> 我的书架
 										</Link>
 										<Link
 											href="/settings/ai"
@@ -360,11 +387,12 @@ export default function Navigation() {
 												}
 											}}
 										>
-											⚙️ 账号信息
+											<SettingsIcon size={16} color="currentColor" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+											账号信息
 										</Link>
 										{userRole === 'admin' && (
 											<Link
-												href="/admin/users"
+												href="/admin"
 												onClick={() => setUserMenuOpen(false)}
 												style={{
 													display: 'block',
@@ -393,7 +421,8 @@ export default function Navigation() {
 													}
 												}}
 											>
-												🛡️ 管理面板
+												<ShieldIcon size={16} color="currentColor" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+												管理面板
 											</Link>
 										)}
 									</div>
@@ -427,7 +456,8 @@ export default function Navigation() {
 												e.currentTarget.style.background = 'transparent';
 											}}
 										>
-											🚪 退出
+											<LogOutIcon size={16} color="currentColor" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+											退出
 										</button>
 									</div>
 								</div>
@@ -527,7 +557,7 @@ export default function Navigation() {
 										marginBottom: 'var(--spacing-xs)'
 									}}
 								>
-									📚 我的书架
+									<LibraryIcon size={16} color="currentColor" /> 我的书架
 								</Link>
 								<Link
 									href="/settings/ai"
@@ -548,7 +578,8 @@ export default function Navigation() {
 										marginBottom: 'var(--spacing-xs)'
 									}}
 								>
-									⚙️ 账号信息
+									<SettingsIcon size={16} color="currentColor" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+									账号信息
 								</Link>
 								{userRole === 'admin' && (
 									<Link
@@ -570,7 +601,8 @@ export default function Navigation() {
 											marginBottom: 'var(--spacing-xs)'
 										}}
 									>
-										🛡️ 管理面板
+										<ShieldIcon size={16} color="currentColor" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+										管理面板
 									</Link>
 								)}
 								{/* 移动端用户信息 */}
@@ -630,7 +662,8 @@ export default function Navigation() {
 										textAlign: 'left'
 									}}
 								>
-									🚪 退出
+									<LogOutIcon size={16} color="currentColor" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+									退出
 								</button>
 							</div>
 						</>

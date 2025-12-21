@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
 
 /**
  * DELETE /api/chat/messages/:id
@@ -19,7 +19,7 @@ export async function DELETE(
 		const { id } = await params;
 
 		// 获取消息
-		const message = await prisma.chatMessage.findUnique({
+		const message = await chatDb.messages.findUnique({
 			where: { id },
 			select: {
 				senderId: true,
@@ -40,7 +40,7 @@ export async function DELETE(
 		}
 
 		// 软删除
-		await prisma.chatMessage.update({
+		await chatDb.messages.update({
 			where: { id },
 			data: { deletedAt: new Date() }
 		});
@@ -53,4 +53,14 @@ export async function DELETE(
 		);
 	}
 }
+
+
+
+
+
+
+
+
+
+
 

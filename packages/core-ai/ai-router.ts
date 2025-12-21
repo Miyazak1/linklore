@@ -1,4 +1,4 @@
-export type AiTaskKind = 'summarize' | 'evaluate';
+export type AiTaskKind = 'summarize' | 'evaluate' | 'facilitate' | 'solo_plugin';
 
 export type RouteContext = {
 	userId?: string | null;
@@ -24,10 +24,16 @@ export interface AiAdapter {
 	}): Promise<AiCallResult>;
 }
 
-export async function routeAiCall(ctx: RouteContext & { prompt: string }) {
-	// Placeholder: this will be wired to user config and budgeting in Phase 1b
-	// For now, just throw to indicate not yet implemented.
-	throw new Error('AI router not configured yet');
+/**
+ * Route AI call to appropriate handler
+ * This is a wrapper that delegates to the actual implementation in apps/web/lib/ai/router.ts
+ */
+export async function routeAiCall(ctx: RouteContext & { prompt: string }): Promise<AiCallResult> {
+	// Re-export from the actual implementation
+	// In a monorepo setup, we can import directly
+	// For now, this will be used as a type/interface definition
+	// The actual implementation is in apps/web/lib/ai/router.ts
+	throw new Error('Please use routeAiCall from apps/web/lib/ai/router.ts directly in the web app');
 }
 
 

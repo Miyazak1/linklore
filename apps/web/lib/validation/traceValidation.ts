@@ -13,7 +13,7 @@ export const CitationSchema = z.object({
 	title: z.string().min(1, '标题不能为空').max(TRACE_PROCESSING_CONFIG.CONTENT_LIMITS.CITATION_TITLE_MAX, `标题不能超过${TRACE_PROCESSING_CONFIG.CONTENT_LIMITS.CITATION_TITLE_MAX}字`),
 	author: z.string().max(200, '作者名称不能超过200字').optional(),
 	publisher: z.string().max(200, '出版机构不能超过200字').optional(),
-	year: z.number().int().min(1000).max(2100).optional(),
+	year: z.number().int().min(1000).max(2200).optional(),
 	type: z.enum(['web', 'book', 'paper', 'journal', 'other']),
 	quote: z.string().max(TRACE_PROCESSING_CONFIG.CONTENT_LIMITS.CITATION_QUOTE_MAX, `引用片段不能超过${TRACE_PROCESSING_CONFIG.CONTENT_LIMITS.CITATION_QUOTE_MAX}字`).optional(),
 	page: z.string().max(50, '页码不能超过50字').optional(),

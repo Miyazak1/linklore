@@ -6,32 +6,35 @@ set -euo pipefail
 # - Configures firewall and system basics
 # - Redis optional (recommend Alibaba Cloud Redis in production)
 
-echo "[1/6] Updating system..."
+echo "[1/7] Updating system..."
 sudo dnf -y update
 
-echo "[2/6] Installing Node.js 20 LTS..."
+echo "[2/7] Installing Git..."
+sudo dnf -y install git
+
+echo "[3/7] Installing Node.js 20 LTS..."
 curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo -E bash -
 sudo dnf -y install nodejs
 
-echo "[3/6] Installing nginx..."
+echo "[4/7] Installing nginx..."
 sudo dnf -y install nginx
 sudo systemctl enable nginx
 
-echo "[4/6] Installing LibreOffice (headless)..."
+echo "[5/7] Installing LibreOffice (headless)..."
 sudo dnf -y install libreoffice-headless
 
-echo "[5/6] (Optional) Installing Redis (for development)..."
+echo "[6/7] (Optional) Installing Redis (for development)..."
 if [[ "${INSTALL_REDIS:-false}" == "true" ]]; then
   sudo dnf -y install redis
   sudo systemctl enable redis
 fi
 
-echo "[6/7] Installing PM2 (process manager)..."
+echo "[7/8] Installing PM2 (process manager)..."
 if ! command -v pm2 &> /dev/null; then
   sudo npm install -g pm2
 fi
 
-echo "[7/7] Creating swap (2G) if absent..."
+echo "[8/8] Creating swap (2G) if absent..."
 if ! swapon --show | grep -q "swapfile"; then
   sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
   sudo chmod 600 /swapfile

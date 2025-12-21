@@ -1,72 +1,61 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('InviteAcceptPage');
 
 export default function InviteAcceptPage() {
-	const router = useRouter();
 	const params = useParams();
+	const router = useRouter();
 	const token = params?.token as string;
 	
 	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [invitation, setInvitation] = useState<any>(null);
+	const [roomId, setRoomId] = useState<string | null>(null);
 
+	// 验证邀请token并跳转到聊天页面
 	useEffect(() => {
-		if (!token) return;
-
-		// 验证邀请
-		fetch(`/api/chat/invitations/${token}`)
-			.then((res) => res.json())
-			.then((data) => {
-				if (data.error) {
-					setError(data.error);
-					setLoading(false);
+		const verifyAndRedirect = async () => {
+			try {
+				// 验证邀请token
+				const res = await fetch(`/api/chat/invites/${token}`);
+				const data = await res.json();
+				
+				if (res.ok && data.invitation) {
+					const targetRoomId = data.invitation.room.id;
+					setRoomId(targetRoomId);
+					
+					// 直接跳转到聊天页面（带room参数）
+					// 聊天页面会处理未登录用户的注册流程
+					router.replace(`/chat?room=${targetRoomId}&invite=${token}`);
 				} else {
-					setInvitation(data.invitation);
-					setLoading(false);
+					alert(data.error || '邀请无效');
+					router.push('/');
 				}
-			})
-			.catch((err) => {
-				setError('验证邀请失败');
+			} catch (error) {
+				log.error('验证邀请失败', error as Error);
+				alert('验证邀请失败');
+				router.push('/');
+			} finally {
 				setLoading(false);
-			});
-	}, [token]);
-
-	const handleAccept = async () => {
-		if (!token) return;
-
-		setLoading(true);
-		try {
-			const res = await fetch(`/api/chat/invitations/${token}/accept`, {
-				method: 'POST'
-			});
-
-			const data = await res.json();
-
-			if (!res.ok) {
-				throw new Error(data.error || '接受邀请失败');
 			}
+		};
 
-			// 跳转到聊天室
-			router.push(`/chat?room=${data.room.id}`);
-		} catch (err: any) {
-			setError(err.message || '接受邀请失败');
-			setLoading(false);
+		if (token) {
+			verifyAndRedirect();
 		}
-	};
+	}, [token, router]);
 
 	if (loading) {
 		return (
-			<div
-				style={{
-					display: 'flex',
-					justifyContent: 'center',
-					alignItems: 'center',
-					height: '100vh',
-					background: 'var(--color-background)'
-				}}
-			>
+			<div style={{ 
+				display: 'flex',
+				justifyContent: 'center',
+				alignItems: 'center',
+				minHeight: '100vh',
+				background: 'var(--color-background)'
+			}}>
 				<div style={{ textAlign: 'center' }}>
 					<div
 						style={{
@@ -79,129 +68,11 @@ export default function InviteAcceptPage() {
 							margin: '0 auto 16px'
 						}}
 					/>
-					<p style={{ color: 'var(--color-text-secondary)' }}>加载中...</p>
+					<p style={{ color: 'var(--color-text-secondary)' }}>正在验证邀请...</p>
 				</div>
 			</div>
 		);
 	}
 
-	if (error) {
-		return (
-			<div
-				style={{
-					display: 'flex',
-					justifyContent: 'center',
-					alignItems: 'center',
-					height: '100vh',
-					background: 'var(--color-background)'
-				}}
-			>
-				<div
-					style={{
-						background: 'white',
-						padding: '32px',
-						borderRadius: '8px',
-						boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-						maxWidth: '400px',
-						textAlign: 'center'
-					}}
-				>
-					<div style={{ fontSize: '48px', marginBottom: '16px' }}>❌</div>
-					<h2 style={{ marginBottom: '16px', color: 'var(--color-text)' }}>
-						邀请无效
-					</h2>
-					<p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
-						{error}
-					</p>
-					<button
-						onClick={() => router.push('/chat')}
-						style={{
-							padding: '10px 20px',
-							background: 'var(--color-primary)',
-							color: 'white',
-							border: 'none',
-							borderRadius: '6px',
-							cursor: 'pointer'
-						}}
-					>
-						返回聊天室
-					</button>
-				</div>
-			</div>
-		);
-	}
-
-	if (!invitation) {
-		return null;
-	}
-
-	return (
-		<div
-			style={{
-				display: 'flex',
-				justifyContent: 'center',
-				alignItems: 'center',
-				height: '100vh',
-				background: 'var(--color-background)'
-			}}
-		>
-			<div
-				style={{
-					background: 'white',
-					padding: '32px',
-					borderRadius: '8px',
-					boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-					maxWidth: '400px',
-					textAlign: 'center'
-				}}
-			>
-				<div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
-				<h2 style={{ marginBottom: '16px', color: 'var(--color-text)' }}>
-					聊天室邀请
-				</h2>
-				<p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
-					<strong>{invitation.inviter.name || invitation.inviter.email}</strong>{' '}
-					邀请您加入聊天室
-				</p>
-				<div style={{ marginBottom: '24px' }}>
-					<p style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-						房间类型：{invitation.room.type === 'SOLO' ? '单人' : '双人'}
-					</p>
-				</div>
-				<div style={{ display: 'flex', gap: '12px' }}>
-					<button
-						onClick={() => router.push('/chat')}
-						style={{
-							flex: 1,
-							padding: '10px 20px',
-							background: 'var(--color-background-secondary)',
-							color: 'var(--color-text)',
-							border: '1px solid var(--color-border)',
-							borderRadius: '6px',
-							cursor: 'pointer'
-						}}
-					>
-						取消
-					</button>
-					<button
-						onClick={handleAccept}
-						disabled={loading}
-						style={{
-							flex: 1,
-							padding: '10px 20px',
-							background: 'var(--color-primary)',
-							color: 'white',
-							border: 'none',
-							borderRadius: '6px',
-							cursor: loading ? 'not-allowed' : 'pointer',
-							opacity: loading ? 0.6 : 1
-						}}
-					>
-						{loading ? '接受中...' : '接受邀请'}
-					</button>
-				</div>
-			</div>
-		</div>
-	);
+	return null;
 }
-

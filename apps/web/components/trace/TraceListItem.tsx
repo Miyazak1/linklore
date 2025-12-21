@@ -14,6 +14,11 @@ interface Trace {
 	status: string;
 	version: number;
 	updatedAt: string;
+	editor: {
+		id: string;
+		email: string;
+		name: string | null;
+	};
 	analysis: {
 		credibilityScore: number;
 		canApprove: boolean;
@@ -93,6 +98,7 @@ function TraceListItem({ trace, statusLabels, statusColors, typeLabels }: TraceL
 						{trace.target}
 					</p>
 					<div style={{ display: 'flex', gap: 'var(--spacing-md)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>
+						<span>作者: {trace.editor.name || trace.editor.email}</span>
 						<span>版本: {trace.version}</span>
 						{trace.analysis && (
 							<span>可信度: {(trace.analysis.credibilityScore * 100).toFixed(1)}%</span>
@@ -116,6 +122,7 @@ export default memo(TraceListItem, (prevProps, nextProps) => {
 		prevProps.trace.status === nextProps.trace.status &&
 		prevProps.trace.version === nextProps.trace.version &&
 		prevProps.trace.updatedAt === nextProps.trace.updatedAt &&
+		prevProps.trace.editor.id === nextProps.trace.editor.id &&
 		prevProps.trace.analysis?.credibilityScore === nextProps.trace.analysis?.credibilityScore &&
 		prevProps.trace.entry?.id === nextProps.trace.entry?.id
 	);

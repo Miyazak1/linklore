@@ -10,9 +10,14 @@ type RouteInput = {
 
 export async function routeAiCall(input: RouteInput) {
 	// Budget checks (simplified)
-	const jobCap = parseInt(process.env.AI_JOB_COST_LIMIT_CENTS || '50', 10);
+	// 对于管理员任务（如生成议题），使用更高的成本限制
+	const isAdminTask = input.estimatedMaxCostCents > 100;
+	const jobCap = isAdminTask 
+		? parseInt(process.env.AI_JOB_COST_LIMIT_CENTS || '500', 10) // 管理员任务：500分（5元）
+		: parseInt(process.env.AI_JOB_COST_LIMIT_CENTS || '50', 10); // 普通任务：50分（0.5元）
+	
 	if (input.estimatedMaxCostCents > jobCap) {
-		return { text: '任务超过单次成本上限，已降级为占位摘要。', usage: { prompt: 0, completion: 0, costCents: 0 } };
+		throw new Error(`任务超过单次成本上限（${jobCap}分），请调整任务规模或联系管理员提高限制`);
 	}
 	
 	// 优先使用系统配置（管理员的配置）
@@ -96,11 +101,19 @@ export async function routeAiCall(input: RouteInput) {
 	// Make actual AI call
 	try {
 		console.log(`[AI Router] Calling AI provider with model: ${model}`);
+		// 根据任务类型和估算成本调整maxTokens
+		// 生成完整议题需要更多token
+		const maxTokens = input.estimatedMaxCostCents > 200 
+			? 4000  // 高成本任务（如生成议题）：4000 tokens
+			: input.estimatedMaxCostCents > 100
+			? 3000  // 中等成本任务：3000 tokens
+			: 2000; // 普通任务：2000 tokens
+		
 		const result = await callAiProvider(provider, {
 			apiKey,
 			model,
 			prompt: input.prompt,
-			maxTokens: 2000,
+			maxTokens,
 			temperature: 0.7,
 			apiEndpoint
 		});

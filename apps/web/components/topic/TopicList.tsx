@@ -183,7 +183,6 @@ export default function TopicList() {
 									style={{
 										padding: 'var(--spacing-xl)',
 										border: '1px solid var(--color-border-light)',
-										borderLeft: '4px solid var(--color-primary)',
 										borderRadius: 'var(--radius-md)',
 										background: 'var(--color-background-paper)',
 										transition: 'all var(--transition-normal)',
@@ -193,12 +192,10 @@ export default function TopicList() {
 									onMouseEnter={(e) => {
 										e.currentTarget.style.boxShadow = 'var(--shadow-md)';
 										e.currentTarget.style.transform = 'translateY(-2px)';
-										e.currentTarget.style.borderLeftColor = 'var(--color-primary-dark)';
 									}}
 									onMouseLeave={(e) => {
 										e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
 										e.currentTarget.style.transform = 'translateY(0)';
-										e.currentTarget.style.borderLeftColor = 'var(--color-primary)';
 									}}
 								>
 									<h3 style={{ 

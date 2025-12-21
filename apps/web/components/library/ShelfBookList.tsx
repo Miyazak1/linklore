@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { LibraryIcon, BookIcon, TrashIcon } from '@/components/ui/Icons';
 
 type Book = {
 	id: string;
@@ -51,10 +52,14 @@ export default function ShelfBookList({ items }: { items: ShelfItem[] }) {
 				border: '1px solid var(--color-border-light)'
 			}}>
 				<div style={{
-					fontSize: '64px',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
 					marginBottom: 'var(--spacing-md)',
 					opacity: 0.5
-				}}>📚</div>
+				}}>
+					<LibraryIcon size={64} color="var(--color-text-secondary)" />
+				</div>
 				<p style={{ 
 					color: 'var(--color-text-secondary)',
 					fontSize: 'var(--font-size-base)',
@@ -85,7 +90,7 @@ export default function ShelfBookList({ items }: { items: ShelfItem[] }) {
 						e.currentTarget.style.boxShadow = 'none';
 					}}
 				>
-					<span>📖</span> 去公共图书馆添加书籍
+					<BookIcon size={16} color="currentColor" /> 去公共图书馆添加书籍
 				</a>
 			</div>
 		);
@@ -280,7 +285,7 @@ export default function ShelfBookList({ items }: { items: ShelfItem[] }) {
 									</>
 								) : (
 									<>
-										<span>🗑️</span>
+										<TrashIcon size={16} color="currentColor" />
 										从书架移除
 									</>
 								)}

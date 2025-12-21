@@ -24,7 +24,7 @@ export async function trackConsensus(topicId: string): Promise<ConsensusSnapshot
 	console.log(`[ConsensusTracker] Tracking consensus for topic ${topicId}`);
 
 	// 获取文档树
-	const docTree = await getDocumentTree(topicId);
+	const docTree = await getDocumentTree(topicId, false); // 不加载extractedText以提升性能
 	
 	// 获取所有文档的详细信息（包括评价和总结）
 	const allDocIds = new Set<string>();

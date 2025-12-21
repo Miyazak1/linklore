@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
+import { prisma } from '@/lib/db/client'; // 保留用于 User 等共享模型
 import { requireRoomAccess } from '@/lib/security/roomAccess';
 
 /**
@@ -20,7 +21,7 @@ export async function POST(
 		const { id: messageId } = await params;
 
 		// 获取原始AI消息
-		const originalMessage = await prisma.chatMessage.findUnique({
+		const originalMessage = await chatDb.messages.findUnique({
 			where: { id: messageId },
 			include: {
 				room: {
@@ -57,7 +58,7 @@ export async function POST(
 		}
 
 		// 获取触发这条AI回答的用户消息（应该是这条AI消息之前最近的一条用户消息）
-		const triggerMessage = await prisma.chatMessage.findFirst({
+		const triggerMessage = await chatDb.messages.findFirst({
 			where: {
 				roomId: originalMessage.roomId,
 				contentType: 'USER',
@@ -79,7 +80,7 @@ export async function POST(
 		}
 
 		// 获取房间内的所有讨论消息（用于上下文）
-		const discussionMessages = await prisma.chatMessage.findMany({
+		const discussionMessages = await chatDb.messages.findMany({
 			where: {
 				roomId: originalMessage.roomId,
 				contentType: { in: ['USER', 'AI_ADOPTED'] },
@@ -102,7 +103,7 @@ export async function POST(
 		if (isDuo) {
 			context.push({
 				role: 'user',
-				content: `这是一个双人讨论。请仔细阅读以下讨论内容，理解讨论的话题和双方的观点，然后为当前用户提供围绕话题的建议和帮助。`
+				content: `这是一个双人讨论。请仔细阅读以下讨论内容，理解双方的观点，然后为当前用户提供建议和帮助。`
 			});
 		}
 		
@@ -132,14 +133,14 @@ export async function POST(
 		});
 
 		// 创建新的AI建议消息（空内容，等待流式输出填充）
-		const lastMessage = await prisma.chatMessage.findFirst({
+		const lastMessage = await chatDb.messages.findFirst({
 			where: { roomId: originalMessage.roomId },
 			orderBy: { sequence: 'desc' },
 			select: { sequence: true }
 		});
 		const nextSequence = (lastMessage?.sequence || 0) + 1;
 
-		const newAiMessage = await prisma.chatMessage.create({
+		const newAiMessage = await chatDb.messages.create({
 			data: {
 				roomId: originalMessage.roomId,
 				senderId: session.sub,

@@ -15,17 +15,30 @@ export async function GET(req: Request) {
 		const typeFilter = searchParams.get('type') || '';
 
 		// 构建查询条件
-		const where: any = {};
+		const whereConditions: any[] = [
+			// 只返回有 slug 的词条（slug 不为空字符串）
+			{
+				slug: {
+					not: ''
+				}
+			}
+		];
 
 		if (search) {
-			where.OR = [
-				{ title: { contains: search, mode: 'insensitive' } },
-				{ slug: { contains: search, mode: 'insensitive' } }
-			];
+			whereConditions.push({
+				OR: [
+					{ title: { contains: search, mode: 'insensitive' } },
+					{ slug: { contains: search, mode: 'insensitive' } }
+				]
+			});
 		}
 		if (typeFilter) {
-			where.traceType = typeFilter;
+			whereConditions.push({
+				traceType: typeFilter
+			});
 		}
+
+		const where = whereConditions.length > 0 ? { AND: whereConditions } : {};
 
 		// 获取总数
 		const total = await prisma.entry.count({ where });

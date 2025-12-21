@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import CitationRenderer from '@/components/trace/CitationRenderer';
 
 interface EntryDetail {
 	id: string;
@@ -95,7 +96,7 @@ export default function EntryDetail({ slug }: Props) {
 	}
 
 	return (
-		<div style={{ padding: 'var(--spacing-xl)', maxWidth: '1200px', margin: '0 auto' }}>
+		<div style={{ padding: 'var(--spacing-xl)', maxWidth: 1400, margin: '0 auto' }}>
 			<div style={{ marginBottom: 'var(--spacing-lg)' }}>
 				<Link href="/entries" style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', fontSize: 'var(--font-size-sm)' }}>
 					← 返回列表
@@ -141,12 +142,27 @@ export default function EntryDetail({ slug }: Props) {
 						whiteSpace: 'pre-wrap'
 					}}
 				>
-					{entry.content.split('\n').map((line, idx) => (
-						<span key={idx}>
-							{line}
-							{idx < entry.content.split('\n').length - 1 && <br />}
-						</span>
-					))}
+					<CitationRenderer
+						body={entry.content}
+						citations={entry.citations.map((c: any, idx: number) => ({
+							id: c.id || `citation-${idx}`,
+							order: c.order || idx + 1,
+							title: c.title,
+							url: c.url
+						}))}
+						onCitationClick={(citationId, order) => {
+							// 滚动到对应的引用
+							const citationElement = document.getElementById(`citation-${citationId}`);
+							if (citationElement) {
+								citationElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+								// 高亮效果
+								citationElement.style.background = 'var(--color-warning)';
+								setTimeout(() => {
+									citationElement.style.background = 'var(--color-background-subtle)';
+								}, 2000);
+							}
+						}}
+					/>
 				</div>
 			</div>
 
@@ -156,7 +172,8 @@ export default function EntryDetail({ slug }: Props) {
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
 						{entry.citations.map((citation: any, index: number) => (
 							<div
-								key={index}
+								key={citation.id || index}
+								id={`citation-${citation.id || index}`}
 								style={{
 									padding: 'var(--spacing-md)',
 									border: '1px solid var(--color-border)',

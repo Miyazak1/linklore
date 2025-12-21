@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
 import { saveFile } from '@/lib/storage/local';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('Upload Local API');
 
 export async function POST(req: Request) {
 	try {
@@ -18,7 +21,7 @@ export async function POST(req: Request) {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch (err: any) {
-		console.error('[Upload Local] Error:', err);
+		log.error('上传失败', err as Error);
 		return NextResponse.json({ 
 			error: err.message || '上传失败',
 			details: process.env.NODE_ENV === 'development' ? String(err.stack) : undefined

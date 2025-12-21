@@ -15,7 +15,7 @@ export async function GET(
 			return NextResponse.json({ error: 'Invalid topic ID' }, { status: 400 });
 		}
 
-		const tree = await getDocumentTree(id);
+		const tree = await getDocumentTree(id, false); // 不加载extractedText以提升性能
 		
 		// 找出话题的真正原始文档（第一个创建的parentId为null的文档）
 		// 在DocumentTreeSelector中，我们只显示回复文档，不显示话题的原始文档

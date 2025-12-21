@@ -57,8 +57,7 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						padding: 'var(--spacing-xl)', 
 						textAlign: 'left',
 						animationDelay: '0.1s',
-						animationFillMode: 'both',
-						borderLeftColor: 'var(--color-primary)'
+						animationFillMode: 'both'
 					}}
 				>
 					<div style={{ 
@@ -84,8 +83,7 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						padding: 'var(--spacing-xl)', 
 						textAlign: 'left',
 						animationDelay: '0.2s',
-						animationFillMode: 'both',
-						borderLeftColor: 'var(--color-success)'
+						animationFillMode: 'both'
 					}}
 				>
 					<div style={{ 
@@ -111,8 +109,7 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						padding: 'var(--spacing-xl)', 
 						textAlign: 'left',
 						animationDelay: '0.3s',
-						animationFillMode: 'both',
-						borderLeftColor: 'var(--color-warning)'
+						animationFillMode: 'both'
 					}}
 				>
 					<div style={{ 
@@ -138,8 +135,7 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						padding: 'var(--spacing-xl)', 
 						textAlign: 'left',
 						animationDelay: '0.4s',
-						animationFillMode: 'both',
-						borderLeftColor: 'var(--color-secondary)'
+						animationFillMode: 'both'
 					}}
 				>
 					<div style={{ 
@@ -199,7 +195,7 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						fontWeight: 500,
 						transition: 'all var(--transition-fast)'
 					}}>公共图书馆</a>
-					<a href="/digest" style={{ 
+					<a href="/practices" style={{ 
 						padding: 'var(--spacing-sm) var(--spacing-md)',
 						background: 'var(--color-background-paper)',
 						color: 'var(--color-text-primary)',
@@ -208,7 +204,7 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						fontSize: 'var(--font-size-sm)',
 						fontWeight: 500,
 						transition: 'all var(--transition-fast)'
-					}}>周报摘要</a>
+					}}>实践记录</a>
 					<a href="/settings/ai" style={{ 
 						padding: 'var(--spacing-sm) var(--spacing-md)',
 						background: 'var(--color-background-paper)',

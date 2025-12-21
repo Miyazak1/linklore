@@ -19,7 +19,7 @@ export default {
 		home: "首页",
 		upload: "发起话题（上传文档）",
 		library: "公共图书馆",
-		digest: "周报摘要",
+		practices: "实践记录",
 		aiSettings: "我的 AI",
 		shelf: "我的书架"
 	},

@@ -1,43 +1,119 @@
-'use client';
+import { prisma } from '@/lib/db/client';
+import NewHomePage from '@/components/ui/NewHomePage';
+import { getCache, setCache } from '@/lib/cache/redis';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+export default async function HomePage() {
+	try {
+		// Get statistics with caching
+		const cacheKey = 'home:stats';
+		let cached: { topics: number; documents: number; users: number; books: number; traces: number; entries: number } | null = null;
+		
+		try {
+			cached = await getCache<{ topics: number; documents: number; users: number; books: number; traces: number; entries: number }>(cacheKey);
+		} catch (cacheErr) {
+			console.warn('[HomePage] Cache error (non-fatal):', cacheErr);
+		}
+		
+		let totalTopics: number;
+		let totalDocuments: number;
+		let totalUsers: number;
+		let totalBooks: number;
+		let totalTraces: number;
+		let totalEntries: number;
+		
+		if (cached) {
+			totalTopics = cached.topics;
+			totalDocuments = cached.documents;
+			totalUsers = cached.users;
+			totalBooks = cached.books;
+			totalTraces = cached.traces || 0;
+			totalEntries = cached.entries || 0;
+		} else {
+			try {
+				// Fetch all counts in parallel
+				[totalTopics, totalDocuments, totalUsers, totalBooks, totalTraces, totalEntries] = await Promise.all([
+					prisma.topic.count(),
+					prisma.document.count(),
+					prisma.user.count(),
+					prisma.book.count(),
+					prisma.trace.count({ where: { status: 'PUBLISHED' } }).catch(() => 0),
+					prisma.entry.count().catch(() => 0)
+				]);
+				
+				// Cache for 5 minutes (non-blocking)
+				try {
+					await setCache(cacheKey, { 
+						topics: totalTopics, 
+						documents: totalDocuments, 
+						users: totalUsers, 
+						books: totalBooks,
+						traces: totalTraces,
+						entries: totalEntries
+					}, 300);
+				} catch (setCacheErr) {
+					console.warn('[HomePage] Set cache error (non-fatal):', setCacheErr);
+				}
+			} catch (dbErr) {
+				console.error('[HomePage] Database error:', dbErr);
+				// Fallback values if database fails
+				totalTopics = 0;
+				totalDocuments = 0;
+				totalUsers = 0;
+				totalBooks = 0;
+				totalTraces = 0;
+				totalEntries = 0;
+			}
+		}
 
-export default function HomePage() {
-	const router = useRouter();
-
-	useEffect(() => {
-		// 首页重定向到聊天室（客户端重定向）
-		router.replace('/chat');
-	}, [router]);
-
-	// 显示加载状态
-	return (
-		<div
-			style={{
-				display: 'flex',
-				justifyContent: 'center',
-				alignItems: 'center',
-				height: '100vh',
+		return (
+			<main style={{ 
+				background: 'var(--color-background)',
+				minHeight: '100vh'
+			}}>
+				<NewHomePage stats={{ 
+					totalTopics, 
+					totalDocuments, 
+					totalUsers, 
+					totalBooks,
+					totalTraces,
+					totalEntries
+				}} />
+			</main>
+		);
+	} catch (err: any) {
+		console.error('[HomePage] Unexpected error:', err);
+		// Return a basic error page instead of crashing
+		return (
+			<main style={{ 
+				padding: 'var(--spacing-xl)', 
+				maxWidth: 1200, 
+				margin: '0 auto',
 				background: 'var(--color-background)'
-			}}
-		>
-			<div style={{ textAlign: 'center' }}>
-				<div
-					style={{
-						width: 40,
-						height: 40,
-						border: '3px solid var(--color-border)',
-						borderTopColor: 'var(--color-primary)',
-						borderRadius: '50%',
-						animation: 'spin 1s linear infinite',
-						margin: '0 auto 16px'
-					}}
-				/>
-				<p style={{ color: 'var(--color-text-secondary)' }}>跳转中...</p>
-			</div>
-		</div>
-	);
+			}}>
+				<div style={{ padding: 48, textAlign: 'center' }}>
+					<h1 style={{ color: 'var(--color-error)', marginBottom: 16 }}>页面加载错误</h1>
+					<p style={{ color: 'var(--color-text-secondary)', marginBottom: 24 }}>
+						{process.env.NODE_ENV === 'development' ? String(err.message) : '请稍后重试'}
+					</p>
+					<a
+						href="/"
+						style={{
+							display: 'inline-block',
+							padding: '12px 24px',
+							background: 'var(--color-primary)',
+							color: '#fff',
+							border: 'none',
+							borderRadius: 4,
+							cursor: 'pointer',
+							textDecoration: 'none'
+						}}
+					>
+						返回首页
+					</a>
+				</div>
+			</main>
+		);
+	}
 }
 
 

@@ -22,7 +22,7 @@ export function useToast() {
 		setToasts((prev) => prev.filter((toast) => toast.id !== id));
 	}, []);
 
-	const ToastContainer = () => (
+	const ToastContainer = (): JSX.Element => (
 		<>
 			{toasts.map((toast) => (
 				<Toast

@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
 import { z } from 'zod';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('Chat Rooms API');
 
 const CreateRoomSchema = z.object({
-	type: z.enum(['SOLO', 'DUO']).optional().default('SOLO')
+	type: z.enum(['SOLO', 'DUO']).optional().default('SOLO'),
+	topic: z.string().optional(), // 支持创建时设置话题
+	topicDescription: z.string().optional() // 支持创建时设置话题描述
 });
 
 const GetRoomsQuerySchema = z.object({
@@ -25,25 +30,16 @@ export async function POST(req: Request) {
 		}
 
 		const body = await req.json();
-		const { type } = CreateRoomSchema.parse(body);
+		const { type, topic, topicDescription } = CreateRoomSchema.parse(body);
 
-		// 检查是否是匿名用户
-		const isGuest = (session as any).isGuest === true;
-		
-		// 匿名用户只能创建 SOLO 房间
-		if (isGuest && type === 'DUO') {
-			return NextResponse.json(
-				{ error: '匿名用户只能创建单人聊天室' },
-				{ status: 403 }
-			);
-		}
-
-		// 创建聊天室
-		const room = await prisma.chatRoom.create({
+		// 创建聊天室（同时设置话题，如果提供）
+		const room = await chatDb.rooms.create({
 			data: {
-				type: isGuest ? 'SOLO' : type, // 强制匿名用户使用 SOLO
+				type: type,
 				creatorId: session.sub,
-				status: 'ACTIVE'
+				status: 'ACTIVE',
+				topic: topic || null,
+				topicDescription: topicDescription || null
 			},
 			include: {
 				creator: {
@@ -65,6 +61,7 @@ export async function POST(req: Request) {
 				{ status: 400 }
 			);
 		}
+		log.error('创建聊天室失败', error as Error);
 		return NextResponse.json(
 			{ error: error.message || '创建聊天室失败' },
 			{ status: 500 }
@@ -137,7 +134,7 @@ export async function GET(req: Request) {
 		let rooms, total;
 		try {
 			[rooms, total] = await Promise.all([
-				prisma.chatRoom.findMany({
+				chatDb.rooms.findMany({
 				where,
 				select: {
 					id: true,
@@ -176,13 +173,27 @@ export async function GET(req: Request) {
 					skip,
 					take: limitNum
 				}),
-				prisma.chatRoom.count({ where })
+				chatDb.rooms.count({ where })
 			]);
 		} catch (dbError: any) {
+			// 记录详细错误信息
+			log.error('查询聊天室列表失败', dbError as Error, {
+				code: dbError.code,
+				message: dbError.message,
+				meta: dbError.meta
+			});
+			
 			// 如果表不存在，返回友好的错误信息
 			if (dbError.code === 'P2021' || dbError.message?.includes('does not exist')) {
 				throw new Error(
 					'数据库表尚未创建。请运行: pnpm prisma migrate dev --name add_chat_models'
+				);
+			}
+			// 如果是字段不存在的错误
+			if (dbError.code === 'P2009' || dbError.message?.includes('Unknown argument') || dbError.message?.includes('Unknown field')) {
+				log.error('数据库字段不匹配，可能需要重新生成 Prisma Client', dbError as Error);
+				throw new Error(
+					'数据库字段不匹配。请重启开发服务器或运行: pnpm prisma generate'
 				);
 			}
 			throw dbError;
@@ -191,7 +202,7 @@ export async function GET(req: Request) {
 		// 获取每个房间的最后一条消息
 		const roomsWithLastMessage = await Promise.all(
 			rooms.map(async (room) => {
-				const lastMessage = await prisma.chatMessage.findFirst({
+				const lastMessage = await chatDb.messages.findFirst({
 					where: { roomId: room.id, deletedAt: null },
 					orderBy: { sequence: 'desc' },
 					select: {
@@ -233,7 +244,7 @@ export async function GET(req: Request) {
 			limit: limitNum
 		});
 	} catch (error: any) {
-		console.error('[Chat Rooms API] Error:', error);
+		log.error('获取聊天室列表失败', error as Error);
 		if (error instanceof z.ZodError) {
 			return NextResponse.json(
 				{ error: '请求参数错误', details: error.errors },
@@ -242,7 +253,7 @@ export async function GET(req: Request) {
 		}
 		// 返回更详细的错误信息
 		const errorMessage = error.message || '获取聊天室列表失败';
-		console.error('[Chat Rooms API] Error details:', {
+		log.error('获取聊天室列表失败 - 详细信息', error as Error, {
 			message: errorMessage,
 			stack: error.stack,
 			name: error.name

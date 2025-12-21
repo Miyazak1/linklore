@@ -215,8 +215,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 		}
 
 		// 6. 如果没有用户对共识数据且需要重新分析，使用旧方案（全局分析）
-		// Get document tree
-		const docTree = await getDocumentTree(id);
+		// Get document tree (不加载extractedText以提升性能)
+		const docTree = await getDocumentTree(id, false);
 		
 		// Get all documents with evaluations and summaries
 		const allDocIds = new Set<string>();

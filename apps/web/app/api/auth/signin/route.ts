@@ -4,18 +4,16 @@ import { prisma } from '@/lib/db/client';
 import { compare } from 'bcryptjs';
 import { createSession, clearSession } from '@/lib/auth/session';
 import { logAudit } from '@/lib/audit/logger';
-import { associateGuestData, isGuestUser } from '@/lib/auth/guest';
 
 const SigninSchema = z.object({
 	email: z.string().email(),
-	password: z.string().min(8).max(100),
-	guestUserId: z.string().optional() // 匿名用户ID（用于关联数据）
+	password: z.string().min(8).max(100)
 });
 
 export async function POST(req: Request) {
 	try {
 		const json = await req.json();
-		const { email, password, guestUserId } = SigninSchema.parse(json);
+		const { email, password } = SigninSchema.parse(json);
 		const user = await prisma.user.findUnique({ where: { email } });
 		if (!user) return NextResponse.json({ error: '邮箱或密码错误' }, { status: 400 });
 		const ok = await compare(password, user.passwordHash);
@@ -28,26 +26,6 @@ export async function POST(req: Request) {
 				userAgent: req.headers.get('user-agent') || undefined,
 			});
 			return NextResponse.json({ error: '邮箱或密码错误' }, { status: 400 });
-		}
-
-		// 如果提供了 guestUserId，关联匿名用户数据
-		if (guestUserId) {
-			try {
-				// 验证 guestUserId 是否是有效的匿名用户
-				const guestUser = await prisma.user.findUnique({
-					where: { id: guestUserId },
-					select: { email: true }
-				});
-
-				if (guestUser && isGuestUser(guestUser)) {
-					// 关联匿名用户数据到登录用户
-					await associateGuestData(guestUserId, user.id);
-					console.log(`[Signin] Associated guest data from ${guestUserId} to ${user.id}`);
-				}
-			} catch (associateErr: any) {
-				// 关联失败不影响登录，只记录日志
-				console.warn('[Signin] Failed to associate guest data:', associateErr.message);
-			}
 		}
 
 		// 清除旧的 session（可能是匿名用户的）

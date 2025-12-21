@@ -57,6 +57,13 @@ export async function GET(req: Request) {
 				approvedAt: true,
 				createdAt: true,
 				updatedAt: true,
+				editor: {
+					select: {
+						id: true,
+						email: true,
+						name: true
+					}
+				},
 				analysis: {
 					select: {
 						credibilityScore: true,

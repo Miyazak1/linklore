@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UseDiscussionParticipantResult {
 	isParticipant: boolean;
@@ -17,6 +18,7 @@ export function useDiscussionParticipant(
 	topicId: string,
 	userId?: string
 ): UseDiscussionParticipantResult {
+	const { user: authUser } = useAuth(); // 使用AuthContext获取用户信息
 	const [isParticipant, setIsParticipant] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -27,15 +29,8 @@ export function useDiscussionParticipant(
 				setLoading(true);
 				setError(null);
 
-				// 如果没有提供 userId，先获取当前用户
-				let currentUserId = userId;
-				if (!currentUserId) {
-					const res = await fetch('/api/auth/me');
-					if (res.ok) {
-						const data = await res.json();
-						currentUserId = data?.user?.id;
-					}
-				}
+				// 优先使用传入的userId，其次使用AuthContext，避免重复请求
+				const currentUserId = userId || (authUser?.id ? String(authUser.id) : null);
 
 				if (!currentUserId) {
 					setIsParticipant(false);
@@ -62,7 +57,7 @@ export function useDiscussionParticipant(
 		if (topicId) {
 			checkParticipant();
 		}
-	}, [topicId, userId]);
+	}, [topicId, userId, authUser?.id]);
 
 	return { isParticipant, loading, error };
 }

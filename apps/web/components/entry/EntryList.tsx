@@ -71,7 +71,6 @@ export default function EntryList() {
 			}
 
 			if (data.success) {
-				console.log('Entries loaded:', data.data);
 				setEntries(data.data);
 			} else {
 				throw new Error(data.error?.message || '加载失败');
@@ -109,7 +108,7 @@ export default function EntryList() {
 	}
 
 	return (
-		<div style={{ padding: 'var(--spacing-xl)', maxWidth: '1200px', margin: '0 auto' }}>
+		<div style={{ padding: 'var(--spacing-xl)', maxWidth: 1400, margin: '0 auto' }}>
 			<h1 style={{ marginBottom: 'var(--spacing-lg)' }}>词条</h1>
 
 			<div className="card-academic" style={{ padding: 'var(--spacing-lg)' }}>
@@ -168,18 +167,10 @@ export default function EntryList() {
 					<>
 						<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
 							{entries.data.map((entry) => {
-								console.log('Rendering entry:', entry);
-								if (!entry.slug) {
-									console.error('Entry missing slug:', entry);
-									return null;
-								}
 								return (
 								<Link
 									key={entry.id}
 									href={`/entries/${entry.slug}`}
-									onClick={(e) => {
-										console.log('Entry clicked, navigating to:', `/entries/${entry.slug}`, 'slug:', entry.slug, 'full entry:', entry);
-									}}
 									style={{
 										display: 'block',
 										padding: 'var(--spacing-md)',

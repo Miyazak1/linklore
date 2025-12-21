@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
 import { requireRoomAccess } from '@/lib/security/roomAccess';
 
 /**
@@ -23,7 +23,7 @@ export async function GET(
 		await requireRoomAccess(id, session.sub);
 
 		// 获取房间详情
-		const room = await prisma.chatRoom.findUnique({
+		const room = await chatDb.rooms.findUnique({
 			where: { id },
 			include: {
 				creator: {
@@ -85,7 +85,7 @@ export async function DELETE(
 		const { id } = await params;
 
 		// 获取房间信息
-		const room = await prisma.chatRoom.findUnique({
+		const room = await chatDb.rooms.findUnique({
 			where: { id },
 			select: {
 				creatorId: true,
@@ -120,7 +120,7 @@ export async function DELETE(
 		}
 
 		// 更新房间（只设置删除时间，不改变 status）
-		await prisma.chatRoom.update({
+		await chatDb.rooms.update({
 			where: { id },
 			data: updateData
 		});

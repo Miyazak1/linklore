@@ -17,8 +17,27 @@ export default async function BookDetailPage({ params }: Props) {
 	// Fetch assets separately to avoid Prisma Client cache issues
 	const assets = await prisma.bookAsset.findMany({
 		where: { bookId: id },
-		orderBy: { createdAt: 'desc' }
+		orderBy: { createdAt: 'asc' } // 按创建时间升序排序，以便获取第一个上传者
 	});
+
+	// Extract userId from first asset's fileKey (format: books/{userId}/{timestamp}-{filename})
+	let uploaderName: string | null = null;
+	if (assets.length > 0) {
+		const firstAsset = assets[0];
+		const match = firstAsset.fileKey.match(/^books\/([^\/]+)\//);
+		if (match && match[1]) {
+			const userId = match[1];
+			try {
+				const user = await prisma.user.findUnique({
+					where: { id: userId },
+					select: { name: true }
+				});
+				uploaderName = user?.name || '匿名用户';
+			} catch {
+				uploaderName = '匿名用户';
+			}
+		}
+	}
 
 	// Convert Date to ISO string for client component
 	const bookForClient = {
@@ -27,7 +46,8 @@ export default async function BookDetailPage({ params }: Props) {
 		assets: assets.map(asset => ({
 			...asset,
 			createdAt: asset.createdAt.toISOString()
-		}))
+		})),
+		uploaderName
 	};
 
 	return (

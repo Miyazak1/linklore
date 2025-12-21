@@ -17,6 +17,11 @@ interface Trace {
 	approvedAt: string | null;
 	createdAt: string;
 	updatedAt: string;
+	editor: {
+		id: string;
+		email: string;
+		name: string | null;
+	};
 	analysis: {
 		credibilityScore: number;
 		canApprove: boolean;
@@ -147,7 +152,7 @@ export default function TraceList() {
 	}
 
 	return (
-		<div style={{ padding: 'var(--spacing-xl)', maxWidth: '1200px', margin: '0 auto' }}>
+		<div style={{ padding: 'var(--spacing-xl)', maxWidth: 1400, margin: '0 auto' }}>
 			<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
 				<h1>我的溯源</h1>
 				<Link href="/traces/new">

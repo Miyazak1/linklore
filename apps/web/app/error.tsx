@@ -11,12 +11,23 @@ export default function Error({
 	reset: () => void;
 }) {
 	useEffect(() => {
+		// 忽略 NEXT_REDIRECT 错误（这是 Next.js 的正常行为，不应该被错误边界捕获）
+		if (error.message === 'NEXT_REDIRECT' || error.digest?.includes('NEXT_REDIRECT')) {
+			console.log('[ErrorBoundary] Ignoring NEXT_REDIRECT error (expected behavior)');
+			return;
+		}
+		
 		// Log error to Sentry
 		if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
 			Sentry.captureException(error);
 		}
 		console.error('Application error:', error);
 	}, [error]);
+	
+	// 如果是 NEXT_REDIRECT 错误，不显示错误界面
+	if (error.message === 'NEXT_REDIRECT' || error.digest?.includes('NEXT_REDIRECT')) {
+		return null;
+	}
 
 	return (
 		<div style={{ padding: 48, textAlign: 'center', maxWidth: 600, margin: '0 auto' }}>

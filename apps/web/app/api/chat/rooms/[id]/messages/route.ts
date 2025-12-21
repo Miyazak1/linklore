@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
 import { requireRoomAccess } from '@/lib/security/roomAccess';
 import { processMessageContent } from '@/lib/security/messageValidation';
 import { z } from 'zod';
@@ -54,7 +54,7 @@ export async function GET(
 		if (idsParam) {
 			const messageIds = idsParam.split(',').filter(id => id.trim());
 			if (messageIds.length > 0) {
-				const messages = await prisma.chatMessage.findMany({
+				const messages = await chatDb.messages.findMany({
 					where: {
 						id: { in: messageIds },
 						roomId,
@@ -99,7 +99,7 @@ export async function GET(
 
 		if (cursor) {
 			// 游标分页：获取指定消息之后的消息
-			const cursorMessage = await prisma.chatMessage.findUnique({
+			const cursorMessage = await chatDb.messages.findUnique({
 				where: { id: cursor },
 				select: { sequence: true }
 			});
@@ -108,7 +108,7 @@ export async function GET(
 			}
 		} else if (before) {
 			// 获取指定消息之前的消息
-			const beforeMessage = await prisma.chatMessage.findUnique({
+			const beforeMessage = await chatDb.messages.findUnique({
 				where: { id: before },
 				select: { sequence: true }
 			});
@@ -117,7 +117,7 @@ export async function GET(
 			}
 		} else if (after) {
 			// 获取指定消息之后的消息
-			const afterMessage = await prisma.chatMessage.findUnique({
+			const afterMessage = await chatDb.messages.findUnique({
 				where: { id: after },
 				select: { sequence: true }
 			});
@@ -130,7 +130,7 @@ export async function GET(
 		// 注意：如果房间没有消息，返回空数组是正常的
 		let messages;
 		try {
-			messages = await prisma.chatMessage.findMany({
+			messages = await chatDb.messages.findMany({
 				where,
 				select: {
 					id: true,
@@ -188,7 +188,7 @@ export async function GET(
 		// 判断是否还有更多消息
 		const hasMore =
 			messages.length === take &&
-			(await prisma.chatMessage.count({
+			(await chatDb.messages.count({
 				where: {
 					...where,
 					sequence: { lt: messages[messages.length - 1]?.sequence || 0 }
@@ -272,7 +272,7 @@ export async function POST(
 					);
 
 		// 获取下一个消息序号
-		const lastMessage = await prisma.chatMessage.findFirst({
+		const lastMessage = await chatDb.messages.findFirst({
 			where: { roomId },
 			orderBy: { sequence: 'desc' },
 			select: { sequence: true }
@@ -282,7 +282,7 @@ export async function POST(
 		console.log(`[POST /api/chat/rooms/${roomId}/messages] 📝 准备创建消息，sequence: ${nextSequence}`);
 
 		// 创建消息
-		const message = await prisma.chatMessage.create({
+		const message = await chatDb.messages.create({
 			data: {
 				roomId,
 				senderId: session.sub,
@@ -316,7 +316,7 @@ export async function POST(
 		if (references && references.length > 0) {
 			await Promise.all(
 				references.map((ref) =>
-					prisma.chatMessageReference.create({
+					chatDb.messageReferences.create({
 						data: {
 							messageId: message.id,
 							referencedMessageId: ref.messageId,
@@ -330,7 +330,7 @@ export async function POST(
 			);
 
 			// 重新加载消息以包含引用
-			const messageWithRefs = await prisma.chatMessage.findUnique({
+			const messageWithRefs = await chatDb.messages.findUnique({
 				where: { id: message.id },
 				include: {
 					sender: {
@@ -365,7 +365,7 @@ export async function POST(
 		}
 
 		// 更新房间的 updatedAt
-		await prisma.chatRoom.update({
+		await chatDb.rooms.update({
 			where: { id: roomId },
 			data: { updatedAt: new Date() }
 		});

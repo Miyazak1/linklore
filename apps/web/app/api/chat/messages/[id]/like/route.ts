@@ -20,7 +20,7 @@ export async function POST(
 		const { id: messageId } = await params;
 
 		// 获取消息信息
-		const message = await prisma.chatMessage.findUnique({
+		const message = await chatDb.messages.findUnique({
 			where: { id: messageId },
 			select: { roomId: true }
 		});
@@ -102,7 +102,7 @@ export async function GET(
 		const { id: messageId } = await params;
 
 		// 获取消息信息
-		const message = await prisma.chatMessage.findUnique({
+		const message = await chatDb.messages.findUnique({
 			where: { id: messageId },
 			select: { roomId: true }
 		});
@@ -141,4 +141,14 @@ export async function GET(
 		);
 	}
 }
+
+
+
+
+
+
+
+
+
+
 

@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('TopicSetupDialog');
 
 interface TopicSetupDialogProps {
 	roomId?: string; // 可选，创建新聊天时可能为空
@@ -47,7 +50,7 @@ export default function TopicSetupDialog({ roomId, onComplete, onClose }: TopicS
 			const data = await res.json();
 			setAiSuggestion(data.suggestion);
 		} catch (error: any) {
-			console.error('[TopicSetupDialog] AI辅助失败:', error);
+			log.error('AI辅助失败', error as Error);
 			alert(`AI辅助失败: ${error.message || '未知错误'}`);
 		} finally {
 			setIsAiAssisting(false);
@@ -83,7 +86,6 @@ export default function TopicSetupDialog({ roomId, onComplete, onClose }: TopicS
 				alignItems: 'center',
 				zIndex: 1000
 			}}
-			onClick={onClose || undefined}
 		>
 			<div
 				style={{

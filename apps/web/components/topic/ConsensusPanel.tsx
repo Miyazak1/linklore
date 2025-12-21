@@ -14,9 +14,14 @@ type ConsensusData = {
 	};
 };
 
-export default function ConsensusPanel({ topicId }: { topicId: string }) {
-	const [data, setData] = useState<ConsensusData | null>(null);
-	const [loading, setLoading] = useState(true);
+interface ConsensusPanelProps {
+	topicId: string;
+	initialData?: ConsensusData | null; // 初始共识数据（服务端预加载）
+}
+
+export default function ConsensusPanel({ topicId, initialData }: ConsensusPanelProps) {
+	const [data, setData] = useState<ConsensusData | null>(initialData || null);
+	const [loading, setLoading] = useState(!initialData); // 如果有初始数据，不需要loading
 	const [error, setError] = useState<string | null>(null);
 
 	const loadData = async () => {
@@ -37,19 +42,22 @@ export default function ConsensusPanel({ topicId }: { topicId: string }) {
 	};
 
 	useEffect(() => {
-		loadData();
+		// 如果没有初始数据，立即加载
+		if (!initialData) {
+			loadData();
+		}
 		// 自动轮询刷新：每10秒检查一次是否有新数据
 		const interval = setInterval(() => {
 			loadData();
 		}, 10000); // 10秒轮询一次
 
 		return () => clearInterval(interval);
-	}, [topicId]);
+	}, [topicId, initialData]);
 
 
 	if (loading) {
 		return (
-			<div className="card-academic" style={{ borderLeftColor: 'var(--color-secondary)' }}>
+			<div className="card-academic">
 				<h3 style={{ marginTop: 0, color: 'var(--color-secondary)' }}>共识分析</h3>
 				<p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>分析中...</p>
 			</div>
@@ -58,7 +66,7 @@ export default function ConsensusPanel({ topicId }: { topicId: string }) {
 
 	if (error) {
 		return (
-			<div className="card-academic" style={{ borderLeftColor: 'var(--color-error)' }}>
+			<div className="card-academic">
 				<h3 style={{ marginTop: 0, color: 'var(--color-error)' }}>共识分析</h3>
 				<p style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-sm)' }}>错误：{error}</p>
 			</div>
@@ -67,7 +75,7 @@ export default function ConsensusPanel({ topicId }: { topicId: string }) {
 
 	if (!data || data.totalDocs < 2) {
 		return (
-			<div className="card-academic" style={{ borderLeftColor: 'var(--color-text-tertiary)' }}>
+			<div className="card-academic">
 				<h3 style={{ marginTop: 0 }}>共识分析</h3>
 				<p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--spacing-sm)' }}>
 					{data?.totalDocs === 1 ? '需要至少 2 个文档才能进行共识分析' : '暂无数据'}
@@ -89,7 +97,7 @@ export default function ConsensusPanel({ topicId }: { topicId: string }) {
 	                   data.snapshot?.trend === 'diverging' ? 'var(--color-error)' : 'var(--color-text-secondary)';
 
 	return (
-		<div className="card-academic" style={{ borderLeftColor: 'var(--color-secondary)' }}>
+		<div className="card-academic">
 			<h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-md)', color: 'var(--color-secondary)' }}>
 				话题整体共识分析
 			</h3>

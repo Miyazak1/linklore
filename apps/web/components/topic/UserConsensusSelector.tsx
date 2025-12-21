@@ -1,13 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import UserList from './UserList';
 import UserPairConsensus from './UserPairConsensus';
+
+interface User {
+	userId: string;
+	email: string;
+	name?: string;
+	avatarUrl?: string | null;
+	documentCount: number;
+	discussionCount: number;
+}
 
 interface UserConsensusSelectorProps {
 	topicId: string;
 	currentUserId?: string;
 	onUserSelect?: (userId: string | null) => void;
+	initialUsers?: User[]; // 初始用户数据（服务端预加载）
 }
 
 /**
@@ -17,30 +28,13 @@ interface UserConsensusSelectorProps {
 export default function UserConsensusSelector({ 
 	topicId, 
 	currentUserId: propCurrentUserId,
-	onUserSelect 
+	onUserSelect,
+	initialUsers
 }: UserConsensusSelectorProps) {
+	const { user: authUser } = useAuth(); // 使用AuthContext获取用户信息
 	const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-	const [currentUserId, setCurrentUserId] = useState<string | undefined>(propCurrentUserId);
-
-	// 获取当前用户ID（如果未通过props传递）
-	useEffect(() => {
-		if (!propCurrentUserId) {
-			async function getCurrentUser() {
-				try {
-					const res = await fetch('/api/auth/me');
-					if (res.ok) {
-						const data = await res.json();
-						if (data?.user?.id) {
-							setCurrentUserId(String(data.user.id));
-						}
-					}
-				} catch (err) {
-					console.error('[UserConsensusSelector] Failed to get current user:', err);
-				}
-			}
-			getCurrentUser();
-		}
-	}, [propCurrentUserId]);
+	// 优先使用prop，其次使用AuthContext，避免重复请求
+	const currentUserId = propCurrentUserId || (authUser?.id ? String(authUser.id) : undefined);
 
 	// 当选中用户改变时，通知父组件
 	useEffect(() => {
@@ -79,6 +73,7 @@ export default function UserConsensusSelector({
 				currentUserId={currentUserId}
 				excludeCurrentUser={true}
 				selectedUserId={selectedUserId}
+				initialUsers={initialUsers}
 				onUserClick={(userId) => {
 					console.log('[UserConsensusSelector] User clicked:', userId, 'currentUserId:', currentUserId);
 					if (currentUserId && userId !== currentUserId) {

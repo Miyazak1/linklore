@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Room {
 	id: string;
@@ -42,26 +43,82 @@ export default function ChatSidebar({
 	onRoomDeleted
 }: ChatSidebarProps) {
 	const router = useRouter();
+	const { isAuthenticated, loading: authLoading } = useAuth();
 	const [rooms, setRooms] = useState<Room[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+	const isLoadingRef = useRef(false); // 防止并发请求
+	const lastRequestTimeRef = useRef(0); // 记录上次请求时间
+	const COOLDOWN_PERIOD = 2000; // 2秒冷却期
+	const RETRY_429_COOLDOWN = 5000; // 429错误后5秒冷却
 
 	useEffect(() => {
-		loadRooms();
-	}, []);
+		// 等待认证状态加载完成后再加载房间列表
+		if (!authLoading) {
+			loadRooms();
+		}
+	}, [authLoading, isAuthenticated]);
 
 	const loadRooms = async () => {
+		// 如果用户未登录，不加载房间列表（避免401错误）
+		if (!isAuthenticated) {
+			setRooms([]);
+			setLoading(false);
+			return;
+		}
+
+		const now = Date.now();
+		const timeSinceLastRequest = now - lastRequestTimeRef.current;
+
+		// 防止并发请求
+		if (isLoadingRef.current) {
+			return;
+		}
+
+		// 如果距离上次请求时间太短，跳过（除非是首次加载）
+		if (timeSinceLastRequest < COOLDOWN_PERIOD && lastRequestTimeRef.current > 0) {
+			console.log('[ChatSidebar] Request cooldown, skipping', { timeSinceLastRequest });
+			return;
+		}
+
+		isLoadingRef.current = true;
+		lastRequestTimeRef.current = now;
+
 		try {
 			const res = await fetch('/api/chat/rooms?status=ACTIVE&limit=50');
+			
+			if (res.status === 429) {
+				console.warn('[ChatSidebar] Rate limited (429), will retry later');
+				lastRequestTimeRef.current = Date.now() + RETRY_429_COOLDOWN; // 延长冷却期
+				setLoading(false); // 确保设置 loading 为 false
+				return;
+			}
+
+			// 401错误：用户未登录，这是正常的，静默处理
+			if (res.status === 401) {
+				setRooms([]);
+				setLoading(false);
+				return;
+			}
+
 			if (res.ok) {
 				const data = await res.json();
 				setRooms(data.rooms || []);
+			} else {
+				// 其他错误才记录日志，并尝试获取详细错误信息
+				const errorData = await res.json().catch(() => ({}));
+				console.error('[ChatSidebar] Failed to load rooms:', {
+					status: res.status,
+					error: errorData.error,
+					details: errorData.details
+				});
 			}
 		} catch (error) {
 			console.error('[ChatSidebar] Failed to load rooms:', error);
 		} finally {
 			setLoading(false);
+			isLoadingRef.current = false;
 		}
 	};
 

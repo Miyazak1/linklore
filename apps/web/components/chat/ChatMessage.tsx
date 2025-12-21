@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ModerationWarning from './ModerationWarning';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('ChatMessage');
 
 const MAX_PREVIEW_LENGTH = 500; // 超过此长度折叠
 
@@ -37,6 +40,10 @@ interface ChatMessageProps {
 		factualErrors?: string[];
 		suggestions?: string[];
 	}; // 监督详情
+	// 分享功能相关
+	shareMode?: boolean; // 是否在选择模式
+	isSelected?: boolean; // 是否被选中
+	onToggleSelect?: (messageId: string) => void; // 切换选择状态
 }
 
 export default function ChatMessage({
@@ -60,10 +67,14 @@ export default function ChatMessage({
 	isAdopted: propIsAdopted = false,
 	moderationStatus,
 	moderationNote,
-	moderationDetails
+	moderationDetails,
+	shareMode = false,
+	isSelected = false,
+	onToggleSelect
 }: ChatMessageProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [displayContent, setDisplayContent] = useState(content);
+	const [copied, setCopied] = useState(false);
 
 	// 流式更新显示内容
 	useEffect(() => {
@@ -73,6 +84,32 @@ export default function ChatMessage({
 			setDisplayContent(content);
 		}
 	}, [isStreaming, streamingText, content]);
+
+	// 复制消息内容到剪贴板
+	const handleCopy = async () => {
+		try {
+			await navigator.clipboard.writeText(displayContent);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		} catch (err) {
+			console.error('复制失败:', err);
+			// 降级方案：使用传统方法
+			try {
+				const textArea = document.createElement('textarea');
+				textArea.value = displayContent;
+				textArea.style.position = 'fixed';
+				textArea.style.opacity = '0';
+				document.body.appendChild(textArea);
+				textArea.select();
+				document.execCommand('copy');
+				document.body.removeChild(textArea);
+				setCopied(true);
+				setTimeout(() => setCopied(false), 2000);
+			} catch (fallbackErr) {
+				console.error('降级复制也失败:', fallbackErr);
+			}
+		}
+	};
 
 	const shouldCollapse = displayContent.length > MAX_PREVIEW_LENGTH;
 	const previewContent =
@@ -94,14 +131,45 @@ export default function ChatMessage({
 		<div
 			style={{
 				display: 'flex',
-				flexDirection: 'column',
+				flexDirection: 'row',
 				marginBottom: '24px',
-				alignItems: isLeftAligned ? 'flex-start' : 'flex-end',
+				alignItems: 'flex-start',
 				width: '100%',
-				paddingLeft: isLeftAligned ? '0' : '30%',
-				paddingRight: isLeftAligned ? '30%' : '0'
+				justifyContent: isLeftAligned ? 'flex-start' : 'flex-end',
+				paddingTop: shareMode ? '8px' : '0',
+				paddingBottom: shareMode ? '8px' : '0',
+				position: 'relative',
+				background: shareMode && isSelected ? 'var(--color-primary-lighter)' : 'transparent',
+				borderRadius: shareMode ? 'var(--radius-md)' : '0',
+				transition: 'background var(--transition-fast)',
 			}}
 		>
+			{/* 选择模式下的复选框 */}
+			{shareMode && (
+				<input
+					type="checkbox"
+					checked={isSelected}
+					onChange={() => onToggleSelect?.(id)}
+					style={{
+						marginRight: '12px',
+						marginTop: '4px',
+						width: '20px',
+						height: '20px',
+						cursor: 'pointer',
+						flexShrink: 0,
+					}}
+				/>
+			)}
+			<div
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: isLeftAligned ? 'flex-start' : 'flex-end',
+					width: 'fit-content',
+					maxWidth: isAiSuggestion ? '75%' : '78%', // AI消息75%，用户消息78%
+					flexShrink: 0,
+				}}
+			>
 			{/* 监督警告（己方的消息显示在消息上方，对方的消息显示在消息气泡内） */}
 			{isCurrentUser && (moderationStatus === 'WARNING' || moderationStatus === 'BLOCKED') && (
 				<div style={{ width: '100%', marginBottom: '8px' }}>
@@ -120,7 +188,7 @@ export default function ChatMessage({
 					flexDirection: isLeftAligned ? 'row' : 'row-reverse',
 					alignItems: 'flex-start',
 					gap: '12px',
-					maxWidth: '70%',
+					maxWidth: isAiSuggestion ? '75%' : '78%', // AI消息75%，用户消息78%
 					minWidth: '250px',
 					width: 'fit-content',
 					position: 'relative'
@@ -297,17 +365,23 @@ export default function ChatMessage({
 								: isAdopted
 								? 'var(--color-primary-lighter)'
 								: isCurrentUser
-								? 'var(--color-primary)'
+								? 'var(--color-primary-dark)' // 使用更深的蓝色确保对比度
 								: 'var(--color-background-paper)',
 							color: isCurrentUser && !isAiSuggestion && !isAdopted
-								? 'white'
-								: 'var(--color-text-primary)',
+								? '#ffffff' // 使用纯白色确保最大对比度
+								: isAdopted
+								? 'var(--color-text-primary)' // 已采纳的消息使用深色文字
+								: 'var(--color-text-primary)', // 对方消息使用深色文字
 							border: isAiSuggestion
 								? '1px solid var(--color-border)'
-								: 'none',
+								: isCurrentUser && !isAiSuggestion && !isAdopted
+								? 'none'
+								: '1px solid var(--color-border-light)', // 对方消息添加轻微边框增强对比
 							boxShadow: isAiSuggestion
 								? 'none'
-								: '0 1px 2px rgba(0,0,0,0.05)',
+								: isCurrentUser && !isAiSuggestion && !isAdopted
+								? '0 1px 3px rgba(0,0,0,0.2)' // 当前用户消息使用更明显的阴影
+								: '0 1px 2px rgba(0,0,0,0.08)', // 对方消息使用轻微阴影
 							lineHeight: '1.6',
 							wordBreak: 'break-word',
 							position: 'relative'
@@ -335,50 +409,220 @@ export default function ChatMessage({
 						{/* Markdown 内容 */}
 						<div
 							style={{
-								fontSize: '15px'
+								fontSize: '15px',
+								color: 'inherit' // 继承父元素的颜色
 							}}
 						>
 							<ReactMarkdown
 								components={{
+									// 标题样式
+									h1: ({ children }) => (
+										<h1 style={{
+											fontSize: '1.75em',
+											fontWeight: 700,
+											marginTop: '1em',
+											marginBottom: '0.5em',
+											color: 'inherit',
+											lineHeight: 1.3,
+											borderBottom: '2px solid var(--color-border)',
+											paddingBottom: '0.3em'
+										}}>
+											{children}
+										</h1>
+									),
+									h2: ({ children }) => (
+										<h2 style={{
+											fontSize: '1.5em',
+											fontWeight: 700,
+											marginTop: '0.9em',
+											marginBottom: '0.4em',
+											color: 'inherit',
+											lineHeight: 1.3
+										}}>
+											{children}
+										</h2>
+									),
+									h3: ({ children }) => (
+										<h3 style={{
+											fontSize: '1.25em',
+											fontWeight: 600,
+											marginTop: '0.8em',
+											marginBottom: '0.3em',
+											color: 'inherit',
+											lineHeight: 1.3
+										}}>
+											{children}
+										</h3>
+									),
+									h4: ({ children }) => (
+										<h4 style={{
+											fontSize: '1.1em',
+											fontWeight: 600,
+											marginTop: '0.7em',
+											marginBottom: '0.3em',
+											color: 'inherit',
+											lineHeight: 1.3
+										}}>
+											{children}
+										</h4>
+									),
+									h5: ({ children }) => (
+										<h5 style={{
+											fontSize: '1em',
+											fontWeight: 600,
+											marginTop: '0.6em',
+											marginBottom: '0.2em',
+											color: 'inherit',
+											lineHeight: 1.3
+										}}>
+											{children}
+										</h5>
+									),
+									h6: ({ children }) => (
+										<h6 style={{
+											fontSize: '0.9em',
+											fontWeight: 600,
+											marginTop: '0.5em',
+											marginBottom: '0.2em',
+											color: 'inherit',
+											lineHeight: 1.3,
+											opacity: 0.8
+										}}>
+											{children}
+										</h6>
+									),
+									// 段落（优化间距）
 									p: ({ children }) => (
-										<p style={{ margin: '0.5em 0', lineHeight: '1.6' }}>
+										<p style={{
+											margin: '0.75em 0',
+											lineHeight: '1.7',
+											color: 'inherit'
+										}}>
 											{children}
 										</p>
 									),
+									// 列表（优化嵌套）
 									ul: ({ children }) => (
-										<ul style={{ margin: '0.5em 0', paddingLeft: '1.5em' }}>
+										<ul style={{
+											margin: '0.5em 0',
+											paddingLeft: '1.5em',
+											color: 'inherit',
+											listStyleType: 'disc'
+										}}>
 											{children}
 										</ul>
 									),
 									ol: ({ children }) => (
-										<ol style={{ margin: '0.5em 0', paddingLeft: '1.5em' }}>
+										<ol style={{
+											margin: '0.5em 0',
+											paddingLeft: '1.5em',
+											color: 'inherit'
+										}}>
 											{children}
 										</ol>
 									),
 									li: ({ children }) => (
-										<li style={{ margin: '0.25em 0' }}>{children}</li>
+										<li style={{
+											margin: '0.3em 0',
+											color: 'inherit',
+											lineHeight: '1.6'
+										}}>
+											{children}
+										</li>
 									),
+									// 表格
+									table: ({ children }) => (
+										<div style={{ overflowX: 'auto', margin: '1em 0' }}>
+											<table style={{
+												width: '100%',
+												borderCollapse: 'collapse',
+												border: '1px solid var(--color-border)',
+												borderRadius: '8px',
+												overflow: 'hidden'
+											}}>
+												{children}
+											</table>
+										</div>
+									),
+									thead: ({ children }) => (
+										<thead style={{
+											background: isCurrentUser && !isAiSuggestion && !isAdopted
+												? 'rgba(255,255,255,0.1)'
+												: 'var(--color-background-subtle)'
+										}}>
+											{children}
+										</thead>
+									),
+									tbody: ({ children }) => (
+										<tbody>{children}</tbody>
+									),
+									tr: ({ children }) => (
+										<tr style={{
+											borderBottom: '1px solid var(--color-border)'
+										}}>
+											{children}
+										</tr>
+									),
+									th: ({ children }) => (
+										<th style={{
+											padding: '10px 12px',
+											textAlign: 'left',
+											fontWeight: 600,
+											color: 'inherit',
+											borderRight: '1px solid var(--color-border)'
+										}}>
+											{children}
+										</th>
+									),
+									td: ({ children }) => (
+										<td style={{
+											padding: '10px 12px',
+											color: 'inherit',
+											borderRight: '1px solid var(--color-border)'
+										}}>
+											{children}
+										</td>
+									),
+									// 分隔线
+									hr: () => (
+										<hr style={{
+											border: 'none',
+											borderTop: '2px solid var(--color-border)',
+											margin: '1.5em 0',
+											opacity: 0.5
+										}} />
+									),
+									// 引用（优化样式）
 									blockquote: ({ children }) => (
 										<blockquote
 											style={{
-												borderLeft: '3px solid var(--color-border)',
+												borderLeft: '4px solid var(--color-primary)',
 												paddingLeft: '1em',
-												margin: '0.5em 0',
+												margin: '1em 0',
 												color: 'var(--color-text-secondary)',
-												fontStyle: 'italic'
+												fontStyle: 'italic',
+												background: isCurrentUser && !isAiSuggestion && !isAdopted
+													? 'rgba(255,255,255,0.05)'
+													: 'var(--color-background-subtle)',
+												padding: '0.8em 1em',
+												borderRadius: '4px'
 											}}
 										>
 											{children}
 										</blockquote>
 									),
+									// 代码块（保持现有样式，后续可添加语法高亮）
 									code: ({ children, className }) => {
 										const isInline = !className;
 										return isInline ? (
 											<code
 												style={{
 													background: isCurrentUser && !isAiSuggestion && !isAdopted
-														? 'rgba(255,255,255,0.2)'
+														? 'rgba(255,255,255,0.25)'
 														: 'var(--color-background-subtle)',
+													color: isCurrentUser && !isAiSuggestion && !isAdopted
+														? '#ffffff'
+														: 'var(--color-text-primary)',
 													padding: '2px 6px',
 													borderRadius: '4px',
 													fontFamily: 'var(--font-family-mono)',
@@ -391,19 +635,34 @@ export default function ChatMessage({
 											<pre
 												style={{
 													background: isCurrentUser && !isAiSuggestion && !isAdopted
-														? 'rgba(0,0,0,0.2)'
+														? 'rgba(0,0,0,0.3)'
 														: 'var(--color-background-subtle)',
-													padding: '12px',
+													color: isCurrentUser && !isAiSuggestion && !isAdopted
+														? '#ffffff'
+														: 'var(--color-text-primary)',
+													padding: '16px',
 													borderRadius: '8px',
 													overflowX: 'auto',
-													margin: '0.5em 0',
-													fontSize: '0.9em'
+													margin: '1em 0',
+													fontSize: '0.9em',
+													border: isCurrentUser && !isAiSuggestion && !isAdopted
+														? '1px solid rgba(255,255,255,0.1)'
+														: '1px solid var(--color-border-light)',
+													lineHeight: '1.5'
 												}}
 											>
-												<code>{children}</code>
+												<code style={{
+													color: isCurrentUser && !isAiSuggestion && !isAdopted
+														? '#ffffff'
+														: 'var(--color-text-primary)',
+													fontFamily: 'var(--font-family-mono)'
+												}}>
+													{children}
+												</code>
 											</pre>
 										);
 									},
+									// 链接（优化样式）
 									a: ({ href, children }) => (
 										<a
 											href={href}
@@ -413,23 +672,36 @@ export default function ChatMessage({
 												color: isCurrentUser && !isAiSuggestion && !isAdopted
 													? 'rgba(255,255,255,0.9)'
 													: 'var(--color-primary)',
-												textDecoration: 'none'
+												textDecoration: 'none',
+												borderBottom: '1px solid currentColor',
+												transition: 'opacity 0.2s'
 											}}
 											onMouseEnter={(e) => {
-												e.currentTarget.style.textDecoration = 'underline';
+												e.currentTarget.style.opacity = '0.8';
 											}}
 											onMouseLeave={(e) => {
-												e.currentTarget.style.textDecoration = 'none';
+												e.currentTarget.style.opacity = '1';
 											}}
 										>
 											{children}
 										</a>
 									),
+									// 强调文本
 									strong: ({ children }) => (
-										<strong style={{ fontWeight: 600 }}>{children}</strong>
+										<strong style={{
+											fontWeight: 700,
+											color: 'inherit'
+										}}>
+											{children}
+										</strong>
 									),
 									em: ({ children }) => (
-										<em style={{ fontStyle: 'italic' }}>{children}</em>
+										<em style={{
+											fontStyle: 'italic',
+											color: 'inherit'
+										}}>
+											{children}
+										</em>
 									)
 								}}
 							>
@@ -529,11 +801,58 @@ export default function ChatMessage({
 							</button>
 						)}
 
+						{/* 复制按钮（用户消息：在引用按钮后） */}
+						{isUserMessage && (
+							<button
+								onClick={handleCopy}
+								disabled={isStreaming}
+								title={copied ? "已复制" : "复制消息"}
+								style={{
+									width: '32px',
+									height: '32px',
+									padding: 0,
+									border: '1px solid var(--color-border)',
+									borderRadius: '6px',
+									background: copied ? 'var(--color-success-lighter)' : 'var(--color-background)',
+									cursor: isStreaming ? 'not-allowed' : 'pointer',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									opacity: isStreaming ? 0.5 : 1,
+									transition: 'all 0.2s',
+									borderColor: copied ? 'var(--color-success)' : 'var(--color-border)'
+								}}
+								onMouseEnter={(e) => {
+									if (!isStreaming && !copied) {
+										e.currentTarget.style.background = 'var(--color-background-subtle)';
+										e.currentTarget.style.borderColor = 'var(--color-primary)';
+									}
+								}}
+								onMouseLeave={(e) => {
+									if (!isStreaming && !copied) {
+										e.currentTarget.style.background = 'var(--color-background)';
+										e.currentTarget.style.borderColor = 'var(--color-border)';
+									}
+								}}
+							>
+								{copied ? (
+									<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M20 6L9 17l-5-5" />
+									</svg>
+								) : (
+									<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+										<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+										<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+									</svg>
+								)}
+							</button>
+						)}
+
 						{/* 重新生成按钮（仅AI回答显示） */}
 						{(() => {
 							// 调试：检查重新生成按钮的显示条件
 							if (isAiSuggestion) {
-								console.log('[ChatMessage] 🔄 重新生成按钮检查:', {
+								log.debug('重新生成按钮检查', {
 									messageId: id,
 									isAiSuggestion,
 									hasOnRegenerate: !!onRegenerate,
@@ -583,6 +902,53 @@ export default function ChatMessage({
 							</button>
 						)}
 
+						{/* 复制按钮（AI消息：在重新生成按钮后） */}
+						{!isUserMessage && (
+							<button
+								onClick={handleCopy}
+								disabled={isStreaming}
+								title={copied ? "已复制" : "复制消息"}
+								style={{
+									width: '32px',
+									height: '32px',
+									padding: 0,
+									border: '1px solid var(--color-border)',
+									borderRadius: '6px',
+									background: copied ? 'var(--color-success-lighter)' : 'var(--color-background)',
+									cursor: isStreaming ? 'not-allowed' : 'pointer',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									opacity: isStreaming ? 0.5 : 1,
+									transition: 'all 0.2s',
+									borderColor: copied ? 'var(--color-success)' : 'var(--color-border)'
+								}}
+								onMouseEnter={(e) => {
+									if (!isStreaming && !copied) {
+										e.currentTarget.style.background = 'var(--color-background-subtle)';
+										e.currentTarget.style.borderColor = 'var(--color-primary)';
+									}
+								}}
+								onMouseLeave={(e) => {
+									if (!isStreaming && !copied) {
+										e.currentTarget.style.background = 'var(--color-background)';
+										e.currentTarget.style.borderColor = 'var(--color-border)';
+									}
+								}}
+							>
+								{copied ? (
+									<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M20 6L9 17l-5-5" />
+									</svg>
+								) : (
+									<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+										<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+										<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+									</svg>
+								)}
+							</button>
+						)}
+
 						{/* AI 建议采纳按钮（只有未采纳的才显示） */}
 						{isAiSuggestion && !isAdopted && onAdopt && (
 							<button
@@ -617,6 +983,7 @@ export default function ChatMessage({
 						)}
 					</div>
 
+				</div>
 				</div>
 			</div>
 		</div>

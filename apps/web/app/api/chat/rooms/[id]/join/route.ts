@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/client';
-import { getOrCreateGuestUser } from '@/lib/auth/guest';
-import { createSession } from '@/lib/auth/session';
+import { chatDb } from '@/lib/modules/chat/db';
+import { createModuleLogger } from '@/lib/utils/logger';
+import { broadcastToRoom } from '@/lib/realtime/roomConnections';
+
+const log = createModuleLogger('Join Room API');
 
 /**
  * 通过链接加入房间
  * POST /api/chat/rooms/:id/join
- * 支持匿名用户加入
+ * 需要登录
  */
 export async function POST(
 	req: Request,
@@ -15,38 +17,17 @@ export async function POST(
 ) {
 	try {
 		const { id: roomId } = await params;
-		let session = await readSession();
-		let userId: string;
-		let isGuest = false;
+		const session = await readSession();
 
-		// 如果未登录，尝试创建或获取匿名用户
+		// 检查是否已登录
 		if (!session?.sub) {
-			// 尝试从请求体获取 guestUserId（如果客户端提供了）
-			const body = await req.json().catch(() => ({}));
-			const guestUserId = body.guestUserId;
-
-			const guestUser = await getOrCreateGuestUser(guestUserId);
-			if (!guestUser) {
-				return NextResponse.json({ error: '无法创建匿名用户' }, { status: 500 });
-			}
-
-			// 为匿名用户创建 session
-			await createSession({
-				sub: guestUser.id,
-				email: guestUser.email,
-				role: guestUser.role,
-				isGuest: true
-			});
-
-			userId = guestUser.id;
-			isGuest = true;
-		} else {
-			userId = session.sub;
-			isGuest = (session as any).isGuest === true;
+			return NextResponse.json({ error: '请先登录' }, { status: 401 });
 		}
 
+		const userId = session.sub;
+
 		// 获取房间信息
-		const room = await prisma.chatRoom.findUnique({
+		const room = await chatDb.rooms.findUnique({
 			where: { id: roomId },
 			select: {
 				id: true,
@@ -107,7 +88,7 @@ export async function POST(
 
 		// 如果房间是 SOLO，转为 DUO 并添加参与者
 		if (room.type === 'SOLO') {
-			const updatedRoom = await prisma.chatRoom.update({
+			const updatedRoom = await chatDb.rooms.update({
 				where: { id: roomId },
 				data: {
 					type: 'DUO',
@@ -134,6 +115,21 @@ export async function POST(
 				}
 			});
 
+			// 重要：当参与者加入时，通知创建者房间类型已变为DUO
+			// 这样创建者可以立即建立SSE连接
+			broadcastToRoom(roomId, 'room-type-changed', {
+				roomType: 'DUO',
+				participantId: userId,
+				participant: updatedRoom.participant,
+				timestamp: Date.now()
+			}, userId); // 排除参与者本人
+
+			log.info('参与者加入，房间类型从SOLO变为DUO，已通知创建者', {
+				roomId,
+				creatorId: room.creatorId,
+				participantId: userId
+			});
+
 			return NextResponse.json({
 				ok: true,
 				room: updatedRoom,
@@ -143,7 +139,7 @@ export async function POST(
 
 		// 如果房间已经是 DUO 但没有参与者（理论上不应该发生），添加参与者
 		if (room.type === 'DUO' && !room.participantId) {
-			const updatedRoom = await prisma.chatRoom.update({
+			const updatedRoom = await chatDb.rooms.update({
 				where: { id: roomId },
 				data: {
 					participantId: userId,
@@ -169,6 +165,20 @@ export async function POST(
 				}
 			});
 
+			// 重要：当参与者加入时，通知创建者
+			broadcastToRoom(roomId, 'room-type-changed', {
+				roomType: 'DUO',
+				participantId: userId,
+				participant: updatedRoom.participant,
+				timestamp: Date.now()
+			}, userId); // 排除参与者本人
+
+			log.info('参与者加入DUO房间，已通知创建者', {
+				roomId,
+				creatorId: room.creatorId,
+				participantId: userId
+			});
+
 			return NextResponse.json({
 				ok: true,
 				room: updatedRoom,
@@ -181,7 +191,7 @@ export async function POST(
 			room
 		});
 	} catch (error: any) {
-		console.error('[Join Room API] Error:', error);
+		log.error('加入房间失败', error as Error);
 		return NextResponse.json(
 			{ error: error.message || '加入房间失败' },
 			{ status: 500 }

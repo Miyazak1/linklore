@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
+import { prisma } from '@/lib/db/client'; // 保留用于 User 等共享模型
 import { requireRoomAccess } from '@/lib/security/roomAccess';
 import { processMessageContent } from '@/lib/security/messageValidation';
 import { z } from 'zod';
@@ -32,7 +33,7 @@ export async function POST(
 		await requireRoomAccess(roomId, session.sub);
 
 		// 获取原始 AI 建议消息
-		const originalMessage = await prisma.chatMessage.findUnique({
+		const originalMessage = await chatDb.messages.findUnique({
 			where: { id },
 			include: {
 				room: {
@@ -69,7 +70,7 @@ export async function POST(
 			: originalMessage.content;
 
 		// 直接更新原消息，标记为已采纳（不创建新消息）
-		const adoptedMessage = await prisma.chatMessage.update({
+		const adoptedMessage = await chatDb.messages.update({
 			where: { id },
 			data: {
 				isAdopted: true,
@@ -88,7 +89,7 @@ export async function POST(
 		});
 
 		// 更新房间的 updatedAt
-		await prisma.chatRoom.update({
+		await chatDb.rooms.update({
 			where: { id: roomId },
 			data: { updatedAt: new Date() }
 		});

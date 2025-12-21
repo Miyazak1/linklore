@@ -52,7 +52,7 @@ export default function QualityBadges({ topicId }: { topicId: string }) {
 
 	if (loading) {
 		return (
-			<div className="card-academic" style={{ borderLeftColor: 'var(--color-accent-warm)' }}>
+			<div className="card-academic">
 				<h3 style={{ marginTop: 0, color: 'var(--color-text-primary)' }}>质量信号</h3>
 				<p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>加载中...</p>
 			</div>
@@ -60,7 +60,7 @@ export default function QualityBadges({ topicId }: { topicId: string }) {
 	}
 
 	return (
-		<div className="card-academic" style={{ borderLeftColor: 'var(--color-accent-warm)' }}>
+		<div className="card-academic">
 			<h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-md)', color: 'var(--color-text-primary)' }}>质量信号</h3>
 			<ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
 				<li style={{ padding: 'var(--spacing-sm) 0', borderBottom: '1px solid var(--color-border-light)' }}>

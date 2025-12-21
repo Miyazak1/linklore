@@ -11,9 +11,14 @@ import { logAudit } from '@/lib/audit/logger';
  * 生成唯一slug
  * @param title 标题
  * @param retries 重试次数（默认5次）
+ * @param tx 事务对象（可选，如果提供则使用事务查询）
  * @returns 唯一slug
  */
-export async function generateUniqueSlug(title: string, retries: number = 5): Promise<string> {
+export async function generateUniqueSlug(
+	title: string, 
+	retries: number = 5,
+	tx?: any
+): Promise<string> {
 	// 生成基础slug：转小写、替换空格为连字符、移除特殊字符
 	const baseSlug = title
 		.toLowerCase()
@@ -23,11 +28,17 @@ export async function generateUniqueSlug(title: string, retries: number = 5): Pr
 		.replace(/-+/g, '-')
 		.replace(/^-|-$/g, '');
 
+	// 如果 baseSlug 为空，使用默认值
+	if (!baseSlug || baseSlug.length === 0) {
+		return `entry-${Date.now()}`;
+	}
+
 	let slug = baseSlug;
 	let attempt = 0;
+	const client = tx || prisma;
 
 	while (attempt < retries) {
-		const existing = await prisma.entry.findUnique({
+		const existing = await client.entry.findUnique({
 			where: { slug },
 			select: { id: true }
 		});
@@ -84,8 +95,8 @@ export async function createEntryFromTrace(
 		throw new Error('该溯源已被采纳');
 	}
 
-	// 生成slug
-	const slug = await generateUniqueSlug(trace.title);
+	// 生成slug（在事务内生成，确保唯一性检查包含事务内的数据）
+	const slug = await generateUniqueSlug(trace.title, 5, tx);
 
 	// 创建词条
 	const entry = await tx.entry.create({

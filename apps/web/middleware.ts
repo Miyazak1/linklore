@@ -13,13 +13,25 @@ export async function middleware(request: NextRequest) {
 
 	// Set security headers
 	const response = NextResponse.next();
-	response.headers.set('X-Frame-Options', 'DENY');
-	response.headers.set('X-Content-Type-Options', 'nosniff');
-	response.headers.set('Referrer-Policy', 'no-referrer');
-	response.headers.set(
-		'Content-Security-Policy',
-		"default-src 'self'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'"
-	);
+	
+	// 对于文件 API，允许在 iframe 中嵌入（用于 PDF 在线阅读）
+	if (pathname.startsWith('/api/files/')) {
+		response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+		response.headers.set('X-Content-Type-Options', 'nosniff');
+		response.headers.set('Referrer-Policy', 'no-referrer');
+		response.headers.set(
+			'Content-Security-Policy',
+			"default-src 'self'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'self'"
+		);
+	} else {
+		response.headers.set('X-Frame-Options', 'DENY');
+		response.headers.set('X-Content-Type-Options', 'nosniff');
+		response.headers.set('Referrer-Policy', 'no-referrer');
+		response.headers.set(
+			'Content-Security-Policy',
+			"default-src 'self'; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'"
+		);
+	}
 
 	// Rate limiting for API routes
 	if (pathname.startsWith('/api/')) {

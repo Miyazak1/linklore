@@ -43,22 +43,35 @@ export default async function TopicDetailPage({ params }: Props) {
 			notFound();
 		}
 		
-		// Get document tree
-		const docTree = await getDocumentTree(id);
+		// Get document tree (不加载extractedText以提升性能，只加载根文档的内容)
+		const docTree = await getDocumentTree(id, false);
 		
 		// Find the original document (parentId is null)
 		const originalDocNode = docTree.find(node => !node.parentId) || docTree[0];
-		const html = originalDocNode?.extractedText ? Buffer.from(originalDocNode.extractedText).toString('utf-8') : '<p>内容处理中，请稍候...</p>';
+		
+		// 只加载根文档的extractedText（如果需要显示）
+		let html = '<p>内容处理中，请稍候...</p>';
+		if (originalDocNode?.id) {
+			// 按需加载根文档的内容
+			const rootDoc = await prisma.document.findUnique({
+				where: { id: originalDocNode.id },
+				select: { extractedText: true }
+			});
+			if (rootDoc?.extractedText) {
+				html = Buffer.from(rootDoc.extractedText).toString('utf-8');
+			}
+		}
 		const summary = originalDocNode?.summaries?.[0] || null;
 		const blind = topic?.createdAt ? isBlindReviewWindow(topic.createdAt) : false;
 		const authorEmail = blind ? '匿名' : topic?.author?.email || '未知';
 		
 		// Convert tree to client-friendly format
+		// 注意：extractedText不再包含在树中，需要按需通过API加载
 		const convertNode = (node: any): DocumentNode => ({
 			id: node.id,
 			author: node.author,
 			createdAt: node.createdAt,
-			extractedTextHtml: node.extractedText ? Buffer.from(node.extractedText).toString('utf-8') : null,
+			extractedTextHtml: null, // 不再包含extractedText，按需通过API加载
 			evaluations: node.evaluations.map((evaluation: any) => ({
 				...evaluation,
 				createdAt: evaluation.createdAt?.toISOString()
@@ -70,6 +83,133 @@ export default async function TopicDetailPage({ params }: Props) {
 		});
 		
 		const documentTree = docTree.map(convertNode);
+		
+		// 并行预加载评论、用户列表和共识数据（提升性能）
+		// 注意：这些是可选优化，如果失败不影响页面渲染
+		let preloadedComments: any[] = [];
+		let preloadedUsers: any[] = [];
+		let preloadedConsensus: any = null;
+		
+		try {
+			const [commentsRes, usersRes, consensusRes] = await Promise.allSettled([
+				// 预加载评论（最多1000条）
+				prisma.topicComment.findMany({
+					where: {
+						topicId: id,
+						deletedAt: null
+					},
+					select: {
+						id: true,
+						parentId: true,
+						authorId: true,
+						author: {
+							select: {
+								id: true,
+								email: true,
+								name: true,
+								avatarUrl: true
+							}
+						},
+						content: true,
+						depth: true,
+						createdAt: true,
+						updatedAt: true
+					},
+					orderBy: { createdAt: 'asc' },
+					take: 1000
+				}),
+				// 预加载用户列表（通过API逻辑，这里简化处理）
+				prisma.document.findMany({
+					where: { topicId: id },
+					select: { authorId: true },
+					distinct: ['authorId']
+				}).then(async (docs) => {
+					const userIds = [...new Set(docs.map(d => d.authorId))];
+					if (userIds.length === 0) return [];
+					
+					const users = await prisma.user.findMany({
+						where: { id: { in: userIds } },
+						select: {
+							id: true,
+							email: true,
+							name: true,
+							avatarUrl: true
+						}
+					});
+					
+					// 统计每个用户的文档数
+					const docCounts = new Map<string, number>();
+					docs.forEach(doc => {
+						docCounts.set(doc.authorId, (docCounts.get(doc.authorId) || 0) + 1);
+					});
+					
+					return users.map(user => ({
+						userId: user.id,
+						email: user.email,
+						name: user.name,
+						avatarUrl: user.avatarUrl,
+						documentCount: docCounts.get(user.id) || 0,
+						discussionCount: 0 // 这个需要更复杂的计算，暂时设为0
+					}));
+				}),
+				// 预加载共识数据（检查是否有缓存）
+				prisma.consensusSnapshot.findFirst({
+					where: { topicId: id },
+					orderBy: { snapshotAt: 'desc' },
+					select: {
+						consensusScore: true,
+						divergenceScore: true,
+						consensusData: true,
+						snapshotAt: true
+					}
+				}).then(snapshot => {
+					if (snapshot) {
+						return {
+							consensus: [],
+							unverified: [],
+							totalDocs: 0,
+							qualityDocs: 0,
+							snapshot: {
+								consensusScore: snapshot.consensusScore,
+								divergenceScore: snapshot.divergenceScore,
+								trend: (snapshot.consensusData as any)?.trend || 'stable',
+								snapshotAt: snapshot.snapshotAt.toISOString()
+							}
+						};
+					}
+					return null;
+				})
+			]);
+			
+			// 处理评论数据
+			if (commentsRes.status === 'fulfilled') {
+				const allComments = commentsRes.value;
+				// 计算楼层号
+				const floorMap = new Map<string, number>();
+				allComments.forEach((comment, index) => {
+					floorMap.set(comment.id, index + 1);
+				});
+				preloadedComments = allComments.map(comment => ({
+					...comment,
+					floor: floorMap.get(comment.id) || 0,
+					createdAt: comment.createdAt.toISOString(),
+					updatedAt: comment.updatedAt.toISOString()
+				}));
+			}
+			
+			// 处理用户数据
+			if (usersRes.status === 'fulfilled') {
+				preloadedUsers = usersRes.value;
+			}
+			
+			// 处理共识数据
+			if (consensusRes.status === 'fulfilled') {
+				preloadedConsensus = consensusRes.value;
+			}
+		} catch (preloadError) {
+			// 预加载失败不影响页面渲染，只是客户端需要自己加载
+			console.warn('[TopicDetailPage] Preload failed, components will load on client:', preloadError);
+		}
 		
 		return (
 		<main className="topic-detail-container" style={{
@@ -544,11 +684,11 @@ export default async function TopicDetailPage({ params }: Props) {
 				
 				{/* 分歧和共识分析 - 只有讨论者可见 */}
 				<DiscussionParticipantWrapper topicId={id}>
-					<UserConsensusSelector topicId={id} />
+					<UserConsensusSelector topicId={id} initialUsers={preloadedUsers} />
 				</DiscussionParticipantWrapper>
 				
 				{/* 评论区域 - 所有人可见 */}
-				<TopicComments topicId={id} />
+				<TopicComments topicId={id} initialComments={preloadedComments} />
 				
 				{/* Export Actions */}
 				<div className="card-academic" style={{ 
@@ -780,7 +920,7 @@ export default async function TopicDetailPage({ params }: Props) {
 						</p>
 					)}
 				</div>
-				<ConsensusPanel topicId={id} />
+				<ConsensusPanel topicId={id} initialData={preloadedConsensus} />
 				<QualityBadges topicId={id} />
 				<AnalysisLogic />
 			</aside>

@@ -32,7 +32,7 @@ export async function POST(
 		const { inviteeEmail } = InviteRequestSchema.parse(body);
 
 		// 获取房间信息
-		const room = await prisma.chatRoom.findUnique({
+		const room = await chatDb.rooms.findUnique({
 			where: { id: roomId },
 			select: {
 				type: true,
@@ -157,7 +157,7 @@ export async function POST(
 		});
 
 		// 更新房间状态
-		await prisma.chatRoom.update({
+		await chatDb.rooms.update({
 			where: { id: roomId },
 			data: {
 				invitedAt: new Date()
@@ -189,4 +189,14 @@ export async function POST(
 		);
 	}
 }
+
+
+
+
+
+
+
+
+
+
 

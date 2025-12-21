@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { LibraryIcon, BookIcon, UploadIcon, PlusIcon } from '@/components/ui/Icons';
 
 type Book = {
 	id: string;
@@ -9,6 +10,7 @@ type Book = {
 	overview: string | null;
 	createdAt: Date;
 	assets?: Array<{ id: string; fileKey: string; mime: string }>;
+	uploaderName?: string | null; // 上传者昵称
 };
 
 export default function BookList({ initialBooks }: { initialBooks: Book[] }) {
@@ -16,6 +18,11 @@ export default function BookList({ initialBooks }: { initialBooks: Book[] }) {
 	const [shelfBookIds, setShelfBookIds] = useState<Set<string>>(new Set());
 	const [adding, setAdding] = useState<string | null>(null);
 	const [msg, setMsg] = useState<string | null>(null);
+
+	// 当initialBooks变化时，更新books状态
+	useEffect(() => {
+		setBooks(initialBooks);
+	}, [initialBooks]);
 
 	useEffect(() => {
 		// Fetch user's shelf to check which books are already added
@@ -82,10 +89,14 @@ export default function BookList({ initialBooks }: { initialBooks: Book[] }) {
 				border: '1px solid var(--color-border-light)'
 			}}>
 				<div style={{
-					fontSize: '64px',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
 					marginBottom: 'var(--spacing-md)',
 					opacity: 0.5
-				}}>📚</div>
+				}}>
+					<LibraryIcon size={64} color="var(--color-text-secondary)" />
+				</div>
 				<p style={{ 
 					color: 'var(--color-text-secondary)',
 					fontSize: 'var(--font-size-base)',
@@ -137,40 +148,6 @@ export default function BookList({ initialBooks }: { initialBooks: Book[] }) {
 					{msg}
 				</div>
 			)}
-			<div style={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: 'var(--spacing-md)',
-				marginBottom: 'var(--spacing-xl)',
-				paddingBottom: 'var(--spacing-lg)',
-				borderBottom: '2px solid var(--color-border-light)'
-			}}>
-				<div style={{
-					width: '40px',
-					height: '40px',
-					borderRadius: 'var(--radius-md)',
-					background: 'var(--color-secondary-lighter)',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					fontSize: '20px',
-					flexShrink: 0
-				}}>
-					📖
-				</div>
-				<h2 style={{ 
-					margin: 0,
-					fontSize: 'var(--font-size-2xl)',
-					fontWeight: 600,
-					color: 'var(--color-text-primary)'
-				}}>
-					图书馆书籍 <span style={{ 
-						color: 'var(--color-text-secondary)',
-						fontSize: 'var(--font-size-lg)',
-						fontWeight: 400
-					}}>({books.length})</span>
-				</h2>
-			</div>
 			<div style={{ 
 				display: 'grid', 
 				gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
@@ -276,6 +253,15 @@ export default function BookList({ initialBooks }: { initialBooks: Book[] }) {
 										{book.author}
 									</p>
 								)}
+								{book.uploaderName && (
+									<p style={{ 
+										margin: 'var(--spacing-xs) 0 0 0', 
+										fontSize: 'var(--font-size-xs)', 
+										color: 'var(--color-text-tertiary)'
+									}}>
+										上传者：{book.uploaderName}
+									</p>
+								)}
 								{book.assets && book.assets.length > 0 && (
 									<p style={{ 
 										margin: 'var(--spacing-xs) 0 0 0', 
@@ -332,7 +318,7 @@ export default function BookList({ initialBooks }: { initialBooks: Book[] }) {
 										</>
 									) : (
 										<>
-											<span>📤</span>
+											<UploadIcon size={16} color="currentColor" />
 											从书架移除
 										</>
 									)}
@@ -381,7 +367,7 @@ export default function BookList({ initialBooks }: { initialBooks: Book[] }) {
 										</>
 									) : (
 										<>
-											<span>➕</span>
+											<PlusIcon size={16} color="currentColor" />
 											添加到书架
 										</>
 									)}

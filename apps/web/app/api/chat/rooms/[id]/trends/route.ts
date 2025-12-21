@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
 import { requireRoomAccess } from '@/lib/security/roomAccess';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
 
 /**
  * GET /api/chat/rooms/:id/trends
@@ -23,7 +23,7 @@ export async function GET(
 		await requireRoomAccess(roomId, session.sub);
 
 		// 获取分析记录
-		const analysis = await prisma.chatAnalysis.findUnique({
+		const analysis = await chatDb.analysis.findUnique({
 			where: { roomId },
 			select: {
 				consensusTrend: true,
@@ -58,4 +58,14 @@ export async function GET(
 		);
 	}
 }
+
+
+
+
+
+
+
+
+
+
 

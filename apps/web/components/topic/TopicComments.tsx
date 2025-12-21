@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import CommentItem from './CommentItem';
 
 interface Comment {
@@ -30,67 +31,17 @@ interface TopicCommentsProps {
  * 话题评论组件
  * 包含评论列表和评论输入
  */
-export default function TopicComments({ topicId, currentUserId: propCurrentUserId }: TopicCommentsProps) {
+export default function TopicComments({ topicId, currentUserId: propCurrentUserId, initialComments }: TopicCommentsProps) {
+	const { user: authUser } = useAuth(); // 使用AuthContext获取用户信息
 	const [comments, setComments] = useState<Comment[]>([]);
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(!initialComments); // 如果有初始数据，不需要loading
 	const [error, setError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
-	const [currentUserId, setCurrentUserId] = useState<string | undefined>(propCurrentUserId);
-
-	// 获取当前用户ID（如果未通过props传递）
-	useEffect(() => {
-		if (!propCurrentUserId) {
-			async function getCurrentUser() {
-				try {
-					const res = await fetch('/api/auth/me');
-					if (res.ok) {
-						const data = await res.json();
-						if (data?.user?.id) {
-							setCurrentUserId(String(data.user.id));
-						}
-					}
-				} catch (err) {
-					console.error('[TopicComments] Failed to get current user:', err);
-				}
-			}
-			getCurrentUser();
-		} else {
-			setCurrentUserId(propCurrentUserId);
-		}
-	}, [propCurrentUserId]);
-
-	// 加载评论
-	const loadComments = useCallback(async () => {
-		try {
-			setLoading(true);
-			setError(null);
-
-			const res = await fetch(`/api/topics/${topicId}/comments?pageSize=1000`);
-			const data = await res.json();
-
-			if (!res.ok) {
-				throw new Error(data.error?.message || '加载评论失败');
-			}
-
-			if (data.success) {
-				const flatComments = data.data.data || [];
-				// 构建嵌套树结构（保持楼层号）
-				const commentTree = buildCommentTree(flatComments);
-				setComments(commentTree);
-			}
-		} catch (err: any) {
-			setError(err.message || '加载评论失败');
-		} finally {
-			setLoading(false);
-		}
-	}, [topicId]);
-
-	useEffect(() => {
-		loadComments();
-	}, [loadComments]);
-
-	// 构建评论树（保持楼层号，添加父评论信息）
-	const buildCommentTree = (flatComments: Comment[]): Comment[] => {
+	// 优先使用prop，其次使用AuthContext，避免重复请求
+	const currentUserId = propCurrentUserId || (authUser?.id ? String(authUser.id) : undefined);
+	
+	// 构建评论树的函数（提前定义，供初始化和加载时使用）
+	const buildCommentTree = useCallback((flatComments: Comment[]): Comment[] => {
 		const commentMap = new Map<string, Comment & { replies: Comment[]; parentAuthor?: { name: string | null; email: string } }>();
 		const roots: Comment[] = [];
 		const commentById = new Map<string, Comment>();
@@ -126,7 +77,57 @@ export default function TopicComments({ topicId, currentUserId: propCurrentUserI
 		});
 
 		return roots;
-	};
+	}, []);
+
+	// 初始化评论数据（如果有初始数据，构建树结构）
+	useEffect(() => {
+		if (initialComments && initialComments.length > 0 && comments.length === 0) {
+			const commentTree = buildCommentTree(initialComments);
+			setComments(commentTree);
+		}
+	}, [initialComments, buildCommentTree, comments.length]);
+
+	// 不再需要单独获取用户ID，使用AuthContext即可
+
+	// 加载评论
+	const loadComments = useCallback(async () => {
+		try {
+			setLoading(true);
+			setError(null);
+
+			const res = await fetch(`/api/topics/${topicId}/comments?pageSize=1000`);
+			const data = await res.json();
+
+			if (!res.ok) {
+				throw new Error(data.error?.message || '加载评论失败');
+			}
+
+			if (data.success) {
+				const flatComments = data.data.data || [];
+				// 构建嵌套树结构（保持楼层号）
+				const commentTree = buildCommentTree(flatComments);
+				setComments(commentTree);
+			} else {
+				// 如果没有数据，使用初始数据（如果提供）
+				if (initialComments && initialComments.length > 0) {
+					setComments(buildCommentTree(initialComments));
+				}
+			}
+		} catch (err: any) {
+			setError(err.message || '加载评论失败');
+		} finally {
+			setLoading(false);
+		}
+	}, [topicId, buildCommentTree, initialComments]);
+
+	useEffect(() => {
+		// 如果没有初始数据，才加载
+		if (!initialComments) {
+			loadComments();
+		}
+	}, [loadComments, initialComments]);
+
+	// buildCommentTree 已在上面使用 useCallback 定义
 
 	// 提交评论（新评论）
 	const handleSubmit = async () => {

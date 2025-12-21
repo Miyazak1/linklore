@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import CitationManager, { type CitationData } from './CitationManager';
 import CitationRenderer from './CitationRenderer';
+import { useCollaboration } from '@/hooks/useCollaboration';
 
 interface Props {
 	traceId?: string; // 如果提供，则是编辑模式
@@ -325,16 +326,51 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 	};
 
 	return (
-		<div style={{ padding: 'var(--spacing-xl)', maxWidth: '1200px', margin: '0 auto' }}>
-			<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>
-				<h1>{traceId ? '编辑溯源' : '创建溯源'}</h1>
-				<div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-					<Button variant="secondary" onClick={() => handleSave(false)} disabled={saving}>
-						{saving ? '保存中...' : '保存草稿'}
-					</Button>
-					<Button variant="primary" onClick={() => handleSave(true)} disabled={saving}>
-						{saving ? '保存中...' : '保存并发布'}
-					</Button>
+		<div style={{ padding: 'var(--spacing-xl)', maxWidth: 1400, margin: '0 auto' }}>
+			{/* 页面头部 */}
+			<div 
+				className="card-academic" 
+				style={{ 
+					padding: 'var(--spacing-xl)', 
+					marginBottom: 'var(--spacing-lg)',
+					background: 'linear-gradient(135deg, var(--color-background-paper) 0%, var(--color-background-subtle) 100%)',
+					border: '1px solid var(--color-border-light)',
+					borderRadius: 'var(--radius-lg)',
+					boxShadow: 'var(--shadow-md)'
+				}}
+			>
+				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-md)' }}>
+					<div>
+						<h1 style={{ 
+							margin: 0, 
+							fontSize: 'var(--font-size-2xl)', 
+							fontWeight: 700,
+							color: 'var(--color-text-primary)',
+							display: 'flex',
+							alignItems: 'center',
+							gap: 'var(--spacing-sm)'
+						}}>
+							<span style={{ width: '6px', height: '32px', background: 'var(--color-primary)', borderRadius: '3px' }}></span>
+							{traceId ? '编辑溯源' : '创建溯源'}
+						</h1>
+						{traceId && version > 0 && (
+							<div style={{ 
+								marginTop: 'var(--spacing-xs)', 
+								fontSize: 'var(--font-size-sm)', 
+								color: 'var(--color-text-secondary)' 
+							}}>
+								版本: {version}
+							</div>
+						)}
+					</div>
+					<div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+						<Button variant="secondary" onClick={() => handleSave(false)} disabled={saving}>
+							{saving ? '保存中...' : '保存草稿'}
+						</Button>
+						<Button variant="primary" onClick={() => handleSave(true)} disabled={saving}>
+							{saving ? '保存中...' : '保存并发布'}
+						</Button>
+					</div>
 				</div>
 			</div>
 
@@ -342,51 +378,131 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 				<div
 					style={{
 						padding: 'var(--spacing-md)',
-						background: 'var(--color-error)',
+						background: 'linear-gradient(135deg, var(--color-error) 0%, rgba(244, 67, 54, 0.9) 100%)',
 						color: '#fff',
 						borderRadius: 'var(--radius-md)',
-						marginBottom: 'var(--spacing-lg)'
+						marginBottom: 'var(--spacing-lg)',
+						border: '1px solid rgba(244, 67, 54, 0.3)',
+						boxShadow: 'var(--shadow-sm)',
+						fontWeight: 500
 					}}
 				>
 					{error}
 				</div>
 			)}
 
-			<div className="card-academic" style={{ padding: 'var(--spacing-lg)', marginBottom: 'var(--spacing-lg)' }}>
-				<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+			{conflictWarning && (
+				<div
+					style={{
+						padding: 'var(--spacing-md)',
+						background: 'linear-gradient(135deg, var(--color-warning) 0%, rgba(255, 193, 7, 0.9) 100%)',
+						color: '#fff',
+						borderRadius: 'var(--radius-md)',
+						marginBottom: 'var(--spacing-lg)',
+						border: '1px solid rgba(255, 193, 7, 0.3)',
+						boxShadow: 'var(--shadow-sm)',
+						fontWeight: 500
+					}}
+				>
+					⚠️ {conflictWarning}
+				</div>
+			)}
+
+			<div 
+				className="card-academic" 
+				style={{ 
+					padding: 'var(--spacing-xl)', 
+					marginBottom: 'var(--spacing-lg)',
+					background: 'var(--color-background-paper)',
+					border: '1px solid var(--color-border-light)',
+					borderRadius: 'var(--radius-lg)',
+					boxShadow: 'var(--shadow-sm)'
+				}}
+			>
+				<h2 style={{ 
+					marginTop: 0,
+					marginBottom: 'var(--spacing-lg)',
+					fontSize: 'var(--font-size-xl)',
+					fontWeight: 600,
+					color: 'var(--color-text-primary)',
+					display: 'flex',
+					alignItems: 'center',
+					gap: 'var(--spacing-sm)'
+				}}>
+					<span style={{ width: '4px', height: '24px', background: 'var(--color-primary)', borderRadius: '2px' }}></span>
+					基本信息
+				</h2>
+				<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
 					<div>
-						<label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-							标题 <span style={{ color: 'var(--color-error)' }}>*</span>
+						<label style={{ 
+							display: 'block', 
+							marginBottom: 'var(--spacing-sm)', 
+							fontSize: 'var(--font-size-base)', 
+							fontWeight: 600,
+							color: 'var(--color-text-primary)'
+						}}>
+							标题 <span style={{ color: 'var(--color-error)', fontWeight: 700 }}>*</span>
 						</label>
 						<input
 							type="text"
 							value={formData.title}
 							onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-							placeholder="溯源标题"
+							placeholder="输入溯源标题..."
 							style={{
 								width: '100%',
-								padding: '8px 12px',
-								border: '1px solid var(--color-border)',
+								padding: '12px 16px',
+								border: '2px solid var(--color-border)',
 								borderRadius: 'var(--radius-md)',
-								fontSize: 'var(--font-size-base)'
+								fontSize: 'var(--font-size-base)',
+								background: 'var(--color-background-paper)',
+								color: 'var(--color-text-primary)',
+								transition: 'all var(--transition-fast)',
+								boxShadow: 'var(--shadow-xs)'
+							}}
+							onFocus={(e) => {
+								e.currentTarget.style.borderColor = 'var(--color-primary)';
+								e.currentTarget.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.1)';
+							}}
+							onBlur={(e) => {
+								e.currentTarget.style.borderColor = 'var(--color-border)';
+								e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
 							}}
 						/>
 					</div>
 
-					<div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--spacing-md)' }}>
+					<div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--spacing-lg)' }}>
 						<div>
-							<label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-								类型 <span style={{ color: 'var(--color-error)' }}>*</span>
+							<label style={{ 
+								display: 'block', 
+								marginBottom: 'var(--spacing-sm)', 
+								fontSize: 'var(--font-size-base)', 
+								fontWeight: 600,
+								color: 'var(--color-text-primary)'
+							}}>
+								类型 <span style={{ color: 'var(--color-error)', fontWeight: 700 }}>*</span>
 							</label>
 							<select
 								value={formData.traceType}
 								onChange={(e) => setFormData({ ...formData, traceType: e.target.value })}
 								style={{
 									width: '100%',
-									padding: '8px 12px',
-									border: '1px solid var(--color-border)',
+									padding: '12px 16px',
+									border: '2px solid var(--color-border)',
 									borderRadius: 'var(--radius-md)',
-									fontSize: 'var(--font-size-base)'
+									fontSize: 'var(--font-size-base)',
+									background: 'var(--color-background-paper)',
+									color: 'var(--color-text-primary)',
+									cursor: 'pointer',
+									transition: 'all var(--transition-fast)',
+									boxShadow: 'var(--shadow-xs)'
+								}}
+								onFocus={(e) => {
+									e.currentTarget.style.borderColor = 'var(--color-primary)';
+									e.currentTarget.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.1)';
+								}}
+								onBlur={(e) => {
+									e.currentTarget.style.borderColor = 'var(--color-border)';
+									e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
 								}}
 							>
 								{typeOptions.map((opt) => (
@@ -398,36 +514,90 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 						</div>
 
 						<div>
-							<label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-								溯源目标 <span style={{ color: 'var(--color-error)' }}>*</span>
+							<label style={{ 
+								display: 'block', 
+								marginBottom: 'var(--spacing-sm)', 
+								fontSize: 'var(--font-size-base)', 
+								fontWeight: 600,
+								color: 'var(--color-text-primary)'
+							}}>
+								溯源目标 <span style={{ color: 'var(--color-error)', fontWeight: 700 }}>*</span>
 							</label>
 							<input
 								type="text"
 								value={formData.target}
 								onChange={(e) => setFormData({ ...formData, target: e.target.value })}
-								placeholder="溯源目标描述（至少10字）"
+								placeholder="描述要溯源的内容（至少10字）"
 								style={{
 									width: '100%',
-									padding: '8px 12px',
-									border: '1px solid var(--color-border)',
+									padding: '12px 16px',
+									border: '2px solid var(--color-border)',
 									borderRadius: 'var(--radius-md)',
-									fontSize: 'var(--font-size-base)'
+									fontSize: 'var(--font-size-base)',
+									background: 'var(--color-background-paper)',
+									color: 'var(--color-text-primary)',
+									transition: 'all var(--transition-fast)',
+									boxShadow: 'var(--shadow-xs)'
+								}}
+								onFocus={(e) => {
+									e.currentTarget.style.borderColor = 'var(--color-primary)';
+									e.currentTarget.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.1)';
+								}}
+								onBlur={(e) => {
+									e.currentTarget.style.borderColor = 'var(--color-border)';
+									e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
 								}}
 							/>
 						</div>
 					</div>
 
+				</div>
+			</div>
+
+			{/* 正文编辑区域 */}
+			<div 
+				className="card-academic" 
+				style={{ 
+					padding: 'var(--spacing-xl)', 
+					marginBottom: 'var(--spacing-lg)',
+					background: 'var(--color-background-paper)',
+					border: '1px solid var(--color-border-light)',
+					borderRadius: 'var(--radius-lg)',
+					boxShadow: 'var(--shadow-sm)'
+				}}
+			>
+				<h2 style={{ 
+					marginTop: 0,
+					marginBottom: 'var(--spacing-lg)',
+					fontSize: 'var(--font-size-xl)',
+					fontWeight: 600,
+					color: 'var(--color-text-primary)',
+					display: 'flex',
+					alignItems: 'center',
+					gap: 'var(--spacing-sm)'
+				}}>
+					<span style={{ width: '4px', height: '24px', background: 'var(--color-primary)', borderRadius: '2px' }}></span>
+					正文内容
+				</h2>
+				<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-lg)' }}>
+					{/* 编辑区域 */}
 					<div>
-						<label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-							正文 <span style={{ color: 'var(--color-error)' }}>*</span>
-						</label>
-						<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
-							{/* 编辑区域 */}
-							<div>
-								<div style={{ marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-									💡 提示：选中文本后，点击引用列表中的"插入引用"按钮，可在选中文本后插入引用标记
-								</div>
-								<div style={{ position: 'relative' }}>
+						<div style={{ 
+							marginBottom: 'var(--spacing-sm)', 
+							padding: 'var(--spacing-sm) var(--spacing-md)',
+							background: 'var(--color-primary-lighter)',
+							borderRadius: 'var(--radius-sm)',
+							fontSize: 'var(--font-size-sm)', 
+							color: 'var(--color-primary-dark)',
+							border: '1px solid var(--color-primary-light)',
+							display: 'flex',
+							alignItems: 'center',
+							gap: 'var(--spacing-xs)'
+						}}>
+							<span style={{ fontSize: 'var(--font-size-base)' }}>💡</span>
+							<span>选中文本后，点击引用列表中的"插入引用"按钮，可在选中文本后插入引用标记</span>
+						</div>
+						<div style={{ position: 'relative' }}>
 									<textarea
 										ref={bodyTextareaRef}
 										name="body"
@@ -444,18 +614,27 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 										rows={20}
 										style={{
 											width: '100%',
-											padding: '12px',
-											border: '1px solid var(--color-border)',
+											padding: '16px',
+											border: '2px solid var(--color-border)',
 											borderRadius: 'var(--radius-md)',
 											fontSize: 'var(--font-size-base)',
 											fontFamily: 'monospace',
 											resize: 'vertical',
-											lineHeight: 1.6,
+											lineHeight: 1.8,
 											position: 'relative',
 											zIndex: 1,
-											background: selectionRange && selectionRange.start !== selectionRange.end 
-												? 'var(--color-background-paper)' 
-												: 'var(--color-background-paper)'
+											background: 'var(--color-background-paper)',
+											color: 'var(--color-text-primary)',
+											transition: 'all var(--transition-fast)',
+											boxShadow: 'var(--shadow-xs)'
+										}}
+										onFocus={(e) => {
+											e.currentTarget.style.borderColor = 'var(--color-primary)';
+											e.currentTarget.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.1)';
+										}}
+										onBlur={(e) => {
+											e.currentTarget.style.borderColor = 'var(--color-border)';
+											e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
 										}}
 									/>
 									{/* 选中文本的高亮覆盖层 */}
@@ -496,30 +675,53 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 										</div>
 									)}
 								</div>
-								<div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 'var(--spacing-xs)' }}>
-									字数: {formData.body.length} / 50000
+								<div style={{ 
+									fontSize: 'var(--font-size-sm)', 
+									color: 'var(--color-text-secondary)', 
+									marginTop: 'var(--spacing-sm)',
+									display: 'flex',
+									alignItems: 'center',
+									gap: 'var(--spacing-md)'
+								}}>
+									<span>字数: <strong style={{ color: 'var(--color-text-primary)' }}>{formData.body.length}</strong> / 50000</span>
 									{selectionRange && selectionRange.start !== selectionRange.end && (
-										<span style={{ marginLeft: 'var(--spacing-sm)', color: 'var(--color-primary)', fontWeight: 500 }}>
-											✓ 已选中 {selectionRange.end - selectionRange.start} 个字符
+										<span style={{ 
+											color: 'var(--color-primary)', 
+											fontWeight: 600,
+											display: 'inline-flex',
+											alignItems: 'center',
+											gap: 'var(--spacing-xs)'
+										}}>
+											<span>✓</span>
+											<span>已选中 {selectionRange.end - selectionRange.start} 个字符</span>
 										</span>
 									)}
 								</div>
 							</div>
 							{/* 预览区域 */}
 							<div>
+								<div style={{ 
+									marginBottom: 'var(--spacing-sm)',
+									fontSize: 'var(--font-size-sm)',
+									color: 'var(--color-text-secondary)',
+									fontWeight: 500
+								}}>
+									实时预览
+								</div>
 								<div
 									style={{
 										position: 'relative',
-										padding: '12px',
-										border: '1px solid var(--color-border)',
+										padding: '16px',
+										border: '2px solid var(--color-border-light)',
 										borderRadius: 'var(--radius-md)',
-										background: 'var(--color-background-paper)',
+										background: 'var(--color-background-subtle)',
 										minHeight: '400px',
 										maxHeight: '500px',
 										overflow: 'auto',
 										fontSize: 'var(--font-size-base)',
 										lineHeight: 1.8,
-										whiteSpace: 'pre-wrap'
+										whiteSpace: 'pre-wrap',
+										boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.02)'
 									}}
 								>
 									{formData.body ? (
@@ -532,22 +734,22 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 													title: c.title,
 													url: c.url
 												}))}
-											onCitationClick={(citationId, order) => {
-												// 在引用管理区域高亮对应的引用
-												const citationElement = document.getElementById(`citation-item-${citationId}`);
-												if (citationElement) {
-													citationElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-													citationElement.style.border = '2px solid var(--color-primary)';
-													setTimeout(() => {
-														citationElement.style.border = '1px solid var(--color-border)';
-													}, 2000);
-												}
-											}}
-											onCitationHover={(citationId) => {
-												setHoveredCitationId(citationId);
-											}}
-											editable={true}
-										/>
+												onCitationClick={(citationId, order) => {
+													// 在引用管理区域高亮对应的引用
+													const citationElement = document.getElementById(`citation-item-${citationId}`);
+													if (citationElement) {
+														citationElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+														citationElement.style.border = '2px solid var(--color-primary)';
+														setTimeout(() => {
+															citationElement.style.border = '1px solid var(--color-border)';
+														}, 2000);
+													}
+												}}
+												onCitationHover={(citationId) => {
+													setHoveredCitationId(citationId);
+												}}
+												editable={true}
+											/>
 											{/* 在预览区域也高亮显示选中的文本 */}
 											{selectionRange && selectionRange.start !== selectionRange.end && (
 												<div
@@ -596,17 +798,14 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 											)}
 										</>
 									) : (
-										<div style={{ color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>
+										<div style={{ 
+											color: 'var(--color-text-tertiary)', 
+											fontStyle: 'italic',
+											textAlign: 'center',
+											padding: 'var(--spacing-xl)'
+										}}>
 											预览将在这里显示，引用标记会高亮显示
 										</div>
-									)}
-								</div>
-								<div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 'var(--spacing-xs)' }}>
-									实时预览
-									{selectionRange && selectionRange.start !== selectionRange.end && (
-										<span style={{ marginLeft: 'var(--spacing-sm)', color: 'var(--color-primary)' }}>
-											• 选中文本已高亮
-										</span>
 									)}
 								</div>
 							</div>
@@ -615,7 +814,17 @@ export default function TraceEditor({ traceId, initialData }: Props) {
 				</div>
 			</div>
 
-			<div className="card-academic" style={{ padding: 'var(--spacing-lg)' }}>
+			{/* 引用管理区域 */}
+			<div 
+				className="card-academic" 
+				style={{ 
+					padding: 'var(--spacing-xl)',
+					background: 'var(--color-background-paper)',
+					border: '1px solid var(--color-border-light)',
+					borderRadius: 'var(--radius-lg)',
+					boxShadow: 'var(--shadow-sm)'
+				}}
+			>
 				<CitationManager
 					citations={formData.citations}
 					onChange={(citations) => setFormData({ ...formData, citations })}

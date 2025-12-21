@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { SearchIcon } from '@/components/ui/Icons';
 
 export default function BookSearch() {
 	const [query, setQuery] = useState('');
@@ -85,10 +86,9 @@ export default function BookSearch() {
 					display: 'flex',
 					alignItems: 'center',
 					justifyContent: 'center',
-					fontSize: '24px',
 					flexShrink: 0
 				}}>
-					🔍
+					<SearchIcon size={24} color="white" />
 				</div>
 				<div>
 					<h3 style={{ 
@@ -128,7 +128,7 @@ export default function BookSearch() {
 					flex: 1,
 					padding: '0 var(--spacing-md)'
 				}}>
-					<span style={{ fontSize: '20px', opacity: 0.6 }}>🔍</span>
+					<SearchIcon size={20} color="var(--color-text-secondary)" style={{ opacity: 0.6 }} />
 					<input
 						type="text"
 						value={query}
@@ -188,7 +188,7 @@ export default function BookSearch() {
 						</>
 					) : (
 						<>
-							<span>🔍</span>
+							<SearchIcon size={16} color="currentColor" />
 							搜索
 						</>
 					)}
@@ -340,7 +340,7 @@ export default function BookSearch() {
 									e.currentTarget.style.boxShadow = 'none';
 								}}
 							>
-								<span>➕</span>
+								<PlusIcon size={16} color="currentColor" />
 								添加到图书馆
 							</button>
 						</div>

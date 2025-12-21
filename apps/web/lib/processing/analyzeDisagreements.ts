@@ -66,8 +66,8 @@ async function performAnalysis(
 ): Promise<DisagreementData[]> {
 	console.log(`[AnalyzeDisagreements] Starting analysis for topic ${topicId}, newDoc: ${newDocumentId || 'all'}`);
 
-	// 获取文档树
-	const docTree = await getDocumentTree(topicId);
+	// 获取文档树 (不加载extractedText以提升性能)
+	const docTree = await getDocumentTree(topicId, false);
 	
 	// 获取所有文档的详细信息（包括评价）
 	const allDocIds = new Set<string>();

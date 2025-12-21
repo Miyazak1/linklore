@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
 import { requireRoomAccess } from '@/lib/security/roomAccess';
 import { analyzeChatConsensus } from '@/lib/analysis/chatConsensus';
-import { prisma } from '@/lib/db/client';
+import { chatDb } from '@/lib/modules/chat/db';
 
 /**
  * GET /api/chat/rooms/:id/analysis
@@ -24,7 +24,7 @@ export async function GET(
 		await requireRoomAccess(roomId, session.sub);
 
 		// 尝试从数据库获取已有分析
-		let analysis = await prisma.chatAnalysis.findUnique({
+		let analysis = await chatDb.analysis.findUnique({
 			where: { roomId }
 		});
 
@@ -39,7 +39,7 @@ export async function GET(
 			const result = await analyzeChatConsensus(roomId);
 
 			// 保存分析结果
-			analysis = await prisma.chatAnalysis.upsert({
+			analysis = await chatDb.analysis.upsert({
 				where: { roomId },
 				update: {
 					consensusPoints: result.consensusPoints as any,
@@ -118,4 +118,14 @@ export async function GET(
 		);
 	}
 }
+
+
+
+
+
+
+
+
+
+
 
