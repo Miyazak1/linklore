@@ -88,7 +88,7 @@ const FacilitatorPanel = forwardRef<FacilitatorPanelRef, FacilitatorPanelProps>(
 			setLoading(null);
 			currentStreamingIdRef.current = null;
 		} else if (streamState && streamState.error) {
-			log.error('Stream error', streamState.error as Error);
+			log.error('Stream error', new Error(streamState.error));
 			setLoading(null);
 			currentStreamingIdRef.current = null;
 		}
