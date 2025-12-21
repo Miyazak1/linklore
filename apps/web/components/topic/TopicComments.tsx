@@ -25,6 +25,7 @@ interface Comment {
 interface TopicCommentsProps {
 	topicId: string;
 	currentUserId?: string;
+	initialComments?: Comment[];
 }
 
 /**
