@@ -2,11 +2,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createModuleLogger } from '@/lib/utils/logger';
+import { useAuth } from '@/contexts/AuthContext';
 
 const log = createModuleLogger('SignUpPage');
 
 export default function SignUpPage() {
 	const router = useRouter();
+	const { refreshAuth } = useAuth();
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
@@ -37,11 +39,21 @@ export default function SignUpPage() {
 		});
 		const data = await res.json();
 		if (res.ok) {
-				// 注册成功，跳转到首页
-				router.push('/');
+			// 注册成功，强制刷新认证状态（跳过防抖）
+			try {
+				await refreshAuth(true);
+				// 触发全局事件，通知所有组件更新
+				window.dispatchEvent(new Event('auth:changed'));
+			} catch (err) {
+				log.warn('刷新认证状态失败，但注册已成功', err as Error);
+			}
+			// 跳转到首页
+			router.push('/');
+			// 强制刷新页面以确保状态同步
+			router.refresh();
 		} else {
 			setMsg(data.error || '注册失败');
-			}
+		}
 		} catch (err: any) {
 			log.error('注册失败', err as Error);
 			setMsg('注册失败，请稍后重试');
