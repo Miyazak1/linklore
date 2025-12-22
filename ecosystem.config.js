@@ -41,7 +41,7 @@ module.exports = {
 		{
 			name: 'linklore-worker',
 			script: 'node',
-			args: './worker/ai-queue/dist/index.js',
+			args: './worker/ai-queue/dist/worker/ai-queue/index.js',
 			cwd: process.cwd(),
 			instances: 1, // Worker 单实例
 			exec_mode: 'fork',
