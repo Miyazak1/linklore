@@ -15,9 +15,11 @@ function getSecret(): Uint8Array {
  * 优先级：COOKIE_SECURE 环境变量 > NEXT_PUBLIC_APP_URL > 默认值
  */
 function shouldUseSecureCookie(): boolean {
-	// 优先级1：如果环境变量明确指定，直接使用（最高优先级）
+	// 优先级1：如果环境变量明确指定，直接使用（最高优先级，覆盖其他所有判断）
+	// 这样可以强制控制，即使 URL 是 https:// 也可以设置为 false（用于测试或特殊场景）
 	if (process.env.COOKIE_SECURE !== undefined) {
-		return process.env.COOKIE_SECURE === 'true';
+		const value = process.env.COOKIE_SECURE.toLowerCase().trim();
+		return value === 'true' || value === '1';
 	}
 	
 	// 优先级2：如果配置了 HTTPS URL，使用 secure
