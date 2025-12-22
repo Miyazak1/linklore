@@ -52,11 +52,11 @@
 
 3. **填写网站信息**
    - **域名**：填写你的域名
-     - 例如：`www.linklore.com`
+     - 例如：`www.mooyu.fun`
      - 如果有多个域名，每行一个：
        ```
-       www.linklore.com
-       linklore.com
+       www.mooyu.fun
+       mooyu.fun
        ```
    - **备注**：`LinkLore 应用`（可选）
    - **根目录**：`/www/wwwroot/linklore`（或保持默认）
