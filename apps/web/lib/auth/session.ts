@@ -10,6 +10,32 @@ function getSecret(): Uint8Array {
 	return new TextEncoder().encode(secret);
 }
 
+/**
+ * 判断是否应该使用 secure cookie
+ * 如果使用 HTTPS 或环境变量明确指定，则使用 secure
+ */
+function shouldUseSecureCookie(): boolean {
+	// 如果环境变量明确指定，使用环境变量的值
+	if (process.env.COOKIE_SECURE !== undefined) {
+		return process.env.COOKIE_SECURE === 'true';
+	}
+	
+	// 如果配置了 HTTPS URL，使用 secure
+	const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+	if (appUrl && appUrl.startsWith('https://')) {
+		return true;
+	}
+	
+	// 开发环境不使用 secure（允许 HTTP）
+	if (process.env.NODE_ENV === 'development') {
+		return false;
+	}
+	
+	// 生产环境默认使用 secure（但如果用户使用 HTTP，需要设置 COOKIE_SECURE=false）
+	// 这里改为 false，让用户可以通过环境变量控制
+	return false;
+}
+
 export async function createSession(payload: JWTPayload) {
 	const token = await new SignJWT(payload)
 		.setProtectedHeader({ alg: 'HS256' })
@@ -18,7 +44,7 @@ export async function createSession(payload: JWTPayload) {
 		.sign(getSecret());
 	(await cookies()).set(COOKIE_NAME, token, {
 		httpOnly: true,
-		secure: process.env.NODE_ENV === 'production',
+		secure: shouldUseSecureCookie(),
 		path: '/',
 		maxAge: MAX_AGE_SECONDS,
 		sameSite: 'lax'
@@ -48,7 +74,7 @@ export async function readSession<T extends JWTPayload>(): Promise<T | null> {
 export async function clearSession() {
 	(await cookies()).set(COOKIE_NAME, '', {
 		httpOnly: true,
-		secure: process.env.NODE_ENV === 'production',
+		secure: shouldUseSecureCookie(),
 		path: '/',
 		maxAge: 0,
 		sameSite: 'lax'
