@@ -55,20 +55,24 @@ export async function createSession(payload: JWTPayload) {
 
 export async function readSession<T extends JWTPayload>(): Promise<T | null> {
 	const token = (await cookies()).get(COOKIE_NAME)?.value;
-	if (!token) return null;
+	if (!token) {
+		// 生产环境也记录，方便调试
+		console.warn('[Session] No token found in cookies');
+		return null;
+	}
 	try {
 		const { payload } = await jwtVerify<T>(token, getSecret());
 		return payload;
 	} catch (error: any) {
-		// 记录详细的错误信息，但不抛出异常，避免影响用户体验
-		// 只在开发环境或明确需要调试时记录
-		if (process.env.NODE_ENV === 'development') {
-			console.warn('[Session] Token verification failed:', {
-				error: error?.code || error?.message || 'Unknown error',
-				hasToken: !!token,
-				tokenLength: token?.length
-			});
-		}
+		// 记录详细的错误信息，帮助调试
+		console.error('[Session] Token verification failed:', {
+			error: error?.code || error?.message || 'Unknown error',
+			errorName: error?.name,
+			hasToken: !!token,
+			tokenLength: token?.length,
+			tokenPrefix: token?.substring(0, 20) + '...',
+			secretLength: getSecret().length
+		});
 		return null;
 	}
 }
