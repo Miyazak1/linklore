@@ -4,43 +4,43 @@
  */
 
 :root {
-	/* Light theme colors - Academic palette */
-	--color-primary: #1a4480;        /* Deep academic blue */
-	--color-primary-dark: #0d2d54;
-	--color-primary-light: #3d6fa5;
-	--color-primary-lighter: #e8f0f7;
+	/* Light theme colors - Modern tech palette (Vercel/Chat SDK style) */
+	--color-primary: #0070f3;        /* Modern blue (Vercel style) */
+	--color-primary-dark: #0051cc;
+	--color-primary-light: #3291ff;
+	--color-primary-lighter: #e6f2ff;
 	
-	--color-secondary: #6b4c93;      /* Academic purple */
-	--color-success: #2d7a32;        /* Muted green */
-	--color-success-lighter: #e8f5e9; /* Light green background */
-	--color-warning: #b8860b;        /* Academic gold */
-	--color-error: #c62828;          /* Muted red */
+	--color-secondary: #7928ca;      /* Modern purple */
+	--color-success: #22c55e;        /* Modern green */
+	--color-success-lighter: #dcfce7; /* Light green background */
+	--color-warning: #f59e0b;        /* Modern amber */
+	--color-error: #ef4444;          /* Modern red */
 	
-	--color-background: #fafafa;     /* Soft off-white */
+	--color-background: #ffffff;     /* Pure white */
 	--color-background-paper: #ffffff;
 	--color-background-elevated: #ffffff;
-	--color-background-subtle: #f5f5f5;
+	--color-background-subtle: #fafafa;
 	
-	--color-text-primary: #1a1a1a;   /* Near black for readability */
-	--color-text-secondary: #4a4a4a;  /* Softer gray */
-	--color-text-tertiary: #6b6b6b;  /* Lighter gray */
-	--color-text-disabled: #9e9e9e;
+	--color-text-primary: #000000;   /* Pure black for maximum contrast */
+	--color-text-secondary: #666666;  /* Medium gray */
+	--color-text-tertiary: #999999;  /* Light gray */
+	--color-text-disabled: #cccccc;
 	
-	--color-border: #d4d4d4;         /* Subtle borders */
-	--color-border-light: #e8e8e8;
-	--color-border-accent: #1a4480;  /* Primary color for accents */
+	--color-border: #eaeaea;         /* Very subtle borders */
+	--color-border-light: #f5f5f5;
+	--color-border-accent: #0070f3;  /* Primary color for accents */
 	
-	/* Academic accent colors */
-	--color-accent-warm: #d4a574;    /* Warm beige */
-	--color-accent-cool: #7a9cc6;    /* Cool blue-gray */
+	/* Modern accent colors */
+	--color-accent-warm: #f59e0b;    /* Warm amber */
+	--color-accent-cool: #3291ff;    /* Cool blue */
 	
-	/* Spacing */
+	/* Spacing - More generous for modern feel */
 	--spacing-xs: 4px;
 	--spacing-sm: 8px;
 	--spacing-md: 16px;
 	--spacing-lg: 24px;
-	--spacing-xl: 32px;
-	--spacing-xxl: 48px;
+	--spacing-xl: 40px;
+	--spacing-xxl: 64px;
 	
 	/* Typography - Academic Style */
 	--font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -62,18 +62,18 @@
 	--line-height-normal: 1.5;
 	--line-height-relaxed: 1.75;
 	
-	/* Border radius */
-	--radius-sm: 4px;
-	--radius-md: 8px;
-	--radius-lg: 12px;
-	--radius-xl: 16px;
+	/* Border radius - Larger for modern feel */
+	--radius-sm: 6px;
+	--radius-md: 10px;
+	--radius-lg: 16px;
+	--radius-xl: 24px;
 	
-	/* Shadows - Subtle academic style */
-	--shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
-	--shadow-md: 0 2px 8px 0 rgba(0, 0, 0, 0.1), 0 1px 3px 0 rgba(0, 0, 0, 0.08);
-	--shadow-lg: 0 4px 16px 0 rgba(0, 0, 0, 0.12), 0 2px 4px 0 rgba(0, 0, 0, 0.08);
-	--shadow-xl: 0 8px 24px 0 rgba(0, 0, 0, 0.15), 0 4px 8px 0 rgba(0, 0, 0, 0.1);
-	--shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+	/* Shadows - Modern, softer shadows */
+	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+	--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+	--shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+	--shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.15);
+	--shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 	
 	/* Transitions */
 	--transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -82,26 +82,30 @@
 }
 
 .dark {
-	/* Dark theme colors */
-	--color-primary: #42a5f5;
-	--color-primary-dark: #1976d2;
-	--color-primary-light: #64b5f6;
+	/* Dark theme colors - Modern dark mode */
+	--color-primary: #3291ff;
+	--color-primary-dark: #0070f3;
+	--color-primary-light: #5ab0ff;
+	--color-primary-lighter: #1a1a2e;
 	
-	--color-secondary: #ba68c8;
-	--color-success: #66bb6a;
-	--color-warning: #ffb74d;
-	--color-error: #ef5350;
+	--color-secondary: #a855f7;
+	--color-success: #22c55e;
+	--color-warning: #f59e0b;
+	--color-error: #ef4444;
 	
-	--color-background: #121212;
-	--color-background-paper: #1e1e1e;
-	--color-background-elevated: #2d2d2d;
+	--color-background: #000000;
+	--color-background-paper: #111111;
+	--color-background-elevated: #1a1a1a;
+	--color-background-subtle: #0a0a0a;
 	
 	--color-text-primary: #ffffff;
-	--color-text-secondary: #b0b0b0;
-	--color-text-disabled: #757575;
+	--color-text-secondary: #a0a0a0;
+	--color-text-tertiary: #707070;
+	--color-text-disabled: #505050;
 	
-	--color-border: #424242;
-	--color-border-light: #2d2d2d;
+	--color-border: #333333;
+	--color-border-light: #262626;
+	--color-border-accent: #3291ff;
 }
 
 * {
@@ -211,22 +215,23 @@ a:hover {
 	border: 1px solid var(--color-border-light);
 	border-radius: var(--radius-lg);
 	padding: var(--spacing-xl);
-	box-shadow: var(--shadow-subtle);
+	box-shadow: var(--shadow-sm);
 	transition: all var(--transition-normal);
 }
 
 .card:hover {
 	box-shadow: var(--shadow-md);
 	border-color: var(--color-border);
-	transform: translateY(-2px);
+	transform: translateY(-4px);
 }
 
 /* Academic card variant */
 .card-academic {
 	background: var(--color-background-paper);
-	border-radius: var(--radius-md);
+	border-radius: var(--radius-lg);
 	padding: var(--spacing-xl);
 	box-shadow: var(--shadow-sm);
+	border: 1px solid var(--color-border-light);
 }
 
 .card-academic h3 {
@@ -237,11 +242,11 @@ a:hover {
 .button {
 	padding: var(--spacing-sm) var(--spacing-md);
 	border: none;
-	border-radius: var(--radius-md);
+	border-radius: var(--radius-lg);
 	font-size: 1rem;
 	font-weight: 500;
 	cursor: pointer;
-	transition: all var(--transition-fast);
+	transition: all var(--transition-normal);
 }
 
 .button-primary {
@@ -251,8 +256,8 @@ a:hover {
 
 .button-primary:hover {
 	background: var(--color-primary-dark);
-	transform: translateY(-1px);
-	box-shadow: var(--shadow-md);
+	transform: translateY(-2px);
+	box-shadow: 0 8px 16px rgba(0, 112, 243, 0.3);
 }
 
 .button-secondary {

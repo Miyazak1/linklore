@@ -17,11 +17,11 @@ export default function Card({ children, elevated = false, style, className, onM
 			className={className}
 			style={{
 				background: 'var(--color-background-elevated)',
-				border: '1px solid var(--color-border)',
-				borderRadius: 'var(--radius-md)',
-				padding: 'var(--spacing-lg)',
+				border: '1px solid var(--color-border-light)',
+				borderRadius: 'var(--radius-lg)',
+				padding: 'var(--spacing-xl)',
 				boxShadow: elevated ? 'var(--shadow-md)' : 'var(--shadow-sm)',
-				transition: 'all var(--transition-fast)',
+				transition: 'all var(--transition-normal)',
 				...style,
 			}}
 			onMouseEnter={onMouseEnter}

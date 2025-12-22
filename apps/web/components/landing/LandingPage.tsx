@@ -116,9 +116,10 @@ export default function LandingPage() {
 						textAlign: 'center',
 						padding: 'var(--spacing-xxl) var(--spacing-md)',
 						background: 'var(--color-background-subtle)',
-						borderRadius: 'var(--radius-lg)',
+						borderRadius: 'var(--radius-xl)',
 						maxWidth: '800px',
 						margin: 'var(--spacing-xxl) auto',
+						border: '1px solid var(--color-border-light)',
 					}}
 				>
 					<h2

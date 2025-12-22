@@ -18,13 +18,13 @@ export default function Button({
 	...props
 }: ButtonProps) {
 	const baseStyle: React.CSSProperties = {
-		padding: size === 'sm' ? '6px 12px' : size === 'lg' ? '12px 24px' : '8px 16px',
+		padding: size === 'sm' ? '8px 16px' : size === 'lg' ? '14px 28px' : '10px 20px',
 		border: 'none',
-		borderRadius: 'var(--radius-md)',
+		borderRadius: 'var(--radius-lg)',
 		cursor: props.disabled ? 'not-allowed' : 'pointer',
 		fontSize: size === 'sm' ? '0.875rem' : size === 'lg' ? '1.125rem' : '1rem',
 		fontWeight: 500,
-		transition: 'all var(--transition-fast)',
+		transition: 'all var(--transition-normal)',
 		width: fullWidth ? '100%' : 'auto',
 		opacity: props.disabled ? 0.6 : 1,
 	};
@@ -55,8 +55,8 @@ export default function Button({
 
 	const hoverStyle: React.CSSProperties = !props.disabled
 		? {
-				transform: 'translateY(-1px)',
-				boxShadow: 'var(--shadow-md)',
+				transform: 'translateY(-2px)',
+				boxShadow: variant === 'primary' ? '0 8px 16px rgba(0, 112, 243, 0.3)' : 'var(--shadow-lg)',
 			}
 		: {};
 

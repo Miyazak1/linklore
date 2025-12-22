@@ -105,7 +105,7 @@ export default function Navigation() {
 				onClick={onClick}
 				style={{
 					padding: 'var(--spacing-sm) var(--spacing-md)',
-					borderRadius: 'var(--radius-md)',
+					borderRadius: 'var(--radius-lg)',
 					textDecoration: 'none',
 					fontSize: 'var(--font-size-sm)',
 					fontWeight: 500,
@@ -118,7 +118,7 @@ export default function Navigation() {
 					border: isActive(item.href)
 						? '1px solid var(--color-primary)'
 						: '1px solid transparent',
-					transition: 'all var(--transition-fast)',
+					transition: 'all var(--transition-normal)',
 					display: 'flex',
 					alignItems: 'center',
 					gap: 'var(--spacing-xs)',
@@ -155,7 +155,7 @@ export default function Navigation() {
 			position: 'sticky',
 			top: 0,
 			zIndex: 100,
-			boxShadow: 'var(--shadow-sm)'
+			boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
 		}}>
 			<div style={{
 				maxWidth: 1400,
@@ -209,10 +209,11 @@ export default function Navigation() {
 						display: 'none',
 						padding: 'var(--spacing-sm)',
 						background: 'transparent',
-						border: '1px solid var(--color-border)',
-						borderRadius: 'var(--radius-md)',
+						border: '1px solid var(--color-border-light)',
+						borderRadius: 'var(--radius-lg)',
 						cursor: 'pointer',
-						fontSize: 'var(--font-size-lg)'
+						fontSize: 'var(--font-size-lg)',
+						transition: 'all var(--transition-normal)'
 					}}
 					className="nav-mobile-toggle"
 				>

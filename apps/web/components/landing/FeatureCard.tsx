@@ -19,7 +19,7 @@ export default function FeatureCard({ icon, title, description }: FeatureCardPro
 				transition: 'transform var(--transition-normal), box-shadow var(--transition-normal)',
 			}}
 			onMouseEnter={(e) => {
-				e.currentTarget.style.transform = 'translateY(-4px)';
+				e.currentTarget.style.transform = 'translateY(-6px)';
 				e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
 			}}
 			onMouseLeave={(e) => {
@@ -59,6 +59,7 @@ export default function FeatureCard({ icon, title, description }: FeatureCardPro
 		</Card>
 	);
 }
+
 
 
 
