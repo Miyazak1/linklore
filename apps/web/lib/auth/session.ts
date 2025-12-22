@@ -56,12 +56,13 @@ export async function createSession(payload: JWTPayload) {
 export async function readSession<T extends JWTPayload>(): Promise<T | null> {
 	const token = (await cookies()).get(COOKIE_NAME)?.value;
 	if (!token) {
-		// 生产环境也记录，方便调试
-		console.warn('[Session] No token found in cookies');
+		// 使用 console.error 确保在生产环境也能看到日志
+		console.error('[Session] No token found in cookies');
 		return null;
 	}
 	try {
 		const { payload } = await jwtVerify<T>(token, getSecret());
+		console.error('[Session] Token verified successfully:', { sub: payload.sub, email: payload.email });
 		return payload;
 	} catch (error: any) {
 		// 记录详细的错误信息，帮助调试

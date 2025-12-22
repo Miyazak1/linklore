@@ -5,9 +5,10 @@ import { prisma } from '@/lib/db/client';
 export async function GET() {
 	try {
 		const session = await readSession();
-		console.log('[Auth Me API] Session:', session ? { sub: session.sub, email: session.email } : 'null');
+		// 使用 console.error 确保在生产环境也能看到日志
+		console.error('[Auth Me API] Session:', session ? { sub: session.sub, email: session.email } : 'null');
 		if (!session?.sub) {
-			console.warn('[Auth Me API] No session or no sub');
+			console.error('[Auth Me API] No session or no sub');
 			return NextResponse.json({ user: null });
 		}
 		
