@@ -39,18 +39,22 @@ export default function SignUpPage() {
 		});
 		const data = await res.json();
 		if (res.ok) {
-			// 注册成功，强制刷新认证状态（跳过防抖）
+			// 注册成功，等待 cookie 设置完成
+			await new Promise(resolve => setTimeout(resolve, 100));
+			
+			// 强制刷新认证状态（跳过防抖）
 			try {
 				await refreshAuth(true);
 				// 触发全局事件，通知所有组件更新
 				window.dispatchEvent(new Event('auth:changed'));
+				// 再等待一下确保状态更新完成
+				await new Promise(resolve => setTimeout(resolve, 200));
 			} catch (err) {
 				log.warn('刷新认证状态失败，但注册已成功', err as Error);
 			}
-			// 跳转到首页
-			router.push('/');
-			// 强制刷新页面以确保状态同步
-			router.refresh();
+			
+			// 使用 window.location 强制刷新页面，确保状态同步
+			window.location.href = '/';
 		} else {
 			setMsg(data.error || '注册失败');
 		}

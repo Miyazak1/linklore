@@ -52,10 +52,8 @@ export default function Navigation() {
 	// 监听auth:changed事件，刷新认证状态
 	useEffect(() => {
 		const handleAuthChange = () => {
-			// 延迟一点再刷新，避免与触发事件的组件冲突
-			setTimeout(() => {
-				refreshAuth();
-			}, 500); // 增加延迟到500ms，确保触发事件的组件完成请求
+			// 立即刷新，因为触发事件的组件已经等待了足够的时间
+			refreshAuth(true); // 使用强制刷新，跳过防抖
 		};
 		
 		window.addEventListener('auth:changed', handleAuthChange);
