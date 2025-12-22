@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 
 async function createAdmin() {
 	const email = '495469022@qq.com';
-	const password = 'Abc123@';
+	const password = 'Nuan2230543@';
 	const name = '管理员';
 	const role = 'admin';
 

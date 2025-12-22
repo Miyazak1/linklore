@@ -3,7 +3,7 @@
 **目标**：创建管理员账号并修复 avatarUrl 字段  
 **账号信息**：
 - 邮箱：`495469022@qq.com`
-- 密码：`Abc123@`
+- 密码：`Nuan2230543@`
 - 角色：`admin`
 
 ---
@@ -84,7 +84,7 @@ const prisma = new PrismaClient();
 
 async function createAdmin() {
   const email = '495469022@qq.com';
-  const password = 'Abc123@';
+  const password = 'Nuan2230543@';
   const name = '管理员';
   const role = 'admin';
 
@@ -187,7 +187,7 @@ echo "==========================================" && \
 echo "" && \
 echo "管理员账号信息：" && \
 echo "  邮箱：495469022@qq.com" && \
-echo "  密码：Abc123@" && \
+echo "  密码：Nuan2230543@" && \
 echo "  角色：admin" && \
 echo "" && \
 echo "现在可以使用这个账号登录了！"
@@ -228,7 +228,7 @@ psql $DATABASE_URL -c "SELECT email, name, role FROM \"User\" WHERE email = '495
 1. 访问：`https://www.mooyu.fun/signin`
 2. 使用以下信息登录：
    - 邮箱：`495469022@qq.com`
-   - 密码：`Abc123@`
+   - 密码：`Nuan2230543@`
 3. 应该成功登录并看到管理员界面
 
 ---
