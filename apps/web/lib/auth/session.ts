@@ -12,27 +12,27 @@ function getSecret(): Uint8Array {
 
 /**
  * 判断是否应该使用 secure cookie
- * 如果使用 HTTPS 或环境变量明确指定，则使用 secure
+ * 优先级：COOKIE_SECURE 环境变量 > NEXT_PUBLIC_APP_URL > 默认值
  */
 function shouldUseSecureCookie(): boolean {
-	// 如果环境变量明确指定，使用环境变量的值
+	// 优先级1：如果环境变量明确指定，直接使用（最高优先级）
 	if (process.env.COOKIE_SECURE !== undefined) {
 		return process.env.COOKIE_SECURE === 'true';
 	}
 	
-	// 如果配置了 HTTPS URL，使用 secure
+	// 优先级2：如果配置了 HTTPS URL，使用 secure
 	const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 	if (appUrl && appUrl.startsWith('https://')) {
 		return true;
 	}
 	
-	// 开发环境不使用 secure（允许 HTTP）
+	// 优先级3：开发环境不使用 secure（允许 HTTP）
 	if (process.env.NODE_ENV === 'development') {
 		return false;
 	}
 	
-	// 生产环境默认使用 secure（但如果用户使用 HTTP，需要设置 COOKIE_SECURE=false）
-	// 这里改为 false，让用户可以通过环境变量控制
+	// 优先级4：生产环境默认不使用 secure（允许通过环境变量控制）
+	// 如果用户使用 HTTP，需要设置 COOKIE_SECURE=false
 	return false;
 }
 
