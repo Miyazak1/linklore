@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/client';
 import { compare } from 'bcryptjs';
 import { createSession, clearSession } from '@/lib/auth/session';
 import { logAudit } from '@/lib/audit/logger';
+import { cookies } from 'next/headers';
 
 const SigninSchema = z.object({
 	email: z.string().email(),
@@ -33,6 +34,15 @@ export async function POST(req: Request) {
 		
 		// 创建新用户的 session
 		await createSession({ sub: user.id, email: user.email, role: user.role });
+		
+		// 验证 Cookie 是否设置成功
+		const cookieStore = await cookies();
+		const sessionCookie = cookieStore.get('ll_session');
+		console.error('[Signin API] Cookie after creation:', {
+			hasCookie: !!sessionCookie,
+			cookieValue: sessionCookie?.value ? sessionCookie.value.substring(0, 20) + '...' : 'null',
+			allCookies: Array.from(cookieStore.getAll()).map(c => c.name)
+		});
 		
 		await logAudit({
 			action: 'user.login',

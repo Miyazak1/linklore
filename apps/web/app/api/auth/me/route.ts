@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
 import { readSession } from '@/lib/auth/session';
+import { readSessionFromRequest } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/client';
 
-export async function GET() {
+export async function GET(req: Request) {
 	try {
-		const session = await readSession();
+		// 尝试两种方式读取 session
+		// 方式1：使用 cookies() API（可能在某些情况下不工作）
+		let session = await readSession();
+		
+		// 方式2：如果方式1失败，使用 Request 对象直接读取（更可靠）
+		if (!session) {
+			console.error('[Auth Me API] cookies() API failed, trying Request object');
+			session = await readSessionFromRequest(req);
+		}
 		// 使用 console.error 确保在生产环境也能看到日志
 		console.error('[Auth Me API] Session:', session ? { sub: session.sub, email: session.email } : 'null');
 		if (!session?.sub) {
