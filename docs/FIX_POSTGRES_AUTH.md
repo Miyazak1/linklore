@@ -246,3 +246,7 @@ sudo journalctl -u postgresql -f
 
 
 
+
+
+
+

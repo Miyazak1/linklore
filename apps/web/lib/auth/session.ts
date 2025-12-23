@@ -11,6 +11,18 @@ function getSecret(): Uint8Array {
 }
 
 /**
+ * 获取 Cookie Domain
+ * 如果设置了 COOKIE_DOMAIN，使用该值；否则返回 undefined（使用默认行为）
+ */
+function getCookieDomain(): string | undefined {
+	if (process.env.COOKIE_DOMAIN) {
+		return process.env.COOKIE_DOMAIN.trim();
+	}
+	// 如果没有设置，返回 undefined，让 Next.js 使用默认行为（当前请求的域名）
+	return undefined;
+}
+
+/**
  * 判断是否应该使用 secure cookie
  * 优先级：COOKIE_SECURE 环境变量 > NEXT_PUBLIC_APP_URL > 默认值
  */
@@ -44,20 +56,49 @@ export async function createSession(payload: JWTPayload) {
 		.setIssuedAt()
 		.setExpirationTime(`${MAX_AGE_SECONDS}s`)
 		.sign(getSecret());
-	(await cookies()).set(COOKIE_NAME, token, {
+	
+	const cookieDomain = getCookieDomain();
+	const cookieOptions: any = {
 		httpOnly: true,
 		secure: shouldUseSecureCookie(),
 		path: '/',
 		maxAge: MAX_AGE_SECONDS,
-		sameSite: 'lax'
+		sameSite: 'lax' as const
+	};
+	
+	// 如果设置了 COOKIE_DOMAIN，添加到选项中
+	// 注意：Next.js 的 cookies().set() 可能不支持 domain，但我们可以尝试
+	if (cookieDomain) {
+		cookieOptions.domain = cookieDomain;
+	}
+	
+	(await cookies()).set(COOKIE_NAME, token, cookieOptions);
+	
+	// 记录 Cookie 设置信息（用于调试）
+	console.error('[Session] Cookie set:', {
+		name: COOKIE_NAME,
+		domain: cookieDomain || 'default',
+		secure: cookieOptions.secure,
+		path: cookieOptions.path,
+		sameSite: cookieOptions.sameSite,
+		maxAge: cookieOptions.maxAge,
+		hasToken: !!token,
+		tokenLength: token?.length
 	});
 }
 
 export async function readSession<T extends JWTPayload>(): Promise<T | null> {
-	const token = (await cookies()).get(COOKIE_NAME)?.value;
+	const cookieStore = await cookies();
+	const cookie = cookieStore.get(COOKIE_NAME);
+	const token = cookie?.value;
+	
 	if (!token) {
 		// 使用 console.error 确保在生产环境也能看到日志
-		console.error('[Session] No token found in cookies');
+		console.error('[Session] No token found in cookies', {
+			cookieName: COOKIE_NAME,
+			hasCookie: !!cookie,
+			allCookies: Array.from(cookieStore.getAll()).map(c => c.name)
+		});
 		return null;
 	}
 	try {
@@ -79,13 +120,20 @@ export async function readSession<T extends JWTPayload>(): Promise<T | null> {
 }
 
 export async function clearSession() {
-	(await cookies()).set(COOKIE_NAME, '', {
+	const cookieDomain = getCookieDomain();
+	const cookieOptions: any = {
 		httpOnly: true,
 		secure: shouldUseSecureCookie(),
 		path: '/',
 		maxAge: 0,
-		sameSite: 'lax'
-	});
+		sameSite: 'lax' as const
+	};
+	
+	if (cookieDomain) {
+		cookieOptions.domain = cookieDomain;
+	}
+	
+	(await cookies()).set(COOKIE_NAME, '', cookieOptions);
 }
 
 

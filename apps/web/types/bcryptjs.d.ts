@@ -8,3 +8,7 @@ declare module 'bcryptjs' {
 	export function getRounds(encrypted: string): number;
 }
 
+
+
+
+

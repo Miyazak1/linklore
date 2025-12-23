@@ -202,3 +202,7 @@ import BookSearchDialog from '@/components/chat/BookSearchDialog';
 
 **下一步**: 逐步迁移新代码使用 `chatDb`，并在需要时为其他模块创建数据库访问层。
 
+
+
+
+

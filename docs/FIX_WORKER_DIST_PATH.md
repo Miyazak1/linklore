@@ -261,3 +261,6 @@ chmod +x fix-dist-path.sh
 
 **请先执行查找文件的命令，确认 index.js 的实际位置！**
 
+
+
+

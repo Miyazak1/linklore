@@ -231,3 +231,6 @@ psql $DATABASE_URL -c "\dt \"IssuePath\""
 
 **完成！修复后重新运行迁移即可。**
 
+
+
+

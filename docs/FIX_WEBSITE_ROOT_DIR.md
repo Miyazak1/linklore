@@ -137,3 +137,6 @@ ls -la /www/wwwroot/www.mooyu.fun
 
 **完成！网站现在指向正确的项目目录了！**
 
+
+
+

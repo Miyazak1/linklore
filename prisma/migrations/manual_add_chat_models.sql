@@ -129,3 +129,7 @@ CREATE INDEX IF NOT EXISTS "ChatMessage_roomId_deletedAt_idx" ON "ChatMessage"("
 CREATE INDEX IF NOT EXISTS "ChatMessageReference_messageId_idx" ON "ChatMessageReference"("messageId");
 CREATE INDEX IF NOT EXISTS "ChatMessageReference_referencedMessageId_idx" ON "ChatMessageReference"("referencedMessageId");
 
+
+
+
+

@@ -150,3 +150,7 @@ declare module 'ali-oss' {
 	export default OSS;
 }
 
+
+
+
+

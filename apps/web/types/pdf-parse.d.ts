@@ -32,3 +32,7 @@ declare module 'pdf-parse' {
 	export default pdfParse;
 }
 
+
+
+
+

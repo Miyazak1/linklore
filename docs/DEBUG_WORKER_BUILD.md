@@ -131,3 +131,6 @@ pnpm exec tsc -p tsconfig.json 2>&1 | head -50
 
 **请执行上面的命令，把错误信息发给我，我会帮你修复！**
 
+
+
+

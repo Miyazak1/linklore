@@ -126,3 +126,7 @@ ls -la /www/wwwroot/www.linkloredu.com/prisma/migrations/
 
 
 
+
+
+
+

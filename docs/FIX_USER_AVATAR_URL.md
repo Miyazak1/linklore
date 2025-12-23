@@ -194,3 +194,6 @@ pm2 start ecosystem.config.js
 
 **完成修复后，注册和登录功能应该可以正常工作了！**
 
+
+
+

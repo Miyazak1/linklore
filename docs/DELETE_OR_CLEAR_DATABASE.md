@@ -275,3 +275,6 @@ psql -U linklore_user -d linklore -h localhost -c "\dt"
 
 **完成！数据库已清空，可以重新构建了！**
 
+
+
+

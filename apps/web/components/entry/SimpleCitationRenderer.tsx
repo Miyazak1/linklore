@@ -54,3 +54,7 @@ export default function SimpleCitationRenderer({ body, citations }: Props) {
 	);
 }
 
+
+
+
+
