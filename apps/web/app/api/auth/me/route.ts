@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { readSession } from '@/lib/auth/session';
 import { readSessionFromRequest } from '@/lib/auth/middleware';
 import { prisma } from '@/lib/db/client';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
 	try {
 		// 尝试两种方式读取 session
 		// 方式1：使用 cookies() API（可能在某些情况下不工作）
