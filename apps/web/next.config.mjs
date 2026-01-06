@@ -3,7 +3,7 @@ import crypto from 'crypto';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-	// 启用 standalone 模式，用于生产环境部署
+	// 启用 standalone 模式，用于 PM2 部署
 	output: 'standalone',
 	experimental: {
 		serverActions: {
