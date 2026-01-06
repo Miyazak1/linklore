@@ -19,13 +19,7 @@ export type AuditAction =
 	| 'book.remove'
 	| 'ai.config.update'
 	| 'disagreement.create'
-	| 'disagreement.update'
-	| 'trace.create'
-	| 'trace.update'
-	| 'trace.delete'
-	| 'trace.publish'
-	| 'trace.approve'
-	| 'entry.update';
+	| 'disagreement.update';
 
 export interface AuditLogEntry {
 	userId?: string;

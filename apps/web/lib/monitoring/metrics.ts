@@ -7,11 +7,6 @@ import { prisma } from '@/lib/db/client';
 
 export interface SystemMetrics {
 	timestamp: Date;
-	entries: {
-		total: number;
-		needsUpdate: number;
-		avgVersion: number;
-	};
 	users: {
 		total: number;
 		byRole: Record<string, number>;
@@ -31,14 +26,8 @@ export async function collectMetrics(): Promise<SystemMetrics> {
 
 	// 并行收集各项指标
 	const [
-		entryStats,
 		userStats
 	] = await Promise.all([
-		// 词条统计
-		prisma.entry.aggregate({
-			_count: true,
-			_avg: { version: true }
-		}),
 		// 用户统计
 		prisma.user.groupBy({
 			by: ['role'],
@@ -60,21 +49,11 @@ export async function collectMetrics(): Promise<SystemMetrics> {
 	});
 
 
-	// 获取需要更新的词条数
-	const needsUpdateCount = await prisma.entry.count({
-		where: { needsUpdate: true }
-	});
-
 	// 缓存统计（暂时禁用）
 	const cacheHitRate: number | null = null;
 
 	return {
 		timestamp,
-		entries: {
-			total: entryStats._count,
-			needsUpdate: needsUpdateCount,
-			avgVersion: entryStats._avg.version || 0
-		},
 		users: {
 			total: totalUsers,
 			byRole: usersByRole,
@@ -93,9 +72,7 @@ export async function collectMetrics(): Promise<SystemMetrics> {
 export async function getMetricsSummary() {
 	const metrics = await collectMetrics();
 	return {
-		entries: metrics.entries.total,
-		users: metrics.users.total,
-		needsUpdate: metrics.entries.needsUpdate
+		users: metrics.users.total
 	};
 }
 
