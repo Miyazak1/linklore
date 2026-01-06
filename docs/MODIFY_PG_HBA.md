@@ -183,3 +183,9 @@ sudo cat /var/lib/pgsql/data/pg_hba.conf
 
 
 
+
+
+
+
+
+

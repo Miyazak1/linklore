@@ -24,21 +24,10 @@ const violations: Violation[] = [];
 
 // 模块定义
 const modules = {
-	chat: {
-		path: 'app/api/chat',
-		components: 'components/chat',
-		dbModels: ['ChatRoom', 'ChatMessage', 'ChatAnalysis', 'ChatMessageReference'],
-		dbAccess: 'lib/modules/chat/db',
-	},
 	discussion: {
 		path: 'app/api/topics',
 		components: 'components/topic',
 		dbModels: ['Topic', 'Document', 'Summary', 'Evaluation', 'Disagreement', 'ConsensusSnapshot', 'UserConsensus'],
-	},
-	trace: {
-		path: 'app/api/traces',
-		components: 'components/trace',
-		dbModels: ['Trace', 'Citation', 'TraceAnalysis', 'Entry'],
 	},
 	library: {
 		path: 'app/api/books',
@@ -91,17 +80,6 @@ function checkFile(filePath: string, content: string, relativePath: string) {
 			});
 		});
 
-		// 检查是否在聊天模块中使用 prisma.chatRoom（应使用 chatDb）
-		if (relativePath.includes('app/api/chat') || relativePath.includes('components/chat')) {
-			if (/prisma\.chat(Room|Message|Analysis|MessageReference)/i.test(line) && !line.trim().startsWith('//')) {
-				violations.push({
-					file: relativePath,
-					line: lineNum,
-					message: '在聊天模块中应使用 chatDb 而不是 prisma.chatRoom/chatMessage',
-					type: 'warning',
-				});
-			}
-		}
 
 		// 检查跨模块组件导入
 		Object.entries(modules).forEach(([moduleName, moduleConfig]) => {

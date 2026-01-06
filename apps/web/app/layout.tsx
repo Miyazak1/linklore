@@ -2,7 +2,7 @@ import ProvidersWrapper from '@/components/providers/ThemeProviderWrapper';
 import './globals.css';
 
 export const metadata = {
-	title: process.env.NEXT_PUBLIC_SITE_NAME || 'LinkLore',
+	title: process.env.NEXT_PUBLIC_SITE_NAME || 'Mooyu',
 	description: 'Document-centric academic discussion platform'
 };
 

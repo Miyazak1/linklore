@@ -20,7 +20,7 @@ export default function Footer() {
 				color: 'var(--color-text-secondary)',
 				fontSize: 'var(--font-size-sm)'
 			}}>
-				<span>© {currentYear} Linklore. All rights reserved.</span>
+				<span>© {currentYear} Mooyu. All rights reserved.</span>
 			</div>
 		</footer>
 	);

@@ -7,7 +7,7 @@ import { generateResult } from '@/lib/games/daily-issue/resultGenerator';
 import type { DecisionTree, PathStep, ResultTemplate, IssueNode } from '@/types/daily-issue';
 import IssueGame from '@/components/games/daily-issue/IssueGame';
 import ResultPage from '@/components/games/daily-issue/ResultPage';
-import ChatPageLoader from '@/components/ui/ChatPageLoader';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { createModuleLogger } from '@/lib/utils/logger';
 
 const log = createModuleLogger('DailyIssueGamePage');
@@ -141,9 +141,8 @@ export default function DailyIssueGamePage() {
 
 	if (loading) {
 		return (
-			<ChatPageLoader
+			<LoadingSpinner fullscreen
 				message="加载中..."
-				subMessage="正在准备思考游戏"
 			/>
 		);
 	}

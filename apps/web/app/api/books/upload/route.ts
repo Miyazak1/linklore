@@ -14,14 +14,14 @@ const Schema = z.object({
 	mime: z.string().min(1),
 	size: z.number().int().positive(),
 	bookId: z.string().min(1),
-	title: z.string().optional(),
-	author: z.string().optional(),
-	category: z.string().optional(),
-	tags: z.array(z.string()).optional(),
-	language: z.string().optional(),
-	isbn: z.string().optional(),
-	publisher: z.string().optional(),
-	publishYear: z.number().int().min(1000).max(3000).optional(),
+	title: z.string().optional().nullable(),
+	author: z.string().optional().nullable(),
+	category: z.string().optional().nullable(),
+	tags: z.array(z.string()).optional().nullable(),
+	language: z.string().optional().nullable(),
+	isbn: z.string().optional().nullable(),
+	publisher: z.string().optional().nullable(),
+	publishYear: z.number().int().min(1000).max(3000).optional().nullable(),
 });
 
 export async function POST(req: Request) {

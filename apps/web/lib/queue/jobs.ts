@@ -5,8 +5,6 @@ import { extractAndStore } from '@/lib/processing/extract';
 import { summarizeAndStore } from '@/lib/processing/summarize';
 import { evaluateAndStore } from '@/lib/processing/evaluate';
 import { analyzeDisagreementsIncremental } from '@/lib/processing/analyzeDisagreements';
-import { moderateMessage } from '@/lib/ai/moderation';
-import { analyzeChatConsensus } from '@/lib/analysis/chatConsensus';
 import { createModuleLogger } from '@/lib/utils/logger';
 
 const log = createModuleLogger('Queue Jobs');
@@ -44,13 +42,13 @@ function initQueue() {
 export async function enqueueExtract(documentId: string) {
 	// If Redis was previously unavailable, process asynchronously in background
 	if (!redisAvailable) {
-		console.log(`[Queue] Redis unavailable, processing extract asynchronously for document ${documentId}`);
+		log.debug('Redis unavailable, processing extract asynchronously', { documentId });
 		// Use setImmediate to run asynchronously without blocking
 		setImmediate(async () => {
 			try {
 				await extractAndStore(documentId);
 			} catch (err: any) {
-				console.error(`[Queue] Async extract failed:`, err);
+				log.error('Async extract failed', err, { documentId });
 			}
 		});
 		return { id: 'async', name: 'extract', data: { documentId } };
@@ -60,12 +58,12 @@ export async function enqueueExtract(documentId: string) {
 	if (!q) {
 		redisAvailable = false;
 		// Fallback to async processing
-		console.log(`[Queue] Redis unavailable, processing extract asynchronously for document ${documentId}`);
+		log.debug('Redis unavailable, processing extract asynchronously', { documentId });
 		setImmediate(async () => {
 			try {
 				await extractAndStore(documentId);
 			} catch (err: any) {
-				console.error(`[Queue] Async extract failed:`, err);
+				log.error('Async extract failed', err, { documentId });
 			}
 		});
 		return { id: 'async', name: 'extract', data: { documentId } };
@@ -81,13 +79,13 @@ export async function enqueueExtract(documentId: string) {
 		return job;
 	} catch (err: any) {
 		// If enqueue fails, mark Redis as unavailable and process asynchronously
-		console.warn(`[Queue] Failed to enqueue (${err.message}), using async fallback`);
+		log.warn('Failed to enqueue, using async fallback', { error: err.message, documentId });
 		redisAvailable = false;
 		setImmediate(async () => {
 			try {
 				await extractAndStore(documentId);
 			} catch (syncErr: any) {
-				console.error(`[Queue] Async extract failed:`, syncErr);
+				log.error('Async extract failed', syncErr, { documentId });
 			}
 		});
 		return { id: 'async', name: 'extract', data: { documentId } };
@@ -97,12 +95,12 @@ export async function enqueueExtract(documentId: string) {
 export async function enqueueSummarize(documentId: string) {
 	// If Redis was previously unavailable, process asynchronously
 	if (!redisAvailable) {
-		console.log(`[Queue] Redis unavailable, processing summarize asynchronously for document ${documentId}`);
+		log.debug('Redis unavailable, processing summarize asynchronously', { documentId });
 		setImmediate(async () => {
 			try {
 				await summarizeAndStore(documentId);
 			} catch (err: any) {
-				console.error(`[Queue] Async summarize failed:`, err);
+				log.error('Async summarize failed', err, { documentId });
 			}
 		});
 		return { id: 'async', name: 'summarize', data: { documentId } };
@@ -115,7 +113,7 @@ export async function enqueueSummarize(documentId: string) {
 			try {
 				await summarizeAndStore(documentId);
 			} catch (err: any) {
-				console.error(`[Queue] Async summarize failed:`, err);
+				log.error('Async summarize failed', err, { documentId });
 			}
 		});
 		return { id: 'async', name: 'summarize', data: { documentId } };
@@ -142,7 +140,7 @@ export async function enqueueSummarize(documentId: string) {
 			}
 		});
 		
-		console.log(`[Queue] Summarize job enqueued: ${job.id} for document ${documentId} (priority: ${priority})`);
+		log.debug('Summarize job enqueued', { jobId: job.id, documentId, priority });
 		
 		// 注意：任务已入队，Worker会自动处理
 		// 如果Worker未运行，任务会在队列中等待
@@ -150,13 +148,13 @@ export async function enqueueSummarize(documentId: string) {
 		
 		return job;
 	} catch (err: any) {
-		console.warn(`[Queue] Failed to enqueue summarize (${err.message}), using async fallback`);
+		log.warn('Failed to enqueue summarize, using async fallback', { error: err.message, documentId });
 		redisAvailable = false;
 		setImmediate(async () => {
 			try {
 				await summarizeAndStore(documentId);
 			} catch (syncErr: any) {
-				console.error(`[Queue] Async summarize failed:`, syncErr);
+				log.error('Async summarize failed', syncErr, { documentId });
 			}
 		});
 		return { id: 'async', name: 'summarize', data: { documentId } };
@@ -166,12 +164,12 @@ export async function enqueueSummarize(documentId: string) {
 export async function enqueueEvaluate(documentId: string) {
 	// If Redis was previously unavailable, process asynchronously
 	if (!redisAvailable) {
-		console.log(`[Queue] Redis unavailable, processing evaluate asynchronously for document ${documentId}`);
+		log.debug('Redis unavailable, processing evaluate asynchronously', { documentId });
 		setImmediate(async () => {
 			try {
 				await evaluateAndStore(documentId);
 			} catch (err: any) {
-				console.error(`[Queue] Async evaluate failed:`, err);
+				log.error('Async evaluate failed', err, { documentId });
 			}
 		});
 		return { id: 'async', name: 'evaluate', data: { documentId } };
@@ -184,7 +182,7 @@ export async function enqueueEvaluate(documentId: string) {
 			try {
 				await evaluateAndStore(documentId);
 			} catch (err: any) {
-				console.error(`[Queue] Async evaluate failed:`, err);
+				log.error('Async evaluate failed', err, { documentId });
 			}
 		});
 		return { id: 'async', name: 'evaluate', data: { documentId } };
@@ -217,13 +215,13 @@ export async function enqueueEvaluate(documentId: string) {
 		
 		return job;
 	} catch (err: any) {
-		console.warn(`[Queue] Failed to enqueue evaluate (${err.message}), using async fallback`);
+		log.warn('Failed to enqueue evaluate, using async fallback', { error: err.message, documentId });
 		redisAvailable = false;
 		setImmediate(async () => {
 			try {
 				await evaluateAndStore(documentId);
 			} catch (syncErr: any) {
-				console.error(`[Queue] Async evaluate failed:`, syncErr);
+				log.error('Async evaluate failed', syncErr, { documentId });
 			}
 		});
 		return { id: 'async', name: 'evaluate', data: { documentId } };
@@ -235,12 +233,12 @@ export async function enqueueEvaluate(documentId: string) {
 export async function enqueueAnalyzeDisagreements(topicId: string, newDocumentId?: string) {
 	// If Redis was previously unavailable, process asynchronously
 	if (!redisAvailable) {
-		console.log(`[Queue] Redis unavailable, processing analyzeDisagreements asynchronously for topic ${topicId}`);
+		log.debug('Redis unavailable, processing analyzeDisagreements asynchronously', { topicId, newDocumentId });
 		setImmediate(async () => {
 			try {
 				await analyzeDisagreementsIncremental(topicId, newDocumentId);
 			} catch (err: any) {
-				console.error(`[Queue] Async analyzeDisagreements failed:`, err);
+				log.error('Async analyzeDisagreements failed', err, { topicId, newDocumentId });
 			}
 		});
 		return { id: 'async', name: 'analyzeDisagreements', data: { topicId, newDocumentId } };
@@ -253,7 +251,7 @@ export async function enqueueAnalyzeDisagreements(topicId: string, newDocumentId
 			try {
 				await analyzeDisagreementsIncremental(topicId, newDocumentId);
 			} catch (err: any) {
-				console.error(`[Queue] Async analyzeDisagreements failed:`, err);
+				log.error('Async analyzeDisagreements failed', err, { topicId, newDocumentId });
 			}
 		});
 		return { id: 'async', name: 'analyzeDisagreements', data: { topicId, newDocumentId } };
@@ -268,13 +266,13 @@ export async function enqueueAnalyzeDisagreements(topicId: string, newDocumentId
 		});
 		return job;
 	} catch (err: any) {
-		console.warn(`[Queue] Failed to enqueue analyzeDisagreements (${err.message}), using async fallback`);
+		log.warn('Failed to enqueue analyzeDisagreements, using async fallback', { error: err.message, topicId, newDocumentId });
 		redisAvailable = false;
 		setImmediate(async () => {
 			try {
 				await analyzeDisagreementsIncremental(topicId, newDocumentId);
 			} catch (syncErr: any) {
-				console.error(`[Queue] Async analyzeDisagreements failed:`, syncErr);
+				log.error('Async analyzeDisagreements failed', syncErr, { topicId, newDocumentId });
 			}
 		});
 		return { id: 'async', name: 'analyzeDisagreements', data: { topicId, newDocumentId } };
@@ -288,7 +286,7 @@ export async function enqueueUserPairAnalysis(
 ) {
 	// If Redis was previously unavailable, process asynchronously
 	if (!redisAvailable) {
-		console.log(`[Queue] Redis unavailable, processing user pair analysis asynchronously for topic ${topicId}`);
+		log.debug('Redis unavailable, processing user pair analysis asynchronously', { topicId, userId1, userId2 });
 		setImmediate(async () => {
 			try {
 				const { identifyUserPairs } = await import('@/lib/processing/userPairIdentifier');
@@ -317,7 +315,7 @@ export async function enqueueUserPairAnalysis(
 					await updateTopicConsensusSnapshot(topicId);
 				}
 			} catch (err: any) {
-				console.error(`[Queue] Async user pair analysis failed:`, err);
+				log.error('Async user pair analysis failed', err, { topicId, userId1, userId2 });
 			}
 		});
 		return { id: 'async', name: 'userPairAnalysis', data: { topicId, userId1, userId2 } };
@@ -351,7 +349,7 @@ export async function enqueueUserPairAnalysis(
 					await updateTopicConsensusSnapshot(topicId);
 				}
 			} catch (syncErr: any) {
-				console.error(`[Queue] Async user pair analysis failed:`, syncErr);
+				log.error('Async user pair analysis failed', syncErr, { topicId, userId1, userId2 });
 			}
 		});
 		return { id: 'async', name: 'userPairAnalysis', data: { topicId, userId1, userId2 } };
@@ -364,10 +362,10 @@ export async function enqueueUserPairAnalysis(
 			removeOnFail: 50,
 			priority: 3 // 中等优先级
 		});
-		console.log(`[Queue] User pair analysis job enqueued: ${job.id} for topic ${topicId}`);
+		log.debug('User pair analysis job enqueued', { jobId: job.id, topicId });
 		return job;
 	} catch (err: any) {
-		console.warn(`[Queue] Failed to enqueue user pair analysis (${err.message}), using async fallback`);
+		log.warn('Failed to enqueue user pair analysis, using async fallback', { error: err.message, topicId, userId1, userId2 });
 		redisAvailable = false;
 		setImmediate(async () => {
 			try {
@@ -394,7 +392,7 @@ export async function enqueueUserPairAnalysis(
 					await updateTopicConsensusSnapshot(topicId);
 				}
 			} catch (syncErr: any) {
-				console.error(`[Queue] Async user pair analysis failed:`, syncErr);
+				log.error('Async user pair analysis failed', syncErr, { topicId, userId1, userId2 });
 			}
 		});
 		return { id: 'async', name: 'userPairAnalysis', data: { topicId, userId1, userId2 } };
@@ -407,12 +405,12 @@ export async function enqueueTrackConsensus(topicId: string) {
 	
 	// If Redis was previously unavailable, process asynchronously
 	if (!redisAvailable) {
-		console.log(`[Queue] Redis unavailable, processing trackConsensus asynchronously for topic ${topicId}`);
+		log.debug('Redis unavailable, processing trackConsensus asynchronously', { topicId });
 		setImmediate(async () => {
 			try {
 				await updateTopicConsensusSnapshot(topicId);
 			} catch (err: any) {
-				console.error(`[Queue] Async trackConsensus failed:`, err);
+				log.error('Async trackConsensus failed', err, { topicId });
 			}
 		});
 		return { id: 'async', name: 'trackConsensus', data: { topicId } };
@@ -425,7 +423,7 @@ export async function enqueueTrackConsensus(topicId: string) {
 			try {
 				await updateTopicConsensusSnapshot(topicId);
 			} catch (err: any) {
-				console.error(`[Queue] Async trackConsensus failed:`, err);
+				log.error('Async trackConsensus failed', err, { topicId });
 			}
 		});
 		return { id: 'async', name: 'trackConsensus', data: { topicId } };
@@ -440,201 +438,16 @@ export async function enqueueTrackConsensus(topicId: string) {
 		});
 		return job;
 	} catch (err: any) {
-		console.warn(`[Queue] Failed to enqueue trackConsensus (${err.message}), using async fallback`);
+		log.warn('Failed to enqueue trackConsensus, using async fallback', { error: err.message, topicId });
 		redisAvailable = false;
 		setImmediate(async () => {
 			try {
 				await updateTopicConsensusSnapshot(topicId);
 			} catch (syncErr: any) {
-				console.error(`[Queue] Async trackConsensus failed:`, syncErr);
+				log.error('Async trackConsensus failed', syncErr, { topicId });
 			}
 		});
 		return { id: 'async', name: 'trackConsensus', data: { topicId } };
-	}
-}
-
-/**
- * 将消息监督分析加入队列
- */
-export async function enqueueModeration(messageId: string, roomId: string) {
-	const q = initQueue();
-	if (!q) {
-		// Redis不可用，异步执行
-		console.log(`[Queue] Redis unavailable, processing moderation asynchronously for message ${messageId}`);
-		setImmediate(async () => {
-			try {
-				await moderateMessage(messageId, roomId);
-			} catch (err: any) {
-				console.error(`[Queue] Async moderation failed:`, err);
-			}
-		});
-		return;
-	}
-
-	try {
-		const job = await q.add(
-			'moderate',
-			{ messageId, roomId },
-			{
-				attempts: 2,
-				backoff: {
-					type: 'exponential',
-					delay: 2000
-				},
-				removeOnComplete: {
-					age: 3600, // 保留1小时
-					count: 1000
-				},
-				removeOnFail: {
-					age: 86400 // 失败任务保留24小时
-				}
-			}
-		);
-		console.log(`[Queue] Moderation job enqueued: ${job.id} for message ${messageId}`);
-	} catch (err: any) {
-		console.warn(`[Queue] Failed to enqueue moderation (${err.message}), using async fallback`);
-		setImmediate(async () => {
-			try {
-				await moderateMessage(messageId, roomId);
-			} catch (error: any) {
-				console.error(`[Queue] Async moderation failed:`, error);
-			}
-		});
-	}
-}
-
-/**
- * 将聊天分析加入队列
- */
-export async function enqueueChatAnalysis(roomId: string) {
-	const q = initQueue();
-	if (!q) {
-		// Redis不可用，异步执行
-		console.log(`[Queue] Redis unavailable, processing chat analysis asynchronously for room ${roomId}`);
-		setImmediate(async () => {
-			try {
-				const result = await analyzeChatConsensus(roomId);
-				// 保存分析结果
-				await prisma.chatAnalysis.upsert({
-					where: { roomId },
-					update: {
-						consensusPoints: result.consensusPoints as any,
-						consensusScore: result.consensusScore,
-						consensusTrend: result.consensusTrend as any,
-						disagreementPoints: result.disagreementPoints as any,
-						divergenceScore: result.divergenceScore,
-						divergenceTrend: result.divergenceTrend as any,
-						averageDepth: result.averageDepth,
-						maxDepth: result.maxDepth,
-						totalReferences: result.totalReferences,
-						aiAdoptionRate: result.aiAdoptionRate,
-						creatorMessageCount: result.creatorMessageCount,
-						participantMessageCount: result.participantMessageCount,
-						creatorAiAdoptionCount: result.creatorAiAdoptionCount,
-						participantAiAdoptionCount: result.participantAiAdoptionCount,
-						creatorAiSuggestionCount: result.creatorAiSuggestionCount,
-						participantAiSuggestionCount: result.participantAiSuggestionCount,
-						lastAnalyzedAt: new Date()
-					},
-					create: {
-						roomId,
-						consensusPoints: result.consensusPoints as any,
-						consensusScore: result.consensusScore,
-						consensusTrend: result.consensusTrend as any,
-						disagreementPoints: result.disagreementPoints as any,
-						divergenceScore: result.divergenceScore,
-						divergenceTrend: result.divergenceTrend as any,
-						averageDepth: result.averageDepth,
-						maxDepth: result.maxDepth,
-						totalReferences: result.totalReferences,
-						aiAdoptionRate: result.aiAdoptionRate,
-						creatorMessageCount: result.creatorMessageCount,
-						participantMessageCount: result.participantMessageCount,
-						creatorAiAdoptionCount: result.creatorAiAdoptionCount,
-						participantAiAdoptionCount: result.participantAiAdoptionCount,
-						creatorAiSuggestionCount: result.creatorAiSuggestionCount,
-						participantAiSuggestionCount: result.participantAiSuggestionCount,
-						lastAnalyzedAt: new Date()
-					}
-				});
-			} catch (err: any) {
-				console.error(`[Queue] Async chat analysis failed:`, err);
-			}
-		});
-		return;
-	}
-
-	try {
-		const job = await q.add(
-			'chatAnalysis',
-			{ roomId },
-			{
-				attempts: 2,
-				backoff: {
-					type: 'exponential',
-					delay: 2000
-				},
-				removeOnComplete: {
-					age: 3600, // 保留1小时
-					count: 1000
-				},
-				removeOnFail: {
-					age: 86400 // 失败任务保留24小时
-				}
-			}
-		);
-		console.log(`[Queue] Chat analysis job enqueued: ${job.id} for room ${roomId}`);
-	} catch (err: any) {
-		console.warn(`[Queue] Failed to enqueue chat analysis (${err.message}), using async fallback`);
-		setImmediate(async () => {
-			try {
-				const result = await analyzeChatConsensus(roomId);
-				await prisma.chatAnalysis.upsert({
-					where: { roomId },
-					update: {
-						consensusPoints: result.consensusPoints as any,
-						consensusScore: result.consensusScore,
-						consensusTrend: result.consensusTrend as any,
-						disagreementPoints: result.disagreementPoints as any,
-						divergenceScore: result.divergenceScore,
-						divergenceTrend: result.divergenceTrend as any,
-						averageDepth: result.averageDepth,
-						maxDepth: result.maxDepth,
-						totalReferences: result.totalReferences,
-						aiAdoptionRate: result.aiAdoptionRate,
-						creatorMessageCount: result.creatorMessageCount,
-						participantMessageCount: result.participantMessageCount,
-						creatorAiAdoptionCount: result.creatorAiAdoptionCount,
-						participantAiAdoptionCount: result.participantAiAdoptionCount,
-						creatorAiSuggestionCount: result.creatorAiSuggestionCount,
-						participantAiSuggestionCount: result.participantAiSuggestionCount,
-						lastAnalyzedAt: new Date()
-					},
-					create: {
-						roomId,
-						consensusPoints: result.consensusPoints as any,
-						consensusScore: result.consensusScore,
-						consensusTrend: result.consensusTrend as any,
-						disagreementPoints: result.disagreementPoints as any,
-						divergenceScore: result.divergenceScore,
-						divergenceTrend: result.divergenceTrend as any,
-						averageDepth: result.averageDepth,
-						maxDepth: result.maxDepth,
-						totalReferences: result.totalReferences,
-						aiAdoptionRate: result.aiAdoptionRate,
-						creatorMessageCount: result.creatorMessageCount,
-						participantMessageCount: result.participantMessageCount,
-						creatorAiAdoptionCount: result.creatorAiAdoptionCount,
-						participantAiAdoptionCount: result.participantAiAdoptionCount,
-						creatorAiSuggestionCount: result.creatorAiSuggestionCount,
-						participantAiSuggestionCount: result.participantAiSuggestionCount,
-						lastAnalyzedAt: new Date()
-					}
-				});
-			} catch (error: any) {
-				console.error(`[Queue] Async chat analysis failed:`, error);
-			}
-		});
 	}
 }
 

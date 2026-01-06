@@ -18,7 +18,8 @@ const Schema = z.object({
 	size: z.number().int().positive(),
 	topicId: z.string().optional(),
 	title: z.string().min(1, '标题不能为空').max(200, '标题不能超过200字').optional(),
-	parentId: z.string().nullable().optional()
+	parentId: z.string().nullable().optional(),
+	type: z.enum(['article', 'discussion']).optional().default('discussion')
 });
 
 export async function POST(req: Request) {
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
 		}
 		
 		// Validate schema
-		let validatedData: { key: string; mime: string; size: number; topicId?: string; title?: string; parentId?: string | null };
+		let validatedData: { key: string; mime: string; size: number; topicId?: string; title?: string; parentId?: string | null; type?: 'article' | 'discussion' };
 		try {
 			validatedData = Schema.parse(json);
 		} catch (schemaErr: any) {
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
 			});
 		}
 		
-		const { key, mime, size, topicId, title, parentId } = validatedData;
+		const { key, mime, size, topicId, title, parentId, type = 'discussion' } = validatedData;
 		console.log(`[Upload Complete] Validated data: key=${key}, mime=${mime}, size=${size}, topicId=${topicId || 'new'}, title=${title || 'N/A'}, parentId=${parentId || 'null'}`);
 		
 		// Validate parentId if provided (only for existing topics)
@@ -129,6 +130,7 @@ export async function POST(req: Request) {
 				const topic = await prisma.topic.create({
 					data: { 
 						title: title.trim(), // User-provided title
+						type: type, // 'article' | 'discussion'
 						authorId: String(session.sub) 
 					}
 				});
@@ -136,11 +138,18 @@ export async function POST(req: Request) {
 			}
 
 			// Initialize processing status
-			const processingStatus = {
-				extract: 'pending' as const,
-				summarize: 'pending' as const,
-				evaluate: 'pending' as const
-			};
+			// 文章类型只提取文本，不进行 AI 分析
+			const processingStatus = type === 'article' 
+				? {
+					extract: 'pending' as const,
+					summarize: 'skipped' as const,
+					evaluate: 'skipped' as const
+				}
+				: {
+					extract: 'pending' as const,
+					summarize: 'pending' as const,
+					evaluate: 'pending' as const
+				};
 
 			doc = await prisma.document.create({
 				data: {
@@ -175,6 +184,7 @@ export async function POST(req: Request) {
 		if (isSimpleFile) {
 			// For simple files, extract immediately and wait for completion
 			// This ensures content is available when user sees the page
+			// Both article and discussion types need text extraction for display
 			console.log(`[Upload] Detected simple file type, starting immediate extraction for ${doc.id}`);
 			try {
 				const { extractAndStore } = await import('@/lib/processing/extract');
@@ -190,6 +200,20 @@ export async function POST(req: Request) {
 				try {
 					await Promise.race([extractPromise, timeoutPromise]);
 					console.log(`[Upload] ✅ Immediate extract completed for simple file: ${doc.id}`);
+					
+					// For article type, update processing status after extraction
+					if (type === 'article') {
+						await prisma.document.update({
+							where: { id: doc.id },
+							data: {
+								processingStatus: {
+									extract: 'completed',
+									summarize: 'skipped',
+									evaluate: 'skipped'
+								}
+							}
+						});
+					}
 				} catch (extractErr: any) {
 					if (extractErr.message === 'Extraction timeout') {
 						console.warn(`[Upload] ⚠️ Extract timeout (${timeoutMs}ms) for ${doc.id}, will continue in background`);
@@ -202,39 +226,46 @@ export async function POST(req: Request) {
 					} else {
 						console.error('[Upload] ❌ Immediate extract failed for simple file:', extractErr);
 						console.error('[Upload] Error details:', extractErr.stack);
-						// Fallback to async queue if immediate extract fails
-						getEnqueueExtract().then(enqueueExtract => {
-							enqueueExtract(doc.id).catch((err) => {
-								console.error('[Upload] Failed to enqueue extract:', err);
-							});
-						}).catch(() => {});
+						// Fallback to async queue if immediate extract fails (only for discussion type)
+						if (type === 'discussion') {
+							getEnqueueExtract().then(enqueueExtract => {
+								enqueueExtract(doc.id).catch((err) => {
+									console.error('[Upload] Failed to enqueue extract:', err);
+								});
+							}).catch(() => {});
+						}
 					}
 				}
 			} catch (extractErr: any) {
 				console.warn('[Upload] Failed to do immediate extract, will use async:', extractErr);
 				console.warn('[Upload] Error details:', extractErr.stack);
-				// Fallback to async extraction
-				try {
-					const enqueueExtract = await getEnqueueExtract();
-					enqueueExtract(doc.id).catch((err) => {
-						console.error('[Upload] Failed to enqueue extract:', err);
-					});
-				} catch (enqueueErr: any) {
-					console.error('[Upload] Failed to load enqueueExtract module:', enqueueErr);
+				// Fallback to async extraction (only for discussion type)
+				if (type === 'discussion') {
+					try {
+						const enqueueExtract = await getEnqueueExtract();
+						enqueueExtract(doc.id).catch((err) => {
+							console.error('[Upload] Failed to enqueue extract:', err);
+						});
+					} catch (enqueueErr: any) {
+						console.error('[Upload] Failed to load enqueueExtract module:', enqueueErr);
+					}
 				}
 			}
 		} else {
 			// For complex files (doc, pdf, rtf, etc.), use async extraction
 			// This ensures upload returns immediately while processing happens in background
-			try {
-				const enqueueExtract = await getEnqueueExtract();
-				enqueueExtract(doc.id).catch((err) => {
-					console.error('[Upload] Failed to enqueue extract:', err);
-					// Log error but don't fail the upload
-				});
-			} catch (enqueueErr: any) {
-				console.error('[Upload] Failed to load enqueueExtract module:', enqueueErr);
-				// Continue even if enqueue module fails to load
+			// Only trigger AI processing for discussion type
+			if (type === 'discussion') {
+				try {
+					const enqueueExtract = await getEnqueueExtract();
+					enqueueExtract(doc.id).catch((err) => {
+						console.error('[Upload] Failed to enqueue extract:', err);
+						// Log error but don't fail the upload
+					});
+				} catch (enqueueErr: any) {
+					console.error('[Upload] Failed to load enqueueExtract module:', enqueueErr);
+					// Continue even if enqueue module fails to load
+				}
 			}
 		}
 

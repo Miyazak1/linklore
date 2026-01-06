@@ -2,10 +2,11 @@
 import { useState } from 'react';
 import DocumentQualityHint from './DocumentQualityHint';
 import { checkDocumentQuality } from '@/lib/processing/documentQuality';
+import Avatar from '@/components/ui/Avatar';
 
 type Doc = {
 	id: string;
-	author: { email: string };
+	author: { email: string; name: string | null; avatarUrl: string | null };
 	createdAt: string; // ISO string from server
 	extractedTextHtml: string | null; // Already converted to string on server
 	evaluations: any[];
@@ -38,8 +39,24 @@ export default function DocumentViewer({ doc, docIndex, blind }: { doc: Doc; doc
 					color: 'var(--color-primary)',
 					minWidth: '40px'
 				}}>#{docIndex}</span>
-				<span style={{ fontSize: 'var(--font-size-sm)' }}>
-					<strong>作者：</strong>{blind ? '匿名' : doc.author.email}
+				<span style={{ 
+					fontSize: 'var(--font-size-sm)',
+					display: 'flex',
+					alignItems: 'center',
+					gap: 'var(--spacing-xs)'
+				}}>
+					{!blind && (
+						<Avatar
+							avatarUrl={doc.author.avatarUrl}
+							name={doc.author.name || doc.author.email.split('@')[0]}
+							email={doc.author.email}
+							size={20}
+						/>
+					)}
+					<span>
+						<strong>作者：</strong>
+						{blind ? '匿名' : (doc.author.name || doc.author.email.split('@')[0])}
+					</span>
 				</span>
 				<span style={{ 
 					color: 'var(--color-text-secondary)', 

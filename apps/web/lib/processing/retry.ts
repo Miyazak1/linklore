@@ -1,3 +1,7 @@
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('Retry');
+
 /**
  * 带重试的处理函数（指数退避策略）
  */
@@ -21,7 +25,7 @@ export async function processWithRetry<T>(
 
 			// 指数退避：delay = initialDelay * 2^attempt
 			const delay = initialDelay * Math.pow(2, attempt);
-			console.warn(`[Retry] Attempt ${attempt + 1} failed, retrying in ${delay}ms:`, err.message);
+			log.warn('Retry attempt failed', { attempt: attempt + 1, delay, error: err.message });
 			
 			await new Promise(resolve => setTimeout(resolve, delay));
 		}

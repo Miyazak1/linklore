@@ -154,3 +154,9 @@ declare module 'ali-oss' {
 
 
 
+
+
+
+
+
+

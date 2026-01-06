@@ -175,14 +175,10 @@ export default function BookList({ initialBooks }: { initialBooks: Book[] }) {
 							}}
 							onClick={() => window.location.href = `/books/${book.id}`}
 							onMouseEnter={(e) => {
-								e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-								e.currentTarget.style.transform = 'translateY(-4px)';
-								e.currentTarget.style.borderColor = 'var(--color-primary)';
+								e.currentTarget.style.borderColor = 'var(--color-border)';
 							}}
 							onMouseLeave={(e) => {
-								e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-								e.currentTarget.style.transform = 'translateY(0)';
-								e.currentTarget.style.borderColor = 'var(--color-border-light)';
+								e.currentTarget.style.borderColor = 'var(--color-border)';
 							}}
 						>
 							{book.coverUrl ? (

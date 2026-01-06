@@ -1,5 +1,8 @@
 import { prisma } from '@/lib/db/client';
 import { callAiProvider, getApiKeyFromConfig, type AiProvider } from './adapters';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('AI Router');
 
 type RouteInput = {
 	userId: string | null;
@@ -25,14 +28,19 @@ export async function routeAiCall(input: RouteInput) {
 		orderBy: { updatedAt: 'desc' }
 	});
 	
-	console.log(`[AI Router] System config found: ${!!systemConfig}`);
+	log.debug('System config found', { found: !!systemConfig });
 	if (systemConfig) {
-		console.log(`[AI Router] Using system config: provider=${systemConfig.provider}, model=${systemConfig.model}, hasApiKey=${!!systemConfig.encApiKey}, endpoint=${systemConfig.apiEndpoint || 'default'}`);
+		log.debug('Using system config', { 
+			provider: systemConfig.provider, 
+			model: systemConfig.model, 
+			hasApiKey: !!systemConfig.encApiKey, 
+			endpoint: systemConfig.apiEndpoint || 'default' 
+		});
 	}
 	
 	// 如果没有系统配置，尝试使用管理员的用户配置
 	if (!systemConfig) {
-		console.log(`[AI Router] No system config, checking admin user config...`);
+		log.debug('No system config, checking admin user config');
 		const admin = await prisma.user.findFirst({
 			where: { role: 'admin' },
 			include: { 
@@ -47,7 +55,10 @@ export async function routeAiCall(input: RouteInput) {
 			});
 			
 			if (adminConfig) {
-				console.log(`[AI Router] Using admin user config: provider=${adminConfig.provider}, model=${adminConfig.model}`);
+				log.debug('Using admin user config', { 
+					provider: adminConfig.provider, 
+					model: adminConfig.model 
+				});
 				// 将管理员的配置转换为系统配置格式
 				systemConfig = {
 					id: adminConfig.id,
@@ -60,10 +71,10 @@ export async function routeAiCall(input: RouteInput) {
 					createdAt: adminConfig.createdAt
 				} as any;
 			} else {
-				console.log(`[AI Router] Admin user has no AI config`);
+				log.debug('Admin user has no AI config');
 			}
 		} else {
-			console.log(`[AI Router] No admin user found`);
+			log.debug('No admin user found');
 		}
 	}
 	
@@ -82,25 +93,25 @@ export async function routeAiCall(input: RouteInput) {
 	if (systemConfig?.encApiKey) {
 		try {
 			apiKey = getApiKeyFromConfig(systemConfig.encApiKey);
-			console.log(`[AI Router] API Key decoded successfully, length: ${apiKey.length}`);
+			log.debug('API Key decoded successfully', { length: apiKey.length });
 		} catch (err: any) {
-			console.error(`[AI Router] Failed to decode API key:`, err.message);
+			log.error('Failed to decode API key', err);
 			throw new Error(`API Key 解码失败: ${err.message}`);
 		}
 	} else {
 		// Fallback to environment variable
 		apiKey = process.env.AI_API_KEY || '';
-		console.log(`[AI Router] Using environment variable API key, length: ${apiKey.length}`);
+		log.debug('Using environment variable API key', { length: apiKey.length });
 		if (!apiKey) {
 			throw new Error('未配置 AI API Key，请管理员在设置页面配置系统 AI API Key');
 		}
 	}
 	
-	console.log(`[AI Router] Making AI call: provider=${provider}, model=${model}, endpoint=${apiEndpoint || 'default'}`);
+	log.debug('Making AI call', { provider, model, endpoint: apiEndpoint || 'default' });
 
 	// Make actual AI call
 	try {
-		console.log(`[AI Router] Calling AI provider with model: ${model}`);
+		log.debug('Calling AI provider', { model });
 		// 根据任务类型和估算成本调整maxTokens
 		// 生成完整议题需要更多token
 		const maxTokens = input.estimatedMaxCostCents > 200 
@@ -117,7 +128,7 @@ export async function routeAiCall(input: RouteInput) {
 			temperature: 0.7,
 			apiEndpoint
 		});
-		console.log(`[AI Router] AI call successful, response length: ${result.text.length}`);
+		log.debug('AI call successful', { responseLength: result.text.length });
 
 		// Log usage
 		await prisma.aiUsageLog.create({

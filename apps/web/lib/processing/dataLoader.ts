@@ -30,21 +30,3 @@ export async function loadUsersBatch(userIds: string[]) {
 
 // 语义溯源功能已移除
 
-/**
- * 批量加载词条信息
- */
-export async function loadEntriesBatch(slugs: string[]) {
-	if (slugs.length === 0) return [];
-
-	const entries = await prisma.entry.findMany({
-		where: {
-			slug: { in: slugs }
-		}
-	});
-
-	const entryMap = new Map(entries.map(e => [e.slug, e]));
-	return slugs.map(slug => entryMap.get(slug) || null).filter(Boolean);
-}
-
-// 语义溯源功能已移除
-

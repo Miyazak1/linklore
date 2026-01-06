@@ -5,16 +5,16 @@ import { prisma } from '@/lib/db/client';
 
 const Schema = z.object({
 	title: z.string().min(1),
-	author: z.string().optional(),
-	coverUrl: z.string().url().optional().or(z.literal('')),
-	overview: z.string().optional(),
-	source: z.string().optional(),
-	category: z.string().optional(),
-	tags: z.array(z.string()).optional(),
-	language: z.string().optional(),
-	isbn: z.string().optional(),
-	publisher: z.string().optional(),
-	publishYear: z.number().int().min(1000).max(3000).optional(),
+	author: z.string().optional().nullable(),
+	coverUrl: z.string().url().optional().or(z.literal('')).nullable(),
+	overview: z.string().optional().nullable(),
+	source: z.string().optional().nullable(),
+	category: z.string().optional().nullable(),
+	tags: z.array(z.string()).optional().nullable(),
+	language: z.string().optional().nullable(),
+	isbn: z.string().optional().nullable(),
+	publisher: z.string().optional().nullable(),
+	publishYear: z.number().int().min(1000).max(3000).optional().nullable(),
 });
 
 export async function POST(req: Request) {

@@ -4,6 +4,8 @@ import { checkDocumentQuality } from './documentQuality';
 import { getDocumentTree } from '@/lib/topics/documentTree';
 import { getDocumentPath } from '@/lib/topics/documentTree';
 import crypto from 'crypto';
+import { createModuleLogger } from '@/lib/utils/logger';
+const log = createModuleLogger('AnalyzeDisagreements');
 // 分析锁（防止并发分析）
 const analysisLocks = new Map();
 // Debounce 缓存（5分钟内只分析一次）
@@ -17,12 +19,12 @@ export async function analyzeDisagreementsIncremental(topicId, newDocumentId) {
     const cacheKey = `topic:${topicId}:${newDocumentId || 'all'}`;
     const cached = analysisCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < DEBOUNCE_MS) {
-        console.log(`[AnalyzeDisagreements] Using cached result for ${cacheKey}`);
+        log.debug('Using cached result', { cacheKey });
         return cached.result;
     }
     // 检查分析锁
     if (analysisLocks.has(cacheKey)) {
-        console.log(`[AnalyzeDisagreements] Analysis already in progress for ${cacheKey}, waiting...`);
+        log.debug('Analysis already in progress, waiting', { cacheKey });
         return await analysisLocks.get(cacheKey);
     }
     // 创建分析任务
@@ -39,9 +41,9 @@ export async function analyzeDisagreementsIncremental(topicId, newDocumentId) {
     }
 }
 async function performAnalysis(topicId, newDocumentId) {
-    console.log(`[AnalyzeDisagreements] Starting analysis for topic ${topicId}, newDoc: ${newDocumentId || 'all'}`);
-    // 获取文档树
-    const docTree = await getDocumentTree(topicId);
+    log.debug('Starting analysis', { topicId, newDocumentId: newDocumentId || 'all' });
+    // 获取文档树 (不加载extractedText以提升性能)
+    const docTree = await getDocumentTree(topicId, false);
     // 获取所有文档的详细信息（包括评价）
     const allDocIds = new Set();
     const collectIds = (nodes) => {
@@ -69,9 +71,9 @@ async function performAnalysis(topicId, newDocumentId) {
         const qualityCheck = checkDocumentQuality(doc.evaluations[0], doc.topic?.discipline || undefined);
         return qualityCheck.isSufficient;
     });
-    console.log(`[AnalyzeDisagreements] Total docs: ${docs.length}, Quality docs: ${qualityDocs.length}`);
+    log.debug('Document quality check', { totalDocs: docs.length, qualityDocs: qualityDocs.length });
     if (qualityDocs.length < 2) {
-        console.log(`[AnalyzeDisagreements] Not enough quality documents for analysis`);
+        log.debug('Not enough quality documents for analysis');
         return [];
     }
     // 如果是增量分析，只分析新文档与已有文档的分歧
@@ -79,7 +81,7 @@ async function performAnalysis(topicId, newDocumentId) {
     if (newDocumentId) {
         const newDoc = qualityDocs.find(d => d.id === newDocumentId);
         if (!newDoc) {
-            console.log(`[AnalyzeDisagreements] New document ${newDocumentId} not found or quality insufficient`);
+            log.debug('New document not found or quality insufficient', { newDocumentId });
             return [];
         }
         // 新文档与所有其他文档比较
@@ -97,7 +99,7 @@ async function performAnalysis(topicId, newDocumentId) {
             }
         }
     }
-    console.log(`[AnalyzeDisagreements] Analyzing ${docPairs.length} document pairs`);
+    log.debug('Analyzing document pairs', { pairCount: docPairs.length });
     // 批量分析（每次分析最多10对）
     const batchSize = 10;
     const allDisagreements = [];
@@ -154,7 +156,7 @@ async function analyzePair(doc1, doc2, topicId) {
     try {
         const result = await routeAiCall({
             userId: doc1.authorId, // 使用文档1的作者ID
-            task: 'analyze',
+            task: 'evaluate',
             estimatedMaxCostCents: 30,
             prompt
         });
@@ -187,7 +189,7 @@ async function analyzePair(doc1, doc2, topicId) {
         };
     }
     catch (error) {
-        console.error(`[AnalyzeDisagreements] Failed to analyze pair (${doc1.id}, ${doc2.id}):`, error);
+        log.error('Failed to analyze pair', error, { doc1Id: doc1.id, doc2Id: doc2.id });
         return null;
     }
 }

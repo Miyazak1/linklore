@@ -30,7 +30,7 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						fontWeight: 700,
 						letterSpacing: '-0.02em',
 						color: 'var(--color-primary)'
-					}}>LinkLore</h1>
+					}}>Mooyu</h1>
 					<p style={{ 
 						color: 'var(--color-text-secondary)', 
 						marginBottom: 0,
@@ -175,7 +175,7 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 					flexWrap: 'wrap',
 					gap: 'var(--spacing-md)'
 				}}>
-					<a href="/upload" style={{ 
+					<a href="/discussion" style={{ 
 						padding: 'var(--spacing-sm) var(--spacing-md)',
 						background: 'var(--color-primary)',
 						color: 'white',

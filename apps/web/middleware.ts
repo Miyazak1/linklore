@@ -4,9 +4,7 @@ import { readSessionFromRequest } from './lib/auth/middleware';
 import { checkRateLimit } from './lib/rate-limit/middleware';
 
 // Protected routes that require authentication
-// 注意：/chat 不再需要登录，支持匿名用户访问
-const protectedRoutes = ['/upload', '/settings', '/shelf'];
-const authRoutes = ['/signin', '/signup'];
+const protectedRoutes = ['/discussion', '/settings', '/shelf'];
 
 export async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
@@ -51,34 +49,10 @@ export async function middleware(request: NextRequest) {
 		} else if (pathname.startsWith('/api/ai/')) {
 			maxRequests = 30; // Moderate limit for AI endpoints
 			windowSeconds = 60;
-		} else if (pathname.startsWith('/api/chat/')) {
-			// 聊天 API 限流
-			if (pathname.includes('/messages') && pathname.includes('/adopt')) {
-				maxRequests = 20; // 采纳操作：每分钟20次
-			} else if (pathname.includes('/messages')) {
-				maxRequests = 30; // 发送消息：每分钟30次
-			} else if (pathname.includes('/ai/stream')) {
-				maxRequests = 10; // AI 流式输出：每分钟10次
-			} else {
-				maxRequests = 60; // 其他聊天操作：每分钟60次
-			}
-			windowSeconds = 60;
 		} else if (pathname.startsWith('/api/topics/') && pathname.includes('/comments')) {
 			// 评论API限流：每分钟最多5条
 			maxRequests = 5;
 			windowSeconds = 60;
-		} else if (pathname.startsWith('/api/traces/')) {
-			// 溯源API限流
-			if (pathname.includes('/publish')) {
-				maxRequests = 10; // 发布：每小时10次
-				windowSeconds = 3600;
-			} else if (pathname.match(/\/api\/traces\/[^/]+\/citations/)) {
-				maxRequests = 50; // 引用操作：每小时50次
-				windowSeconds = 3600;
-			} else {
-				maxRequests = 100; // 其他操作：每小时100次
-				windowSeconds = 3600;
-			}
 		}
 
 		const rateLimitResult = await checkRateLimit(identifier, maxRequests, windowSeconds);
@@ -108,19 +82,15 @@ export async function middleware(request: NextRequest) {
 	if (protectedRoutes.some((route) => pathname.startsWith(route))) {
 		const session = await readSessionFromRequest(request);
 		if (!session?.sub) {
-			const signInUrl = new URL('/signin', request.url);
-			signInUrl.searchParams.set('redirect', pathname);
-			return NextResponse.redirect(signInUrl);
+			// 重定向到首页，并在 URL 中添加参数表示需要登录
+			const homeUrl = new URL('/', request.url);
+			homeUrl.searchParams.set('redirect', pathname);
+			homeUrl.searchParams.set('login', 'true');
+			return NextResponse.redirect(homeUrl);
 		}
 	}
 
-	// Redirect authenticated users away from auth pages
-	if (authRoutes.includes(pathname)) {
-		const session = await readSessionFromRequest(request);
-		if (session?.sub) {
-			return NextResponse.redirect(new URL('/', request.url));
-		}
-	}
+	// 旧的 auth 路由已经删除，不再需要重定向
 
 	return response;
 }

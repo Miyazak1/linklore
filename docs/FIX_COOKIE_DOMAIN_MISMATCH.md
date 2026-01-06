@@ -198,3 +198,9 @@ pm2 logs linklore-web --lines 50 | grep -i "cookie\|session"
 
 确保 nginx 正确配置了域名重定向（如果使用方案 1）。
 
+
+
+
+
+
+

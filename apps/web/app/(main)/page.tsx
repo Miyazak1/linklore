@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/db/client';
 import NewHomePage from '@/components/ui/NewHomePage';
 import { getCache, setCache } from '@/lib/cache/redis';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('HomePage');
 
 export default async function HomePage() {
 	try {
@@ -11,7 +14,7 @@ export default async function HomePage() {
 		try {
 			cached = await getCache<{ topics: number; documents: number; users: number; books: number }>(cacheKey);
 		} catch (cacheErr) {
-			console.warn('[HomePage] Cache error (non-fatal):', cacheErr);
+			log.warn('Cache error (non-fatal)', { error: cacheErr });
 		}
 		
 		let totalTopics: number;
@@ -43,10 +46,10 @@ export default async function HomePage() {
 						books: totalBooks
 					}, 300);
 				} catch (setCacheErr) {
-					console.warn('[HomePage] Set cache error (non-fatal):', setCacheErr);
+					log.warn('Set cache error (non-fatal)', { error: setCacheErr });
 				}
 			} catch (dbErr) {
-				console.error('[HomePage] Database error:', dbErr);
+				log.error('Database error', dbErr);
 				// Fallback values if database fails
 				totalTopics = 0;
 				totalDocuments = 0;
@@ -69,7 +72,7 @@ export default async function HomePage() {
 			</main>
 		);
 	} catch (err: any) {
-		console.error('[HomePage] Unexpected error:', err);
+		log.error('Unexpected error', err);
 		// Return a basic error page instead of crashing
 		return (
 			<main style={{ 

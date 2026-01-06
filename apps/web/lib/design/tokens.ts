@@ -1,5 +1,5 @@
 /**
- * Design tokens for LinkLore
+ * Design tokens for Mooyu
  * Centralized design system values
  */
 

@@ -10,7 +10,7 @@ import {
 	SettingsIcon,
 	PlusIcon
 } from '@/components/ui/Icons';
-import ChatPageLoader from '@/components/ui/ChatPageLoader';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface AdminCard {
 	id: string;
@@ -75,7 +75,7 @@ export default function AdminDashboardPage() {
 	}, [isAuthenticated, user, authLoading, router]);
 
 	if (authLoading || checking) {
-		return <ChatPageLoader message="加载中..." />;
+		return <LoadingSpinner fullscreen message="加载中..." />;
 	}
 
 	// 按分类分组
@@ -179,14 +179,10 @@ export default function AdminDashboardPage() {
 											overflow: 'hidden'
 										}}
 										onMouseEnter={(e) => {
-											e.currentTarget.style.transform = 'translateY(-4px)';
-											e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-											e.currentTarget.style.borderColor = card.color;
+											e.currentTarget.style.borderColor = 'var(--color-border)';
 										}}
 										onMouseLeave={(e) => {
-											e.currentTarget.style.transform = '';
-											e.currentTarget.style.boxShadow = 'var(--shadow-subtle)';
-											e.currentTarget.style.borderColor = 'var(--color-border-light)';
+											e.currentTarget.style.borderColor = 'var(--color-border)';
 										}}
 									>
 										{/* 装饰性颜色条 */}

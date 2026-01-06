@@ -5,7 +5,7 @@ export interface DocumentTreeNode {
 	topicId: string;
 	parentId: string | null;
 	authorId: string;
-	author: { email: string };
+	author: { email: string; name: string | null; avatarUrl: string | null };
 	fileKey: string;
 	mime: string;
 	size: number;
@@ -41,7 +41,7 @@ export async function getDocumentTree(topicId: string, includeText: boolean = fa
 			topicId: true,
 			parentId: true,
 			authorId: true,
-			author: { select: { email: true } },
+			author: { select: { email: true, name: true, avatarUrl: true } },
 			fileKey: true,
 			mime: true,
 			size: true,

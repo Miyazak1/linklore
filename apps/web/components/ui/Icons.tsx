@@ -45,10 +45,26 @@ import {
 	Sparkles,
 	Loader2,
 	Shield,
-	Filter
+	Filter,
+	Gamepad2,
+	MousePointerClick,
+	PenTool,
+	ArrowUpDown,
+	Square,
+	GitCompare,
+	Grid,
+	List,
+	FolderTree,
+	Edit,
+	Play,
+	Shuffle,
+	Repeat,
+	Share2,
+	Volume2,
+	Award
 } from 'lucide-react';
 
-interface IconProps {
+export interface IconProps {
 	size?: number | string;
 	color?: string;
 	className?: string;
@@ -87,6 +103,22 @@ export const SparklesIcon = (props: IconProps) => <Sparkles {...props} />;
 export const LoadingSpinner = (props: IconProps) => <Loader2 {...props} style={{ ...props.style, animation: 'spin 1s linear infinite' }} />;
 export const ShieldIcon = (props: IconProps) => <Shield {...props} />;
 export const FilterIcon = (props: IconProps) => <Filter {...props} />;
+export const GamepadIcon = (props: IconProps) => <Gamepad2 {...props} />;
+export const MousePointerClickIcon = (props: IconProps) => <MousePointerClick {...props} />;
+export const PenToolIcon = (props: IconProps) => <PenTool {...props} />;
+export const SortAscIcon = (props: IconProps) => <ArrowUpDown {...props} />;
+export const SquareIcon = (props: IconProps) => <Square {...props} />;
+export const CompareIcon = (props: IconProps) => <GitCompare {...props} />;
+export const GridIcon = (props: IconProps) => <Grid {...props} />;
+export const ListIcon = (props: IconProps) => <List {...props} />;
+export const FolderTreeIcon = (props: IconProps) => <FolderTree {...props} />;
+export const EditIcon = (props: IconProps) => <Edit {...props} />;
+export const PlayIcon = (props: IconProps) => <Play {...props} />;
+export const ShuffleIcon = (props: IconProps) => <Shuffle {...props} />;
+export const RepeatIcon = (props: IconProps) => <Repeat {...props} />;
+export const ShareIcon = (props: IconProps) => <Share2 {...props} />;
+export const Volume2Icon = (props: IconProps) => <Volume2 {...props} />;
+export const AwardIcon = (props: IconProps) => <Award {...props} />;
 
 // UI 图标
 export const MenuIcon = (props: IconProps) => <Menu {...props} />;

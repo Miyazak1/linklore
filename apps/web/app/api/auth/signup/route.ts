@@ -33,8 +33,16 @@ export async function POST(req: Request) {
 		}
 		const passwordHash = await hash(password, 10);
 		const user = await prisma.user.create({
-			data: { email, passwordHash }
+			data: { 
+				email, 
+				passwordHash, 
+				emailVerified: false 
+			}
 		});
+
+		// 发送邮箱验证邮件
+		const { createAndSendVerificationToken } = await import('@/lib/auth/emailVerification');
+		await createAndSendVerificationToken(user.id, user.email);
 
 		// 暂时取消邀请码验证：如果提供了邀请码才验证，否则跳过
 		if (inviteCode && inviteCode.trim().length >= 4) {

@@ -1,6 +1,6 @@
 export default {
 	common: {
-		appName: "LinkLore",
+		appName: "Mooyu",
 		appDescription: "Small-scale academic discussion platform (documents as topics)",
 		loading: "Loading...",
 		error: "Error",
@@ -24,7 +24,7 @@ export default {
 		shelf: "My Shelf"
 	},
 	home: {
-		title: "LinkLore",
+		title: "Mooyu",
 		subtitle: "Small-scale academic discussion platform (documents as topics)",
 		stats: {
 			topics: "Topics",

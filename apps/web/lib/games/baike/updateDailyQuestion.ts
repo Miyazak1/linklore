@@ -9,14 +9,16 @@ const log = createModuleLogger('UpdateDailyQuestion');
  * 从百度百科获取随机词条作为当日题目
  * @param date 日期（YYYYMMDD格式），如果不提供则使用今天
  * @param maxRetries 最大重试次数，默认5次
+ * @param forceUpdate 是否强制更新（即使题目已存在也重新获取），默认false
  */
 export async function updateDailyQuestion(
 	date?: string,
-	maxRetries: number = 5
+	maxRetries: number = 5,
+	forceUpdate: boolean = false
 ): Promise<{ success: boolean; questionId?: string; title?: string; error?: string }> {
 	const targetDate = date || getTodayDate();
 	
-	log.info('开始更新每日题目', { date: targetDate });
+	log.info('开始更新每日题目', { date: targetDate, forceUpdate });
 
 	try {
 		// 检查是否已存在当日题目
@@ -24,13 +26,17 @@ export async function updateDailyQuestion(
 			where: { date: targetDate }
 		});
 
-		if (existing) {
+		if (existing && !forceUpdate) {
 			log.info('当日题目已存在', { date: targetDate, questionId: existing.id, title: existing.title });
 			return {
 				success: true,
 				questionId: existing.id,
 				title: existing.title
 			};
+		}
+		
+		if (existing && forceUpdate) {
+			log.info('强制更新当日题目', { date: targetDate, existingTitle: existing.title });
 		}
 
 		// 从百度百科获取题目，最多重试maxRetries次

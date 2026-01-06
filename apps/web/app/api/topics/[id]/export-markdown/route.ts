@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
+import { readSession } from '@/lib/auth/session';
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
+		// 需要登录才能导出话题
+		const session = await readSession();
+		if (!session?.sub) {
+			return NextResponse.json({ error: '未登录' }, { status: 401 });
+		}
+
 		const { id } = await params;
 		const topic = await prisma.topic.findUnique({
 			where: { id },

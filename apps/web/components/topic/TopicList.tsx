@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Avatar from '@/components/ui/Avatar';
 
 // Client-side version of isBlindReviewWindow
 function isBlindReviewWindow(createdAt: Date): boolean {
@@ -12,12 +13,20 @@ function isBlindReviewWindow(createdAt: Date): boolean {
 type Topic = {
 	id: string;
 	title: string;
+	type?: string; // 'article' | 'discussion'
 	authorId: string;
-	author: { email: string } | null;
+	author: { 
+		email: string;
+		name: string | null;
+		avatarUrl: string | null;
+	} | null;
 	discipline: string | null;
 	createdAt: string;
 	documents: Array<{ id: string; createdAt: string }>;
-	_count: { documents: number };
+	_count: { 
+		documents: number;
+		comments: number; // 评论数
+	};
 };
 
 export default function TopicList() {
@@ -173,9 +182,13 @@ export default function TopicList() {
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
 						{topics.map((topic) => {
 							const blind = isBlindReviewWindow(new Date(topic.createdAt));
-							const authorEmail = blind ? '匿名' : topic.author?.email || '未知';
+							const authorEmail = topic.author?.email || '';
+							const authorName = blind ? '匿名' : (topic.author?.name || authorEmail.split('@')[0] || '未知用户');
+							const authorAvatarUrl = blind ? null : (topic.author?.avatarUrl || null);
 							const docCount = topic._count?.documents || 0;
+							const commentCount = topic._count?.comments || 0;
 							const latestDoc = topic.documents[0];
+							const isArticle = topic.type === 'article';
 							return (
 								<div
 									key={topic.id}
@@ -186,66 +199,256 @@ export default function TopicList() {
 										borderRadius: 'var(--radius-md)',
 										background: 'var(--color-background-paper)',
 										transition: 'all var(--transition-normal)',
-										cursor: 'pointer'
+										cursor: 'pointer',
+										boxShadow: 'var(--shadow-sm)'
 									}}
 									onClick={() => window.location.href = `/topics/${topic.id}`}
 									onMouseEnter={(e) => {
 										e.currentTarget.style.boxShadow = 'var(--shadow-md)';
 										e.currentTarget.style.transform = 'translateY(-2px)';
+										e.currentTarget.style.borderColor = 'var(--color-primary)';
 									}}
 									onMouseLeave={(e) => {
 										e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
 										e.currentTarget.style.transform = 'translateY(0)';
+										e.currentTarget.style.borderColor = 'var(--color-border-light)';
 									}}
 								>
-									<h3 style={{ 
-										margin: '0 0 var(--spacing-sm) 0', 
-										fontSize: 'var(--font-size-xl)',
-										fontWeight: 600,
-										lineHeight: 'var(--line-height-tight)'
+									{/* 标题区域 */}
+									<div style={{
+										marginBottom: 'var(--spacing-md)',
+										display: 'flex',
+										alignItems: 'flex-start',
+										gap: 'var(--spacing-sm)',
+										flexWrap: 'wrap'
 									}}>
-										<a href={`/topics/${topic.id}`} style={{ 
-											textDecoration: 'none', 
-											color: 'var(--color-primary)',
-											transition: 'color var(--transition-fast)'
-										}}
-										onMouseEnter={(e) => {
-											e.currentTarget.style.color = 'var(--color-primary-dark)';
-										}}
-										onMouseLeave={(e) => {
-											e.currentTarget.style.color = 'var(--color-primary)';
-										}}
+										<a 
+											href={`/topics/${topic.id}`} 
+											style={{ 
+												textDecoration: 'none', 
+												color: 'var(--color-text-primary)',
+												transition: 'color var(--transition-fast)',
+												flex: 1,
+												minWidth: 0
+											}}
+											onClick={(e) => e.stopPropagation()}
+											onMouseEnter={(e) => {
+												e.currentTarget.style.color = 'var(--color-primary)';
+											}}
+											onMouseLeave={(e) => {
+												e.currentTarget.style.color = 'var(--color-text-primary)';
+											}}
 										>
-											{topic.title}
+											<h3 style={{ 
+												margin: 0, 
+												fontSize: 'var(--font-size-xl)',
+												fontWeight: 700,
+												lineHeight: '1.4',
+												letterSpacing: '-0.01em'
+											}}>
+												{topic.title}
+											</h3>
 										</a>
-									</h3>
-									<div style={{ 
-										fontSize: 'var(--font-size-sm)', 
-										color: 'var(--color-text-secondary)', 
-										display: 'flex', 
-										gap: 'var(--spacing-md)', 
-										flexWrap: 'wrap',
-										marginBottom: latestDoc ? 'var(--spacing-sm)' : 0
-									}}>
-										<span>作者：{authorEmail}</span>
-										<span>创建于：{new Date(topic.createdAt).toLocaleString('zh-CN')}</span>
-										<span>文档数：{docCount}</span>
-										{topic.discipline && <span>学科：{topic.discipline}</span>}
-										{blind && (
-											<span style={{ 
-												color: 'var(--color-warning)',
-												fontWeight: 500
-											}}>盲评中</span>
+										{/* 类型标签 */}
+										{topic.type === 'article' && (
+											<span style={{
+												padding: '4px 10px',
+												fontSize: 'var(--font-size-xs)',
+												fontWeight: 600,
+												background: 'var(--color-primary-lighter)',
+												color: 'var(--color-primary-dark)',
+												borderRadius: 'var(--radius-sm)',
+												border: '1px solid var(--color-primary)',
+												whiteSpace: 'nowrap',
+												flexShrink: 0,
+												lineHeight: 1.2
+											}}>
+												文章
+											</span>
+										)}
+										{(topic.type === 'discussion' || !topic.type) && (
+											<span style={{
+												padding: '4px 10px',
+												fontSize: 'var(--font-size-xs)',
+												fontWeight: 600,
+												background: 'rgba(102, 126, 234, 0.1)',
+												color: 'var(--color-secondary-dark)',
+												borderRadius: 'var(--radius-sm)',
+												border: '1px solid var(--color-secondary)',
+												whiteSpace: 'nowrap',
+												flexShrink: 0,
+												lineHeight: 1.2
+											}}>
+												讨论
+											</span>
 										)}
 									</div>
+
+									{/* 元数据区域 - 主要信息 */}
+									<div style={{ 
+										display: 'flex', 
+										gap: 'var(--spacing-lg)', 
+										flexWrap: 'wrap',
+										marginBottom: 'var(--spacing-sm)',
+										alignItems: 'center'
+									}}>
+										{/* 作者 */}
+										<div style={{
+											display: 'flex',
+											alignItems: 'center',
+											gap: 'var(--spacing-xs)'
+										}}>
+											<span style={{
+												fontSize: 'var(--font-size-xs)',
+												color: 'var(--color-text-tertiary)',
+												fontWeight: 500
+											}}>作者</span>
+											<div style={{
+												display: 'flex',
+												alignItems: 'center',
+												gap: 'var(--spacing-xs)'
+											}}>
+												<Avatar
+													avatarUrl={authorAvatarUrl}
+													name={authorName}
+													email={authorEmail}
+													size={20}
+												/>
+												<span style={{
+													fontSize: 'var(--font-size-sm)',
+													color: 'var(--color-text-primary)',
+													fontWeight: 500
+												}}>{authorName}</span>
+											</div>
+										</div>
+
+										{/* 创建时间 */}
+										<div style={{
+											display: 'flex',
+											alignItems: 'center',
+											gap: 'var(--spacing-xs)'
+										}}>
+											<span style={{
+												fontSize: 'var(--font-size-xs)',
+												color: 'var(--color-text-tertiary)',
+												fontWeight: 500
+											}}>创建</span>
+											<span style={{
+												fontSize: 'var(--font-size-sm)',
+												color: 'var(--color-text-secondary)',
+												fontWeight: 400
+											}}>{new Date(topic.createdAt).toLocaleString('zh-CN', { 
+												year: 'numeric',
+												month: '2-digit',
+												day: '2-digit',
+												hour: '2-digit',
+												minute: '2-digit'
+											})}</span>
+										</div>
+
+										{/* 文档数 - 文章类型不显示 */}
+										{!isArticle && (
+											<div style={{
+												display: 'flex',
+												alignItems: 'center',
+												gap: 'var(--spacing-xs)'
+											}}>
+												<span style={{
+													fontSize: 'var(--font-size-xs)',
+													color: 'var(--color-text-tertiary)',
+													fontWeight: 500
+												}}>文档</span>
+												<span style={{
+													fontSize: 'var(--font-size-sm)',
+													color: 'var(--color-text-primary)',
+													fontWeight: 600
+												}}>{docCount}</span>
+											</div>
+										)}
+
+										{/* 评论数 */}
+										<div style={{
+											display: 'flex',
+											alignItems: 'center',
+											gap: 'var(--spacing-xs)'
+										}}>
+											<span style={{
+												fontSize: 'var(--font-size-xs)',
+												color: 'var(--color-text-tertiary)',
+												fontWeight: 500
+											}}>评论</span>
+											<span style={{
+												fontSize: 'var(--font-size-sm)',
+												color: 'var(--color-text-primary)',
+												fontWeight: 600
+											}}>{commentCount}</span>
+										</div>
+
+										{/* 学科 */}
+										{topic.discipline && (
+											<div style={{
+												display: 'flex',
+												alignItems: 'center',
+												gap: 'var(--spacing-xs)'
+											}}>
+												<span style={{
+													fontSize: 'var(--font-size-xs)',
+													color: 'var(--color-text-tertiary)',
+													fontWeight: 500
+												}}>学科</span>
+												<span style={{
+													fontSize: 'var(--font-size-sm)',
+													color: 'var(--color-primary)',
+													fontWeight: 500
+												}}>{topic.discipline}</span>
+											</div>
+										)}
+
+										{/* 盲评状态 */}
+										{blind && (
+											<span style={{ 
+												padding: '2px 8px',
+												fontSize: 'var(--font-size-xs)',
+												color: 'var(--color-warning)',
+												background: 'rgba(255, 152, 0, 0.1)',
+												border: '1px solid var(--color-warning)',
+												borderRadius: 'var(--radius-sm)',
+												fontWeight: 600,
+												whiteSpace: 'nowrap'
+											}}>
+												盲评中
+											</span>
+										)}
+									</div>
+
+									{/* 最新回复 */}
 									{latestDoc && (
 										<div style={{ 
-											fontSize: 'var(--font-size-xs)', 
-											color: 'var(--color-text-tertiary)', 
+											display: 'flex',
+											alignItems: 'center',
+											gap: 'var(--spacing-xs)',
 											marginTop: 'var(--spacing-xs)',
-											fontStyle: 'italic'
+											paddingTop: 'var(--spacing-xs)',
+											borderTop: '1px solid var(--color-border-light)'
 										}}>
-											最新回复：{new Date(latestDoc.createdAt).toLocaleString('zh-CN')}
+											<span style={{
+												fontSize: 'var(--font-size-xs)',
+												color: 'var(--color-text-tertiary)',
+												fontWeight: 500
+											}}>最新回复</span>
+											<span style={{
+												fontSize: 'var(--font-size-xs)',
+												color: 'var(--color-text-secondary)',
+												fontWeight: 400
+											}}>
+												{new Date(latestDoc.createdAt).toLocaleString('zh-CN', { 
+													year: 'numeric',
+													month: '2-digit',
+													day: '2-digit',
+													hour: '2-digit',
+													minute: '2-digit'
+												})}
+											</span>
 										</div>
 									)}
 								</div>

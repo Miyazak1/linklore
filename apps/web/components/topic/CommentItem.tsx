@@ -19,47 +19,37 @@ interface Comment {
 	depth: number;
 	createdAt: string;
 	updatedAt: string;
-	floor?: number; // 楼层号
 	parentAuthor?: { name: string | null; email: string }; // 父评论作者（用于显示"回复 @用户名"）
-	replies?: Comment[]; // 子评论（前端构建）
 }
 
 interface CommentItemProps {
 	comment: Comment;
 	currentUserId?: string;
 	onReply?: (parentId: string, content: string) => void;
-	onEdit?: (commentId: string, content: string) => void;
 	onDelete?: (commentId: string) => void;
-	maxVisibleDepth?: number; // 默认显示的最大深度
+	allComments?: Comment[]; // 所有评论的扁平数组（用于筛选直接回复）
 }
 
 /**
  * 单个评论项组件
- * 支持递归渲染子评论
+ * 扁平显示：不递归渲染，只显示直接回复
  */
 export default function CommentItem({
 	comment,
 	currentUserId,
 	onReply,
-	onEdit,
 	onDelete,
-	maxVisibleDepth = 3
+	allComments = []
 }: CommentItemProps) {
-	const [isExpanded, setIsExpanded] = useState(comment.depth < maxVisibleDepth);
-	const [isEditing, setIsEditing] = useState(false);
-	const [editContent, setEditContent] = useState(comment.content);
-	const [showReplies, setShowReplies] = useState(true);
 	const [isReplying, setIsReplying] = useState(false);
 	const [replyContent, setReplyContent] = useState('');
 	const [submittingReply, setSubmittingReply] = useState(false);
 	const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
-	const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 	const commentRef = useRef<HTMLDivElement>(null);
 
 	const isAuthor = currentUserId === comment.authorId;
-	const hasReplies = Array.isArray(comment.replies) && comment.replies.length > 0;
-	const isDeep = comment.depth >= maxVisibleDepth;
-	const shouldCollapse = comment.depth >= maxVisibleDepth && !isExpanded;
+	
+	// 扁平结构：所有评论都在TopicComments中统一渲染，这里不需要处理回复显示
 
 	// 自动聚焦输入框
 	useEffect(() => {
@@ -68,30 +58,39 @@ export default function CommentItem({
 		}
 	}, [isReplying]);
 
-	useEffect(() => {
-		if (isEditing && editTextareaRef.current) {
-			editTextareaRef.current.focus();
-		}
-	}, [isEditing]);
 
 	// 计算缩进和连接线样式
 	const indentLevel = Math.min(comment.depth, 5);
-	const hasParent = comment.depth > 0;
-	const indentStyle = {
-		marginLeft: hasParent ? `${Math.min(comment.depth, 5) * 28}px` : '0',
-		paddingLeft: comment.depth > 5 ? '16px' : hasParent ? '16px' : '0',
-		borderLeft: hasParent && comment.depth <= 5 ? '3px solid var(--color-primary-lighter)' : 'none',
-		position: 'relative' as const,
-		paddingTop: hasParent ? 'var(--spacing-sm)' : '0'
+	const hasParent = comment.parentId !== null; // 基于parentId判断，而不是depth
+	
+	// 根据层级设置不同的背景色（参考图：根评论和所有回复有区分）
+	const getBackgroundByDepth = (hasParent: boolean): string => {
+		// 统一背景：所有评论都用极浅灰
+		return 'rgba(0, 0, 0, 0.02)';
 	};
-
-	const handleSaveEdit = async () => {
-		if (editContent.trim() === '') return;
-		if (onEdit) {
-			await onEdit(comment.id, editContent);
-			setIsEditing(false);
+	
+	const getBorderColorByDepth = (hasParent: boolean): string => {
+		if (!hasParent) {
+			return 'var(--color-border)';
+		} else {
+			// 所有回复使用相同的边框颜色
+			return 'rgba(25, 118, 210, 0.15)';
 		}
 	};
+	
+	// 扁平结构：所有2级评论（parentId !== null）都使用相同的缩进，不管它们的depth值是什么
+	// 根评论（parentId === null）不缩进，所有2级评论（parentId !== null）都缩进相同距离
+	const shouldIndent = comment.parentId !== null; // 所有2级评论都缩进相同距离
+	const indentStyle = {
+		marginLeft: shouldIndent ? '24px' : '0', // 增加缩进，从16px改为24px
+		paddingLeft: shouldIndent ? '16px' : '0', // 增加内边距，从12px改为16px
+		borderLeft: shouldIndent 
+			? `2px solid ${getBorderColorByDepth(true)}` 
+			: 'none',
+		position: 'relative' as const,
+		paddingTop: shouldIndent ? 'var(--spacing-xs)' : '0'
+	};
+
 
 	const handleDelete = async () => {
 		if (confirm('确定要删除这条评论吗？')) {
@@ -191,80 +190,41 @@ export default function CommentItem({
 		}
 	};
 
-	// 跳转到指定楼层
-	const scrollToFloor = (floor: number) => {
-		const targetComment = document.querySelector(`[data-comment-floor="${floor}"]`);
-		if (targetComment) {
-			targetComment.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			// 高亮显示
-			(targetComment as HTMLElement).style.background = 'var(--color-primary-lighter)';
-			setTimeout(() => {
-				(targetComment as HTMLElement).style.background = hasParent 
-					? 'var(--color-background-subtle)' 
-					: 'var(--color-background-paper)';
-			}, 2000);
-		}
-	};
 
-	return (
+		const baseBackground = getBackgroundByDepth(hasParent);
+		const baseBorderColor = getBorderColorByDepth(hasParent);
+		
+		return (
 		<div
 			ref={commentRef}
 			data-comment-id={comment.id}
-			data-comment-floor={comment.floor}
+			data-comment-depth={comment.depth}
+			data-comment-parent-id={comment.parentId || ''}
 			style={{
 				...indentStyle,
 				marginBottom: hasParent ? 'var(--spacing-sm)' : 'var(--spacing-md)',
 				padding: 'var(--spacing-md)',
-				background: hasParent ? 'var(--color-background-subtle)' : 'var(--color-background-paper)',
-				border: hasParent 
-					? `1px solid var(--color-primary-lighter)` 
-					: '1px solid var(--color-border)',
+				background: baseBackground,
+				border: 'none', // 移除边框
 				borderRadius: 'var(--radius-md)',
 				transition: 'all var(--transition-fast)',
 				position: 'relative'
 			}}
 			onMouseEnter={(e) => {
-				e.currentTarget.style.borderColor = 'var(--color-primary)';
-				e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.05)';
+				e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+				// hover 时稍微提亮背景
 				if (hasParent) {
-					e.currentTarget.style.background = 'var(--color-background-paper)';
+					e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
+				} else {
+					e.currentTarget.style.background = 'rgba(0, 0, 0, 0.015)';
 				}
 			}}
 			onMouseLeave={(e) => {
-				e.currentTarget.style.borderColor = hasParent 
-					? 'var(--color-primary-lighter)' 
-					: 'var(--color-border)';
 				e.currentTarget.style.boxShadow = 'none';
-				if (hasParent) {
-					e.currentTarget.style.background = 'var(--color-background-subtle)';
-				}
+				e.currentTarget.style.background = baseBackground;
 			}}
 		>
-			{/* 回复连接线（如果有父评论） */}
-			{hasParent && comment.depth <= 5 && (
-				<>
-					{/* 垂直连接线 */}
-					<div style={{
-						position: 'absolute',
-						left: `${(Math.min(comment.depth, 5) - 1) * 28 + 6}px`,
-						top: '-16px',
-						width: '3px',
-						height: '16px',
-						background: 'var(--color-primary-lighter)',
-						borderRadius: '2px 2px 0 0'
-					}} />
-					{/* 水平连接线 */}
-					<div style={{
-						position: 'absolute',
-						left: `${(Math.min(comment.depth, 5) - 1) * 28 + 6}px`,
-						top: '0',
-						width: '12px',
-						height: '3px',
-						background: 'var(--color-primary-lighter)',
-						borderRadius: '0 0 2px 0'
-					}} />
-				</>
-			)}
+			{/* 扁平结构：不显示连接线，所有2级评论都扁平显示 */}
 
 			{/* 评论头部 */}
 			<div style={{ 
@@ -275,6 +235,7 @@ export default function CommentItem({
 				gap: 'var(--spacing-sm)'
 			}}>
 				<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flex: 1 }}>
+					{/* 头像 */}
 					<Avatar
 						avatarUrl={comment.author.avatarUrl}
 						name={comment.author.name}
@@ -282,6 +243,7 @@ export default function CommentItem({
 						size={hasParent ? 28 : 32}
 						style={{ flexShrink: 0 }}
 					/>
+					{/* 昵称和其他信息 */}
 					<div style={{ flex: 1, minWidth: 0 }}>
 						<div style={{ 
 							display: 'flex', 
@@ -289,40 +251,13 @@ export default function CommentItem({
 							gap: 'var(--spacing-xs)',
 							flexWrap: 'wrap'
 						}}>
-							{/* 楼层号 */}
-							{comment.floor && (
-								<button
-									onClick={() => scrollToFloor(comment.floor!)}
-									style={{
-										display: 'inline-flex',
-										alignItems: 'center',
-										justifyContent: 'center',
-										minWidth: '32px',
-										height: '20px',
-										padding: '0 6px',
-										background: hasParent ? 'var(--color-primary-lighter)' : 'var(--color-primary)',
-										color: hasParent ? 'var(--color-primary)' : 'white',
-										border: 'none',
-										borderRadius: 'var(--radius-sm)',
-										fontSize: 'var(--font-size-xs)',
-										fontWeight: 600,
-										flexShrink: 0,
-										cursor: 'pointer',
-										transition: 'all var(--transition-fast)'
-									}}
-									onMouseEnter={(e) => {
-										e.currentTarget.style.opacity = '0.8';
-										e.currentTarget.style.transform = 'scale(1.05)';
-									}}
-									onMouseLeave={(e) => {
-										e.currentTarget.style.opacity = '1';
-										e.currentTarget.style.transform = 'scale(1)';
-									}}
-									title={`楼层 #${comment.floor}`}
-								>
-									#{comment.floor}
-								</button>
-							)}
+							<span style={{ 
+								fontWeight: 600, 
+								color: 'var(--color-text-primary)',
+								fontSize: hasParent ? 'var(--font-size-xs)' : 'var(--font-size-sm)'
+							}}>
+								{comment.author.name || comment.author.email}
+							</span>
 							{/* 回复标识 */}
 							{hasParent && comment.parentAuthor && (
 								<span style={{
@@ -333,253 +268,108 @@ export default function CommentItem({
 									回复 @{comment.parentAuthor.name || comment.parentAuthor.email}
 								</span>
 							)}
-							<span style={{ 
-								fontWeight: 600, 
-								color: 'var(--color-text-primary)',
-								fontSize: hasParent ? 'var(--font-size-xs)' : 'var(--font-size-sm)'
-							}}>
-								{comment.author.name || comment.author.email}
-							</span>
-							<span style={{ 
-								fontSize: 'var(--font-size-xs)', 
-								color: 'var(--color-text-tertiary)'
-							}}>
-								{formatTime(comment.createdAt)}
-							</span>
-							{comment.updatedAt !== comment.createdAt && (
-								<span style={{ 
-									fontSize: 'var(--font-size-xs)', 
-									color: 'var(--color-text-tertiary)', 
-									fontStyle: 'italic'
-								}}>
-									(已编辑)
-								</span>
-							)}
 						</div>
 					</div>
 				</div>
-				<div style={{ 
-					display: 'flex', 
-					gap: 'var(--spacing-xs)',
-					flexShrink: 0
-				}}>
-					{isAuthor && !isEditing && (
-						<>
-							<button
-								onClick={() => setIsEditing(true)}
-								style={{
-									padding: '4px 8px',
-									fontSize: 'var(--font-size-xs)',
-									border: 'none',
-									background: 'transparent',
-									color: 'var(--color-primary)',
-									cursor: 'pointer',
-									borderRadius: 'var(--radius-sm)',
-									transition: 'all var(--transition-fast)'
-								}}
-								onMouseEnter={(e) => {
-									e.currentTarget.style.background = 'var(--color-background-subtle)';
-								}}
-								onMouseLeave={(e) => {
-									e.currentTarget.style.background = 'transparent';
-								}}
-							>
-								编辑
-							</button>
-							<button
-								onClick={handleDelete}
-								style={{
-									padding: '4px 8px',
-									fontSize: 'var(--font-size-xs)',
-									border: 'none',
-									background: 'transparent',
-									color: 'var(--color-error)',
-									cursor: 'pointer',
-									borderRadius: 'var(--radius-sm)',
-									transition: 'all var(--transition-fast)'
-								}}
-								onMouseEnter={(e) => {
-									e.currentTarget.style.background = 'rgba(198, 40, 40, 0.1)';
-								}}
-								onMouseLeave={(e) => {
-									e.currentTarget.style.background = 'transparent';
-								}}
-							>
-								删除
-							</button>
-						</>
-					)}
-					{onReply && currentUserId && !isEditing && (
-						<button
-							onClick={() => setIsReplying(!isReplying)}
-							style={{
-								padding: '4px 8px',
-								fontSize: 'var(--font-size-xs)',
-								border: 'none',
-								background: isReplying ? 'var(--color-background-subtle)' : 'transparent',
-								color: 'var(--color-primary)',
-								cursor: 'pointer',
-								borderRadius: 'var(--radius-sm)',
-								transition: 'all var(--transition-fast)',
-								fontWeight: isReplying ? 600 : 400
-							}}
-							onMouseEnter={(e) => {
-								if (!isReplying) {
-									e.currentTarget.style.background = 'var(--color-background-subtle)';
-								}
-							}}
-							onMouseLeave={(e) => {
-								if (!isReplying) {
-									e.currentTarget.style.background = 'transparent';
-								}
-							}}
-						>
-							{isReplying ? '取消回复' : '回复'}
-						</button>
-					)}
-				</div>
+				{/* 删除按钮 - 仅作者可见 */}
+				{isAuthor && (
+					<button
+						onClick={handleDelete}
+						style={{
+							padding: '4px 8px',
+							fontSize: 'var(--font-size-xs)',
+							border: 'none',
+							background: 'transparent',
+							color: 'var(--color-error)',
+							cursor: 'pointer',
+							borderRadius: 'var(--radius-sm)',
+							transition: 'all var(--transition-fast)',
+							flexShrink: 0
+						}}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.background = 'rgba(198, 40, 40, 0.1)';
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.background = 'transparent';
+						}}
+					>
+						删除
+					</button>
+				)}
 			</div>
 
 			{/* 评论内容 */}
-			{isEditing ? (
-				<div>
-					<textarea
-						ref={editTextareaRef}
-						value={editContent}
-						onChange={(e) => {
-							setEditContent(e.target.value);
-							const length = e.target.value.length;
-							const counter = document.getElementById(`edit-length-counter-${comment.id}`);
-							if (counter) {
-								counter.textContent = `${length}/5000`;
-								counter.style.color = length > 4500 ? 'var(--color-error)' : 
-									length > 4000 ? 'var(--color-warning)' : 'var(--color-text-secondary)';
-							}
-						}}
-						maxLength={5000}
-						placeholder="编辑评论...（支持 Markdown 格式）"
-						onKeyDown={(e) => handleKeyDown(e, handleSaveEdit)}
-						style={{
-							width: '100%',
-							minHeight: '100px',
-							padding: 'var(--spacing-sm)',
-							border: '1px solid var(--color-border)',
-							borderRadius: 'var(--radius-sm)',
-							fontSize: 'var(--font-size-base)',
-							fontFamily: 'inherit',
-							resize: 'vertical',
-							marginBottom: 'var(--spacing-xs)',
-							transition: 'border-color var(--transition-fast)'
-						}}
-						onFocus={(e) => {
-							e.currentTarget.style.borderColor = 'var(--color-primary)';
-							e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-lighter)';
-						}}
-						onBlur={(e) => {
-							e.currentTarget.style.borderColor = 'var(--color-border)';
-							e.currentTarget.style.boxShadow = 'none';
-						}}
-					/>
-					<div style={{ 
-						display: 'flex', 
-						justifyContent: 'space-between', 
-						alignItems: 'center',
-						marginBottom: 'var(--spacing-sm)'
+			<div
+				style={{
+					color: 'var(--color-text-primary)',
+					lineHeight: 'var(--line-height-relaxed)',
+					whiteSpace: 'pre-wrap',
+					wordBreak: 'break-word',
+					fontSize: hasParent ? 'var(--font-size-sm)' : 'var(--font-size-base)',
+					marginBottom: 'var(--spacing-sm)'
+				}}
+				dangerouslySetInnerHTML={renderContent(comment.content)}
+			/>
+
+			{/* 时间和回复按钮 - 放在评论内容下面 */}
+			<div style={{
+				display: 'flex',
+				justifyContent: 'space-between',
+				alignItems: 'center',
+				gap: 'var(--spacing-sm)',
+				flexWrap: 'wrap'
+			}}>
+				<div style={{
+					display: 'flex',
+					alignItems: 'center',
+					gap: 'var(--spacing-xs)',
+					flexWrap: 'wrap'
+				}}>
+					<span style={{ 
+						fontSize: 'var(--font-size-xs)', 
+						color: 'var(--color-text-tertiary)'
 					}}>
-						<span 
-							id={`edit-length-counter-${comment.id}`}
-							style={{ 
-								fontSize: 'var(--font-size-xs)', 
-								color: 'var(--color-text-secondary)'
-							}}
-						>
-							{editContent.length}/5000
-						</span>
+						{formatTime(comment.createdAt)}
+					</span>
+					{comment.updatedAt !== comment.createdAt && (
 						<span style={{ 
 							fontSize: 'var(--font-size-xs)', 
-							color: 'var(--color-text-tertiary)'
+							color: 'var(--color-text-tertiary)', 
+							fontStyle: 'italic'
 						}}>
-							支持 Markdown 格式
+							(已编辑)
 						</span>
-					</div>
-					<div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
-						<button
-							onClick={handleSaveEdit}
-							disabled={!editContent.trim()}
-							style={{
-								padding: '6px 12px',
-								background: 'var(--color-primary)',
-								color: 'white',
-								border: 'none',
-								borderRadius: 'var(--radius-sm)',
-								cursor: editContent.trim() ? 'pointer' : 'not-allowed',
-								opacity: editContent.trim() ? 1 : 0.6,
-								fontSize: 'var(--font-size-sm)',
-								fontWeight: 500,
-								transition: 'all var(--transition-fast)'
-							}}
-							onMouseEnter={(e) => {
-								if (editContent.trim()) {
-									e.currentTarget.style.opacity = '0.9';
-									e.currentTarget.style.transform = 'translateY(-1px)';
-								}
-							}}
-							onMouseLeave={(e) => {
-								if (editContent.trim()) {
-									e.currentTarget.style.opacity = '1';
-									e.currentTarget.style.transform = 'translateY(0)';
-								}
-							}}
-						>
-							保存
-						</button>
-						<button
-							onClick={() => {
-								setIsEditing(false);
-								setEditContent(comment.content);
-							}}
-							style={{
-								padding: '6px 12px',
-								background: 'var(--color-background-paper)',
-								color: 'var(--color-text-primary)',
-								border: '1px solid var(--color-border)',
-								borderRadius: 'var(--radius-sm)',
-								cursor: 'pointer',
-								fontSize: 'var(--font-size-sm)',
-								transition: 'all var(--transition-fast)'
-							}}
-							onMouseEnter={(e) => {
-								e.currentTarget.style.background = 'var(--color-background-subtle)';
-								e.currentTarget.style.borderColor = 'var(--color-border-light)';
-							}}
-							onMouseLeave={(e) => {
-								e.currentTarget.style.background = 'var(--color-background-paper)';
-								e.currentTarget.style.borderColor = 'var(--color-border)';
-							}}
-						>
-							取消
-						</button>
-						<span style={{
-							fontSize: 'var(--font-size-xs)',
-							color: 'var(--color-text-tertiary)',
-							marginLeft: 'var(--spacing-xs)'
-						}}>
-							Ctrl+Enter 提交
-						</span>
-					</div>
+					)}
 				</div>
-			) : (
-				<div
-					style={{
-						color: 'var(--color-text-primary)',
-						lineHeight: 'var(--line-height-relaxed)',
-						whiteSpace: 'pre-wrap',
-						wordBreak: 'break-word',
-						fontSize: hasParent ? 'var(--font-size-sm)' : 'var(--font-size-base)'
-					}}
-					dangerouslySetInnerHTML={renderContent(comment.content)}
-				/>
-			)}
+				{onReply && currentUserId && (
+					<button
+						onClick={() => setIsReplying(!isReplying)}
+						style={{
+							padding: '4px 8px',
+							fontSize: 'var(--font-size-xs)',
+							border: 'none',
+							background: isReplying ? 'var(--color-background-subtle)' : 'transparent',
+							color: 'var(--color-primary)',
+							cursor: 'pointer',
+							borderRadius: 'var(--radius-sm)',
+							transition: 'all var(--transition-fast)',
+							fontWeight: isReplying ? 600 : 400
+						}}
+						onMouseEnter={(e) => {
+							if (!isReplying) {
+								e.currentTarget.style.background = 'var(--color-background-subtle)';
+							}
+						}}
+						onMouseLeave={(e) => {
+							if (!isReplying) {
+								e.currentTarget.style.background = 'transparent';
+							}
+						}}
+					>
+						{isReplying ? '取消回复' : '回复'}
+					</button>
+				)}
+			</div>
 
 			{/* 回复输入框 - 显示在同一层 */}
 			{isReplying && currentUserId && (
@@ -718,66 +508,7 @@ export default function CommentItem({
 				</div>
 			)}
 
-			{/* 子评论 */}
-			{hasReplies && (
-				<div style={{ 
-					marginTop: 'var(--spacing-md)',
-					position: 'relative'
-				}}>
-					{/* 子评论连接线 */}
-					{!shouldCollapse && comment.depth < 5 && (
-						<div style={{
-							position: 'absolute',
-							left: `${(Math.min(comment.depth, 5)) * 28 + 6}px`,
-							top: '0',
-							width: '3px',
-							height: '100%',
-							background: 'var(--color-primary-lighter)',
-							opacity: 0.3
-						}} />
-					)}
-					{shouldCollapse ? (
-						<button
-							onClick={() => setIsExpanded(true)}
-							style={{
-								padding: '6px 12px',
-								fontSize: 'var(--font-size-sm)',
-								background: 'var(--color-background-subtle)',
-								color: 'var(--color-primary)',
-								border: '1px solid var(--color-border)',
-								borderRadius: 'var(--radius-sm)',
-								cursor: 'pointer',
-								transition: 'all var(--transition-fast)',
-								fontWeight: 500
-							}}
-							onMouseEnter={(e) => {
-								e.currentTarget.style.background = 'var(--color-background-paper)';
-								e.currentTarget.style.borderColor = 'var(--color-primary)';
-							}}
-							onMouseLeave={(e) => {
-								e.currentTarget.style.background = 'var(--color-background-subtle)';
-								e.currentTarget.style.borderColor = 'var(--color-border)';
-							}}
-						>
-							展开更多回复 ({Array.isArray(comment.replies) ? comment.replies.length : 0} 条)
-						</button>
-					) : (
-						<div style={{ position: 'relative' }}>
-							{showReplies && Array.isArray(comment.replies) && comment.replies.map((reply: Comment) => (
-								<CommentItem
-									key={reply.id}
-									comment={reply}
-									currentUserId={currentUserId}
-									onReply={onReply}
-									onEdit={onEdit}
-									onDelete={onDelete}
-									maxVisibleDepth={maxVisibleDepth}
-								/>
-							))}
-						</div>
-					)}
-				</div>
-			)}
+			{/* 扁平结构：所有评论都在TopicComments中统一渲染，这里不渲染回复 */}
 		</div>
 	);
 }

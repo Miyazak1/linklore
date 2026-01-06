@@ -5,28 +5,22 @@ import { useRouter } from 'next/navigation';
 import HeroSection from './HeroSection';
 import FeatureCard from './FeatureCard';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const features = [
 	{
-		icon: '🤖',
-		title: 'AI 辅助对话',
-		description: '智能 AI 助手实时提供建议和反馈，帮助你深入思考，发现新的观点和见解。',
-	},
-	{
-		icon: '👥',
-		title: '双人深度讨论',
-		description: '邀请朋友或同事加入对话，进行一对一的深度讨论，共同探索复杂话题。',
-	},
-	{
-		icon: '📊',
-		title: '共识分析',
-		description: '自动分析对话中的共识点和分歧，帮助你理解讨论的进展和关键观点。',
-	},
-	{
 		icon: '📚',
-		title: '知识库引用',
-		description: '在对话中引用图书馆中的资料，让讨论更有依据，观点更有说服力。',
+		title: '知识库管理',
+		description: '管理你的图书和文档，建立个人知识库，方便随时查阅和引用。',
+	},
+	{
+		icon: '💬',
+		title: '讨论版',
+		description: '参与话题讨论，分享观点，与社区成员进行深度交流。',
+	},
+	{
+		icon: '🎮',
+		title: '小游戏',
+		description: '每日百科和每日议题等小游戏，在娱乐中学习知识。',
 	},
 ];
 
@@ -35,24 +29,12 @@ export default function LandingPage() {
 	const [isNavigating, setIsNavigating] = useState(false);
 	const [isPending, startTransition] = useTransition();
 
-	const handleStartChat = () => {
-		setIsNavigating(true);
-		startTransition(() => {
-			router.push('/chat');
-		});
-		// 如果3秒后还在加载，重置状态（防止卡住）
-		setTimeout(() => {
-			setIsNavigating(false);
-		}, 3000);
-	};
-
 	const handleSignIn = () => {
-		startTransition(() => {
-			router.push('/signin');
-		});
+		// 触发打开登录弹窗的事件
+		window.dispatchEvent(new CustomEvent('open-signin-modal'));
 	};
 
-	const isLoading = isNavigating || isPending;
+	const isLoading = isPending;
 
 	return (
 		<div
@@ -139,7 +121,7 @@ export default function LandingPage() {
 							marginBottom: 'var(--spacing-lg)',
 						}}
 					>
-						立即开始你的第一次对话，体验智能辅助的深度讨论
+						立即注册账号，开始使用 Mooyu 的各项功能
 					</p>
 					<div
 						style={{
@@ -149,29 +131,23 @@ export default function LandingPage() {
 							flexWrap: 'wrap',
 						}}
 					>
-						{/* 全局加载层 - 在点击后立即显示 */}
-						{isLoading && (
-							<LoadingSpinner 
-								fullscreen 
-								message="正在进入聊天..." 
-							/>
-						)}
-						
 						<Button
 							size="lg"
 							variant="primary"
-							onClick={handleStartChat}
-							disabled={isLoading}
-						>
-							{isLoading ? '加载中...' : '立即开始对话'}
-						</Button>
-						<Button
-							size="lg"
-							variant="secondary"
 							onClick={handleSignIn}
 							disabled={isPending}
 						>
 							登录账号
+						</Button>
+						<Button
+							size="lg"
+							variant="secondary"
+							onClick={() => {
+								window.dispatchEvent(new CustomEvent('open-signup-modal'));
+							}}
+							disabled={isPending}
+						>
+							注册账号
 						</Button>
 					</div>
 				</div>

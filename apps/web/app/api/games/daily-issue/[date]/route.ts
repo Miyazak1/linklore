@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { buildTree } from '@/lib/games/daily-issue/decisionTree';
 import { createModuleLogger } from '@/lib/utils/logger';
+import { getCache, setCache } from '@/lib/cache/redis';
 
 const log = createModuleLogger('DailyIssueDateAPI');
 
@@ -22,6 +23,13 @@ export async function GET(
 				{ error: 'Invalid date format. Expected YYYYMMDD' },
 				{ status: 400 }
 			);
+		}
+
+		// Try cache first (cache for 5 minutes since daily issues don't change)
+		const cacheKey = `daily-issue:${date}`;
+		const cached = await getCache<any>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached);
 		}
 
 		// 查找指定日期的议题
@@ -48,7 +56,7 @@ export async function GET(
 		const tree = await buildTree(issue.id);
 
 		// 返回完整的决策树结构
-		return NextResponse.json({
+		const response = {
 			success: true,
 			data: {
 				issue: {
@@ -65,7 +73,12 @@ export async function GET(
 					nodes: Array.from(tree.nodes.values())
 				}
 			}
-		});
+		};
+
+		// Cache for 5 minutes (daily issues don't change)
+		await setCache(cacheKey, response, 300);
+
+		return NextResponse.json(response);
 	} catch (error: any) {
 		log.error('获取议题失败', error as Error);
 		return NextResponse.json(
@@ -74,6 +87,12 @@ export async function GET(
 		);
 	}
 }
+
+
+
+
+
+
 
 
 

@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/db/client';
 import { getDocumentTree } from '@/lib/topics/documentTree';
 import { checkDocumentQuality } from './documentQuality';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('ConsensusTracker');
 
 export interface ConsensusSnapshot {
 	id: string;
@@ -21,7 +24,31 @@ export interface ConsensusSnapshot {
  * 追踪共识并创建快照
  */
 export async function trackConsensus(topicId: string): Promise<ConsensusSnapshot> {
-	console.log(`[ConsensusTracker] Tracking consensus for topic ${topicId}`);
+	log.debug('Tracking consensus', { topicId });
+
+	// 检查话题类型
+	const topic = await prisma.topic.findUnique({
+		where: { id: topicId },
+		select: { type: true }
+	});
+	
+	// 文章类型不进行共识分析
+	if (topic?.type === 'article') {
+		log.debug('Skipping consensus tracking for article type topic', { topicId });
+		// 返回空共识数据
+		return {
+			id: '',
+			topicId,
+			snapshotAt: new Date(),
+			consensusData: {
+				consensusScore: 0,
+				divergenceScore: 0,
+				trend: 'stable',
+				keyPoints: [],
+				disagreements: []
+			}
+		};
+	}
 
 	// 获取文档树
 	const docTree = await getDocumentTree(topicId, false); // 不加载extractedText以提升性能

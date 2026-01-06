@@ -19,41 +19,52 @@ export default function ConsensusTrendChart({ topicId }: Props) {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		loadSnapshots();
-		// 自动刷新：每10秒更新一次
-		const interval = setInterval(() => {
-			loadSnapshots();
-		}, 10000);
-		return () => clearInterval(interval);
-	}, [topicId]);
+		let isMounted = true; // 跟踪组件是否已挂载
+		const abortController = new AbortController(); // 用于取消fetch请求
 
-	const loadSnapshots = async () => {
-		try {
-			const res = await fetch(`/api/topics/${topicId}/consensus/snapshots`);
-			if (res.ok) {
-				const data = await res.json();
-				const snapshots = data.snapshots || [];
-				console.log(`[ConsensusTrendChart] Loaded ${snapshots.length} snapshots for topic ${topicId}`);
-				if (snapshots.length > 0) {
-					console.log(`[ConsensusTrendChart] First snapshot:`, {
-						time: snapshots[0].snapshotAt,
-						consensusScore: snapshots[0].consensusScore,
-						divergenceScore: snapshots[0].divergenceScore
-					});
-					console.log(`[ConsensusTrendChart] Last snapshot:`, {
-						time: snapshots[snapshots.length - 1].snapshotAt,
-						consensusScore: snapshots[snapshots.length - 1].consensusScore,
-						divergenceScore: snapshots[snapshots.length - 1].divergenceScore
-					});
+		const loadSnapshots = async () => {
+			try {
+				const res = await fetch(`/api/topics/${topicId}/consensus/snapshots`, {
+					signal: abortController.signal // 添加中止信号
+				});
+				
+				if (!isMounted) return; // 组件已卸载，不再处理响应
+				
+				if (res.ok) {
+					const data = await res.json();
+					const snapshots = data.snapshots || [];
+					
+					if (isMounted) { // 只在组件仍然挂载时更新状态
+						setSnapshots(snapshots);
+					}
 				}
-				setSnapshots(snapshots);
+			} catch (err: any) {
+				// 忽略中止错误（组件卸载时的正常情况）
+				if (err.name !== 'AbortError' && isMounted) {
+					console.error('Failed to load snapshots:', err);
+				}
+			} finally {
+				if (isMounted) {
+					setLoading(false);
+				}
 			}
-		} catch (err) {
-			console.error('Failed to load snapshots:', err);
-		} finally {
-			setLoading(false);
-		}
-	};
+		};
+
+		loadSnapshots();
+		
+		// 自动刷新：每30秒更新一次（从10秒改为30秒，减少请求频率）
+		const interval = setInterval(() => {
+			if (isMounted) {
+				loadSnapshots();
+			}
+		}, 30000);
+		
+		return () => {
+			isMounted = false; // 标记组件已卸载
+			abortController.abort(); // 取消正在进行的fetch请求
+			clearInterval(interval);
+		};
+	}, [topicId]);
 
 	if (loading) {
 		return (

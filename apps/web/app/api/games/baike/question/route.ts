@@ -29,13 +29,16 @@ export async function GET(req: NextRequest) {
 			where: { date: targetDate }
 		});
 
-		// 如果题目不存在，尝试从维基百科获取
-		if (!question) {
-			log.info('当日题目不存在，尝试从维基百科获取', { date: targetDate });
+		// 如果题目不存在，尝试从百度百科获取
+		// 或者如果提供了 forceUpdate 参数，强制重新获取
+		const forceUpdate = searchParams.get('forceUpdate') === 'true';
+		
+		if (!question || forceUpdate) {
+			log.info(forceUpdate ? '强制重新获取当日题目' : '当日题目不存在，尝试从百度百科获取', { date: targetDate });
 			
 			// 动态导入更新函数（避免循环依赖）
 			const { updateDailyQuestion } = await import('@/lib/games/baike/updateDailyQuestion');
-			const updateResult = await updateDailyQuestion(targetDate);
+			const updateResult = await updateDailyQuestion(targetDate, 5, forceUpdate);
 
 			if (updateResult.success && updateResult.questionId) {
 				// 重新查询题目

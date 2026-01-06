@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { createModuleLogger } from '@/lib/utils/logger';
+import { getCache, setCache } from '@/lib/cache/redis';
 
 const log = createModuleLogger('BaikeStatsAPI');
 
@@ -19,6 +20,13 @@ export async function GET(req: NextRequest) {
 				{ error: 'Invalid date format. Expected YYYYMMDD' },
 				{ status: 400 }
 			);
+		}
+
+		// Try cache first (cache for 30 seconds)
+		const cacheKey = `baike:stats:${date}`;
+		const cached = await getCache<any>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached);
 		}
 
 		// 统计已完成游戏的数量
@@ -44,14 +52,19 @@ export async function GET(req: NextRequest) {
 			? completedRecords.reduce((sum, record) => sum + record.guessCount, 0) / completedRecords.length
 			: 0;
 
-		return NextResponse.json({
+		const response = {
 			success: true,
 			data: {
 				date,
 				totalGuessed: totalCompleted,
 				averageGuesses: Math.round(averageGuesses * 10) / 10 // 保留一位小数
 			}
-		});
+		};
+
+		// Cache for 30 seconds
+		await setCache(cacheKey, response, 30);
+
+		return NextResponse.json(response);
 	} catch (error: any) {
 		log.error('获取统计信息失败', error as Error);
 		return NextResponse.json(
@@ -71,6 +84,12 @@ function getTodayDate(): string {
 	const day = String(now.getDate()).padStart(2, '0');
 	return `${year}${month}${day}`;
 }
+
+
+
+
+
+
 
 
 

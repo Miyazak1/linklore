@@ -3,15 +3,17 @@ import { routeAiCall } from '@/lib/ai/router';
 import { calculateSemanticSimilarity } from '@/lib/ai/semanticSimilarity';
 import { getUserPairDocuments } from './userPairIdentifier';
 import { checkDocumentQuality } from './documentQuality';
+import { createModuleLogger } from '@/lib/utils/logger';
+const log = createModuleLogger('UserPairConsensus');
 /**
  * 分析两个用户之间的共识和分歧
  */
 export async function calculateUserPairConsensus(topicId, userId1, userId2) {
-    console.log(`[UserPairConsensus] Analyzing consensus for users ${userId1} and ${userId2} in topic ${topicId}`);
+    log.debug('Analyzing consensus', { userId1, userId2, topicId });
     // 1. 获取两个用户在该话题中的所有相关文档
     const relevantDocs = await getUserPairDocuments(topicId, userId1, userId2);
     if (relevantDocs.length < 2) {
-        console.log(`[UserPairConsensus] Not enough documents for analysis (${relevantDocs.length} < 2)`);
+        log.debug('Not enough documents for analysis', { relevantDocsCount: relevantDocs.length });
         return {
             consensus: [],
             disagreements: [],
@@ -38,7 +40,7 @@ export async function calculateUserPairConsensus(topicId, userId1, userId2) {
         return qualityCheck.isSufficient;
     });
     if (qualityDocs.length < 2) {
-        console.log(`[UserPairConsensus] Not enough quality documents for analysis (${qualityDocs.length} < 2)`);
+        log.debug('Not enough quality documents for analysis', { qualityDocsCount: qualityDocs.length });
         return {
             consensus: [],
             disagreements: [],
@@ -72,7 +74,7 @@ export async function calculateUserPairConsensus(topicId, userId1, userId2) {
         }
     });
     if (user1Claims.length === 0 || user2Claims.length === 0) {
-        console.log(`[UserPairConsensus] Not enough claims for analysis (user1: ${user1Claims.length}, user2: ${user2Claims.length})`);
+        log.debug('Not enough claims for analysis', { user1ClaimsCount: user1Claims.length, user2ClaimsCount: user2Claims.length });
         return {
             consensus: [],
             disagreements: [],
@@ -136,7 +138,7 @@ ${user2ClaimsText}
         }
     }
     catch (err) {
-        console.error(`[UserPairConsensus] AI analysis failed:`, err);
+        log.error('AI analysis failed', err, { userId1, userId2, topicId });
         // Fallback to empty result
         aiResult = {
             consensus: [],
@@ -168,7 +170,7 @@ ${user2ClaimsText}
                             similarity = await calculateSemanticSimilarity(claims1, claims2);
                         }
                         catch (err) {
-                            console.warn(`[UserPairConsensus] Failed to calculate similarity for consensus:`, err);
+                            log.warn('Failed to calculate similarity for consensus', { error: err });
                         }
                     }
                 }
@@ -187,7 +189,7 @@ ${user2ClaimsText}
             similarity = await calculateSemanticSimilarity(item.claim1, item.claim2);
         }
         catch (err) {
-            console.warn(`[UserPairConsensus] Failed to calculate similarity for disagreement:`, err);
+            log.warn('Failed to calculate similarity for disagreement', { error: err });
         }
         return {
             ...item,

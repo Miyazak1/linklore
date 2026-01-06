@@ -2,6 +2,9 @@ import { prisma } from '@/lib/db/client';
 import { routeAiCall } from '@/lib/ai/router';
 import { updateProcessingStatus, checkProcessingDependencies } from './status';
 import { AI_PROCESSING_CONFIG } from '@/lib/config/ai-processing';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('Evaluate');
 
 /**
  * 检测文档中是否存在引用
@@ -216,6 +219,19 @@ const RUBRICS: Record<string, {
 };
 
 export async function evaluateAndStore(documentId: string) {
+	// 检查话题类型
+	const doc = await prisma.document.findUnique({
+		where: { id: documentId },
+		include: { topic: { select: { type: true, id: true } } }
+	});
+	if (!doc) throw new Error('Document not found');
+	
+	// 文章类型不进行 AI 分析
+	if (doc.topic.type === 'article') {
+		log.debug('Skipping evaluate for article type topic', { topicId: doc.topic.id });
+		await updateProcessingStatus(documentId, 'evaluate', 'skipped');
+		return { skipped: true, reason: 'Article type does not support AI analysis' };
+	}
 	// 检查依赖
 	const deps = await checkProcessingDependencies(documentId, 'evaluate');
 	if (!deps.ready) {
@@ -239,7 +255,7 @@ export async function evaluateAndStore(documentId: string) {
 	const textForAi = text.slice(0, textLimit);
 	
 	if (text.length > textLimit) {
-		console.log(`[Evaluate] Text truncated from ${text.length} to ${textLimit} characters`);
+		log.debug('Text truncated', { originalLength: text.length, truncatedLength: textLimit });
 	}
 
 	// Determine discipline (from topic or default)
@@ -428,8 +444,7 @@ ${fewShotExamples}
 		}
 		
 	} catch (parseError: any) {
-		console.error('[Evaluate] JSON parsing failed:', parseError.message);
-		console.error('[Evaluate] Raw response:', result.text.substring(0, 500));
+		log.error('JSON parsing failed', parseError, { rawResponse: result.text.substring(0, 500) });
 		
 		// Fallback: generate basic evaluation
 		const avgScore = 6; // Default average score
@@ -454,7 +469,10 @@ ${fewShotExamples}
 	if (!hasCitationsInDoc && dimensions.includes('引用')) {
 		const citationScore = normalizedScores['引用'];
 		if (citationScore > 2) {
-			console.warn(`[Evaluate] Document ${documentId}: No citations detected but AI gave ${citationScore} points. Auto-correcting to 1.`);
+			log.warn('No citations detected but AI gave high score, auto-correcting', { 
+				documentId, 
+				citationScore 
+			});
 			normalizedScores['引用'] = 1; // 修正为1分
 			
 			// 更新评分理由，说明自动修正
@@ -511,14 +529,14 @@ ${fewShotExamples}
 			
 			// 只要有至少2个已评价的文档就触发分析
 			if (evaluatedDocs.length >= 2) {
-				console.log(`[Evaluate] Triggering analysis for topic ${doc.topicId}, evaluated docs: ${evaluatedDocs.length}`);
+				log.debug('Triggering analysis for topic', { topicId: doc.topicId, evaluatedDocsCount: evaluatedDocs.length });
 				
 				// Trigger disagreement analysis
 				try {
 					const disagreementJob = await enqueueAnalyzeDisagreements(doc.topicId, documentId);
-					console.log(`[Evaluate] Disagreement analysis job enqueued: ${disagreementJob.id} (${disagreementJob.name})`);
+					log.debug('Disagreement analysis job enqueued', { jobId: disagreementJob.id, jobName: disagreementJob.name });
 				} catch (err: any) {
-					console.error(`[Evaluate] Failed to enqueue disagreement analysis:`, err.message);
+					log.error('Failed to enqueue disagreement analysis', err);
 				}
 				
 				// Trigger user pair analysis (识别新产生的用户对)
@@ -534,33 +552,39 @@ ${fewShotExamples}
 						for (const pair of newPairs) {
 							try {
 								const userPairJob = await enqueueUserPairAnalysis(doc.topicId, pair.userId1, pair.userId2);
-								console.log(`[Evaluate] User pair analysis job enqueued: ${userPairJob.id} for users ${pair.userId1} and ${pair.userId2}`);
+								log.debug('User pair analysis job enqueued', { 
+									jobId: userPairJob.id, 
+									userId1: pair.userId1, 
+									userId2: pair.userId2 
+								});
 							} catch (err: any) {
-								console.error(`[Evaluate] Failed to enqueue user pair analysis:`, err.message);
+								log.error('Failed to enqueue user pair analysis', err);
 							}
 						}
 					} else {
 						// 如果没有新用户对，分析所有用户对（可能已有用户对需要更新）
 						const allPairsJob = await enqueueUserPairAnalysis(doc.topicId);
-						console.log(`[Evaluate] All user pairs analysis job enqueued: ${allPairsJob.id}`);
+						log.debug('All user pairs analysis job enqueued', { jobId: allPairsJob.id });
 					}
 				} catch (err: any) {
-					console.error(`[Evaluate] Failed to enqueue user pair analysis:`, err.message);
+					log.error('Failed to enqueue user pair analysis', err);
 				}
 				
 				// Trigger consensus tracking (更新话题级别快照)
 				try {
 					const consensusJob = await enqueueTrackConsensus(doc.topicId);
-					console.log(`[Evaluate] Consensus tracking job enqueued: ${consensusJob.id} (${consensusJob.name})`);
+					log.debug('Consensus tracking job enqueued', { jobId: consensusJob.id, jobName: consensusJob.name });
 				} catch (err: any) {
-					console.error(`[Evaluate] Failed to enqueue consensus tracking:`, err.message);
+					log.error('Failed to enqueue consensus tracking', err);
 				}
 			} else {
-				console.log(`[Evaluate] Not enough evaluated documents (${evaluatedDocs.length}/2) for topic ${doc.topicId}`);
+				log.debug('Not enough evaluated documents for analysis', { 
+					evaluatedDocsCount: evaluatedDocs.length, 
+					topicId: doc.topicId 
+				});
 			}
 		} catch (err: any) {
-			console.error(`[Evaluate] Failed to enqueue analysis for topic ${doc.topicId}:`, err.message);
-			console.error(`[Evaluate] Error stack:`, err.stack);
+			log.error('Failed to enqueue analysis for topic', err, { topicId: doc.topicId });
 			// Continue even if analysis fails
 		}
 
@@ -568,7 +592,7 @@ ${fewShotExamples}
 	} catch (error: any) {
 		// 更新状态为 failed
 		await updateProcessingStatus(documentId, 'evaluate', 'failed', error.message);
-		console.error(`[Evaluate] Evaluation failed for document ${documentId}:`, error);
+		log.error('Evaluation failed', error, { documentId });
 		throw error;
 	}
 }

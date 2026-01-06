@@ -1,10 +1,12 @@
 import { prisma } from '@/lib/db/client';
+import { createModuleLogger } from '@/lib/utils/logger';
+const log = createModuleLogger('TopicConsensusAggregator');
 /**
  * 计算话题级别的整体共识度
  * 基于所有用户对的共识度进行加权平均
  */
 export async function calculateTopicConsensus(topicId) {
-    console.log(`[TopicConsensusAggregator] Calculating topic consensus for ${topicId}`);
+    log.debug('Calculating topic consensus', { topicId });
     // 1. 获取所有用户对及其分析结果
     const userConsensusRecords = await prisma.userConsensus.findMany({
         where: { topicId },
@@ -18,7 +20,7 @@ export async function calculateTopicConsensus(topicId) {
         }
     });
     if (userConsensusRecords.length === 0) {
-        console.log(`[TopicConsensusAggregator] No user consensus records found`);
+        log.debug('No user consensus records found', { topicId });
         return {
             consensusScore: 0.5,
             divergenceScore: 0.5,
@@ -78,7 +80,7 @@ export async function calculateTopicConsensus(topicId) {
  * 基于所有用户对的共识度聚合结果
  */
 export async function updateTopicConsensusSnapshot(topicId) {
-    console.log(`[TopicConsensusAggregator] Updating consensus snapshot for topic ${topicId}`);
+    log.debug('Updating consensus snapshot', { topicId });
     // 1. 计算话题级别共识度
     const result = await calculateTopicConsensus(topicId);
     // 2. 获取所有用户对的共识和分歧数据
@@ -194,7 +196,7 @@ async function createConsensusSnapshot(topicId, consensusData) {
     const divergenceScore = typeof consensusData.divergenceScore === 'number' && !isNaN(consensusData.divergenceScore)
         ? consensusData.divergenceScore
         : 0.5; // 默认值
-    console.log(`[TopicConsensusAggregator] Creating snapshot with consensusScore: ${consensusScore}, divergenceScore: ${divergenceScore}`);
+    log.debug('Creating snapshot', { consensusScore, divergenceScore, topicId });
     await prisma.consensusSnapshot.create({
         data: {
             topicId,

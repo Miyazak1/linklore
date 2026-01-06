@@ -1,14 +1,33 @@
 import { prisma } from '@/lib/db/client';
 /**
  * 获取文档树（递归构建）
+ * @param topicId 话题ID
+ * @param includeText 是否包含extractedText（默认false，按需加载以提升性能）
  */
-export async function getDocumentTree(topicId) {
+export async function getDocumentTree(topicId, includeText = false) {
     const docs = await prisma.document.findMany({
         where: { topicId },
-        include: {
-            author: { select: { email: true } },
-            summaries: { orderBy: { id: 'desc' }, take: 1 },
-            evaluations: { orderBy: { createdAt: 'desc' }, take: 1 }
+        select: {
+            id: true,
+            topicId: true,
+            parentId: true,
+            authorId: true,
+            author: { select: { email: true, name: true, avatarUrl: true } },
+            fileKey: true,
+            mime: true,
+            size: true,
+            createdAt: true,
+            extractedText: includeText, // 按需加载，默认不加载以提升性能
+            summaries: {
+                select: { id: true, title: true, overview: true, claims: true, keywords: true },
+                orderBy: { id: 'desc' },
+                take: 1
+            },
+            evaluations: {
+                select: { id: true, scores: true, verdict: true, createdAt: true },
+                orderBy: { createdAt: 'desc' },
+                take: 1
+            }
         },
         orderBy: { createdAt: 'asc' }
     });
@@ -37,7 +56,7 @@ export async function getDocumentTree(topicId) {
             mime: doc.mime,
             size: doc.size,
             createdAt: doc.createdAt,
-            extractedText: doc.extractedText, // Include extractedText
+            extractedText: includeText ? doc.extractedText : null, // 按需加载
             summaries: doc.summaries,
             evaluations: doc.evaluations,
             children: [],

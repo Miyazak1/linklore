@@ -166,65 +166,7 @@ async function processUserPairAnalysis(job: any) {
 	return job.id;
 }
 
-// 语义溯源功能已移除
-
-async function processModeration(job: any) {
-	const { messageId, roomId } = job.data as { messageId: string; roomId: string };
-	const { moderateMessage } = await import('../shim/moderation.js');
-	await moderateMessage(messageId, roomId);
-	return job.id;
-}
-
-async function processChatAnalysis(job: any) {
-	const { roomId } = job.data as { roomId: string };
-	const { analyzeChatConsensus } = await import('../shim/chatConsensus.js');
-	const { prisma } = await import('../shim/prisma.js');
-	const result = await analyzeChatConsensus(roomId);
-	// 保存分析结果
-	await prisma.chatAnalysis.upsert({
-		where: { roomId },
-		update: {
-			consensusPoints: result.consensusPoints as any,
-			consensusScore: result.consensusScore,
-			consensusTrend: result.consensusTrend as any,
-			disagreementPoints: result.disagreementPoints as any,
-			divergenceScore: result.divergenceScore,
-			divergenceTrend: result.divergenceTrend as any,
-			averageDepth: result.averageDepth,
-			maxDepth: result.maxDepth,
-			totalReferences: result.totalReferences,
-			aiAdoptionRate: result.aiAdoptionRate,
-			creatorMessageCount: result.creatorMessageCount,
-			participantMessageCount: result.participantMessageCount,
-			creatorAiAdoptionCount: result.creatorAiAdoptionCount,
-			participantAiAdoptionCount: result.participantAiAdoptionCount,
-			creatorAiSuggestionCount: result.creatorAiSuggestionCount,
-			participantAiSuggestionCount: result.participantAiSuggestionCount,
-			lastAnalyzedAt: new Date()
-		},
-		create: {
-			roomId,
-			consensusPoints: result.consensusPoints as any,
-			consensusScore: result.consensusScore,
-			consensusTrend: result.consensusTrend as any,
-			disagreementPoints: result.disagreementPoints as any,
-			divergenceScore: result.divergenceScore,
-			divergenceTrend: result.divergenceTrend as any,
-			averageDepth: result.averageDepth,
-			maxDepth: result.maxDepth,
-			totalReferences: result.totalReferences,
-			aiAdoptionRate: result.aiAdoptionRate,
-			creatorMessageCount: result.creatorMessageCount,
-			participantMessageCount: result.participantMessageCount,
-			creatorAiAdoptionCount: result.creatorAiAdoptionCount,
-			participantAiAdoptionCount: result.participantAiAdoptionCount,
-			creatorAiSuggestionCount: result.creatorAiSuggestionCount,
-			participantAiSuggestionCount: result.participantAiSuggestionCount,
-			lastAnalyzedAt: new Date()
-		}
-	});
-	return job.id;
-}
+// 聊天和溯源功能已移除
 
 export function registerWorkers() {
 	if (!connection || !queue) {
@@ -243,9 +185,9 @@ export function registerWorkers() {
 					if (job.name === 'analyzeDisagreements') return await processAnalyzeDisagreements(job);
 					if (job.name === 'trackConsensus') return await processTrackConsensus(job);
 					if (job.name === 'userPairAnalysis') return await processUserPairAnalysis(job);
-					// 语义溯源功能已移除
-					if (job.name === 'moderate') return await processModeration(job);
-					if (job.name === 'chatAnalysis') return await processChatAnalysis(job);
+					// 聊天和溯源功能已移除
+					// if (job.name === 'moderate') return await processModeration(job);
+					// if (job.name === 'chatAnalysis') return await processChatAnalysis(job);
 					throw new Error(`Unknown job: ${job.name}`);
 				} catch (err: any) {
 					console.error(`[Worker] Job ${job.name} (ID: ${job.id}) failed:`, err.message);

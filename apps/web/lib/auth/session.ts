@@ -75,16 +75,18 @@ export async function createSession(payload: JWTPayload) {
 	(await cookies()).set(COOKIE_NAME, token, cookieOptions);
 	
 	// 记录 Cookie 设置信息（用于调试）
-	console.error('[Session] Cookie set:', {
-		name: COOKIE_NAME,
-		domain: cookieDomain || 'default',
-		secure: cookieOptions.secure,
-		path: cookieOptions.path,
-		sameSite: cookieOptions.sameSite,
-		maxAge: cookieOptions.maxAge,
-		hasToken: !!token,
-		tokenLength: token?.length
-	});
+	if (process.env.NODE_ENV === 'development') {
+		console.log('[Session] Cookie set:', {
+			name: COOKIE_NAME,
+			domain: cookieDomain || 'default',
+			secure: cookieOptions.secure,
+			path: cookieOptions.path,
+			sameSite: cookieOptions.sameSite,
+			maxAge: cookieOptions.maxAge,
+			hasToken: !!token,
+			tokenLength: token?.length
+		});
+	}
 }
 
 export async function readSession<T extends JWTPayload>(): Promise<T | null> {
@@ -103,7 +105,10 @@ export async function readSession<T extends JWTPayload>(): Promise<T | null> {
 	}
 	try {
 		const { payload } = await jwtVerify<T>(token, getSecret());
-		console.error('[Session] Token verified successfully:', { sub: payload.sub, email: payload.email });
+		// 只在开发环境记录成功日志，避免生产环境日志噪音
+		if (process.env.NODE_ENV === 'development') {
+			console.log('[Session] Token verified successfully:', { sub: payload.sub, email: payload.email });
+		}
 		return payload;
 	} catch (error: any) {
 		// 记录详细的错误信息，帮助调试

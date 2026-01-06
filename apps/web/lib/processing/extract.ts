@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db/client';
 import { cleanHtml } from './sanitize';
 import { updateProcessingStatus } from './status';
 import { processWithRetry } from './retry';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('Extract');
 import * as mammoth from 'mammoth';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -36,7 +39,7 @@ async function convertDocToDocx(buffer: Buffer): Promise<Buffer> {
 }
 
 export async function extractAndStore(documentId: string) {
-	console.log(`[Extract] Starting extraction for document ${documentId}`);
+	log.debug('Starting extraction', { documentId });
 	
 	// 更新状态为 processing
 	await updateProcessingStatus(documentId, 'extract', 'processing');
@@ -45,7 +48,7 @@ export async function extractAndStore(documentId: string) {
 		const doc = await prisma.document.findUnique({ where: { id: documentId } });
 		if (!doc) throw new Error('Document not found');
 
-		console.log(`[Extract] Document found: ${doc.fileKey}, mime: ${doc.mime}`);
+		log.debug('Document found', { fileKey: doc.fileKey, mime: doc.mime });
 	
 	let buffer: Buffer;
 	try {
@@ -59,19 +62,19 @@ export async function extractAndStore(documentId: string) {
 					}
 					buffer = Buffer.isBuffer(object.content) ? object.content : Buffer.from(object.content);
 		}
-		console.log(`[Extract] File loaded, size: ${buffer.length} bytes`);
+		log.debug('File loaded', { size: buffer.length });
 	} catch (fileErr: any) {
-		console.error(`[Extract] Failed to load file:`, fileErr);
+		log.error('Failed to load file', fileErr);
 		throw new Error(`文件加载失败: ${fileErr.message}`);
 	}
 
 	let html = '';
 	try {
 		if (doc.mime.includes('wordprocessingml') || doc.fileKey.endsWith('.docx')) {
-			console.log(`[Extract] Converting docx to HTML using mammoth...`);
+			log.debug('Converting docx to HTML using mammoth');
 			const { value } = await mammoth.convertToHtml({ buffer });
 			html = value;
-			console.log(`[Extract] Docx conversion completed, HTML length: ${html.length}`);
+			log.debug('Docx conversion completed', { htmlLength: html.length });
 	} else if (doc.fileKey.endsWith('.doc')) {
 		const converted = await convertDocToDocx(buffer);
 		const { value } = await mammoth.convertToHtml({ buffer: converted });
@@ -90,14 +93,14 @@ export async function extractAndStore(documentId: string) {
 	} else if (doc.fileKey.endsWith('.pdf') || doc.mime === 'application/pdf') {
 		// Extract text from PDF
 		try {
-			console.log(`[Extract] Parsing PDF...`);
+			log.debug('Parsing PDF');
 			const pdfParse = await getPdfParse();
 			const pdfData = await pdfParse(buffer);
 			const text = pdfData.text;
 			html = `<pre>${escapeHtml(text)}</pre>`;
-			console.log(`[Extract] PDF parsing completed, text length: ${text.length}`);
+			log.debug('PDF parsing completed', { textLength: text.length });
 		} catch (err: any) {
-			console.error(`[Extract] PDF parsing error:`, err);
+			log.error('PDF parsing error', err);
 			throw new Error(`PDF 解析失败: ${err.message}`);
 		}
 	} else if (doc.fileKey.endsWith('.rtf')) {
@@ -110,13 +113,13 @@ export async function extractAndStore(documentId: string) {
 			throw new Error('Unsupported type for extraction');
 		}
 	} catch (convertErr: any) {
-		console.error(`[Extract] Conversion error:`, convertErr);
+		log.error('Conversion error', convertErr);
 		throw new Error(`文档转换失败: ${convertErr.message}`);
 	}
 
-	console.log(`[Extract] Cleaning HTML...`);
+	log.debug('Cleaning HTML');
 	const clean = cleanHtml(html);
-	console.log(`[Extract] HTML cleaned, length: ${clean.length}`);
+	log.debug('HTML cleaned', { length: clean.length });
 	
 	// Try to extract title from document (before AI summary)
 	// This allows topic title to be updated immediately
@@ -144,21 +147,21 @@ export async function extractAndStore(documentId: string) {
 					where: { id: doc.topicId },
 					data: { title: extractedTitle }
 				});
-				console.log(`[Extract] Updated topic title from extracted text: ${extractedTitle}`);
+				log.debug('Updated topic title from extracted text', { title: extractedTitle });
 			}
 		}
 	} catch (titleErr: any) {
-		console.warn('[Extract] Failed to extract/update title:', titleErr);
+		log.warn('Failed to extract/update title', { error: titleErr });
 		// Continue even if title extraction fails
 	}
 	
 		// store into Document.extractedText (as bytes)
-		console.log(`[Extract] Saving extracted text to database...`);
+		log.debug('Saving extracted text to database');
 		await prisma.document.update({
 			where: { id: doc.id },
 			data: { extractedText: Buffer.from(clean, 'utf-8') }
 		});
-		console.log(`[Extract] Extracted text saved successfully`);
+		log.debug('Extracted text saved successfully');
 		
 		// 更新状态为 completed
 		await updateProcessingStatus(documentId, 'extract', 'completed');
@@ -167,19 +170,18 @@ export async function extractAndStore(documentId: string) {
 		try {
 			const { enqueueSummarize } = await import('@/lib/queue/jobs');
 			const job = await enqueueSummarize(doc.id);
-			console.log(`[Extract] Summarize job enqueued: ${job.id} (${job.name}) for document ${doc.id}`);
+			log.debug('Summarize job enqueued', { jobId: job.id, jobName: job.name, documentId: doc.id });
 		} catch (err: any) {
-			console.error(`[Extract] Failed to enqueue summarize for document ${doc.id}:`, err.message);
-			console.error(`[Extract] Error stack:`, err.stack);
+			log.error('Failed to enqueue summarize', err, { documentId: doc.id });
 			// Continue even if summarize fails - can be retried manually
 		}
 		
-		console.log(`[Extract] Extraction completed successfully for document ${documentId}`);
+		log.debug('Extraction completed successfully', { documentId });
 		return { ok: true };
 	} catch (error: any) {
 		// 更新状态为 failed
 		await updateProcessingStatus(documentId, 'extract', 'failed', error.message);
-		console.error(`[Extract] Extraction failed for document ${documentId}:`, error);
+		log.error('Extraction failed', error, { documentId });
 		throw error;
 	}
 }

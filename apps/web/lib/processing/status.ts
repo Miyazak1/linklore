@@ -1,7 +1,10 @@
 import { prisma } from '@/lib/db/client';
+import { createModuleLogger } from '@/lib/utils/logger';
+
+const log = createModuleLogger('DependencyCheck');
 
 export type ProcessingStage = 'extract' | 'summarize' | 'evaluate' | 'analyzeDisagreements' | 'trackConsensus';
-export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'skipped';
 
 export interface ProcessingStatusData {
 	extract?: ProcessingStatus;
@@ -72,7 +75,7 @@ export async function checkProcessingDependencies(
 	});
 
 	if (!doc) {
-		console.warn(`[DependencyCheck] Document ${documentId} not found`);
+		log.warn('Document not found', { documentId });
 		return { ready: false, missing: [requiredStage] };
 	}
 
@@ -99,21 +102,21 @@ export async function checkProcessingDependencies(
 		if (!isCompleted) {
 			// 容错检查
 			if (dep === 'extract' && doc.extractedText) {
-				console.log(`[DependencyCheck] Extract status is "${depStatus}" but extractedText exists, treating as completed`);
+				log.debug('Extract status mismatch but extractedText exists, treating as completed', { documentId, depStatus });
 				isCompleted = true;
 				// 自动修复状态
 				await updateProcessingStatus(documentId, 'extract', 'completed').catch(() => {
 					// 忽略修复失败，继续处理
 				});
 			} else if (dep === 'summarize' && doc.summaries.length > 0) {
-				console.log(`[DependencyCheck] Summarize status is "${depStatus}" but summary exists, treating as completed`);
+				log.debug('Summarize status mismatch but summary exists, treating as completed', { documentId, depStatus });
 				isCompleted = true;
 				// 自动修复状态
 				await updateProcessingStatus(documentId, 'summarize', 'completed').catch(() => {
 					// 忽略修复失败，继续处理
 				});
 			} else if (dep === 'evaluate' && doc.evaluations.length > 0) {
-				console.log(`[DependencyCheck] Evaluate status is "${depStatus}" but evaluation exists, treating as completed`);
+				log.debug('Evaluate status mismatch but evaluation exists, treating as completed', { documentId, depStatus });
 				isCompleted = true;
 				// 自动修复状态
 				await updateProcessingStatus(documentId, 'evaluate', 'completed').catch(() => {
@@ -124,15 +127,15 @@ export async function checkProcessingDependencies(
 		
 		if (!isCompleted) {
 			missing.push(dep);
-			console.warn(`[DependencyCheck] Document ${documentId}, stage ${requiredStage}: missing dependency ${dep} (status: ${depStatus})`);
+			log.warn('Missing dependency', { documentId, requiredStage, dep, depStatus });
 		}
 	}
 
 	const ready = missing.length === 0;
 	if (!ready) {
-		console.warn(`[DependencyCheck] Document ${documentId}, stage ${requiredStage}: not ready, missing: ${missing.join(', ')}`);
+		log.warn('Dependencies not ready', { documentId, requiredStage, missing });
 	} else {
-		console.log(`[DependencyCheck] Document ${documentId}, stage ${requiredStage}: all dependencies ready`);
+		log.debug('All dependencies ready', { documentId, requiredStage });
 	}
 
 	return {

@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db/client';
 import { compare } from 'bcryptjs';
 import { createSession, clearSession } from '@/lib/auth/session';
 import { logAudit } from '@/lib/audit/logger';
-import { cookies } from 'next/headers';
 
 const SigninSchema = z.object({
 	email: z.string().email(),
@@ -17,6 +16,12 @@ export async function POST(req: Request) {
 		const { email, password } = SigninSchema.parse(json);
 		const user = await prisma.user.findUnique({ where: { email } });
 		if (!user) return NextResponse.json({ error: '邮箱或密码错误' }, { status: 400 });
+		
+		// 检查用户是否有密码（OAuth用户可能没有密码）
+		if (!user.passwordHash) {
+			return NextResponse.json({ error: '该账户使用第三方登录，请使用微信或QQ登录' }, { status: 400 });
+		}
+		
 		const ok = await compare(password, user.passwordHash);
 		if (!ok) {
 			await logAudit({
@@ -34,15 +39,6 @@ export async function POST(req: Request) {
 		
 		// 创建新用户的 session
 		await createSession({ sub: user.id, email: user.email, role: user.role });
-		
-		// 验证 Cookie 是否设置成功
-		const cookieStore = await cookies();
-		const sessionCookie = cookieStore.get('ll_session');
-		console.error('[Signin API] Cookie after creation:', {
-			hasCookie: !!sessionCookie,
-			cookieValue: sessionCookie?.value ? sessionCookie.value.substring(0, 20) + '...' : 'null',
-			allCookies: Array.from(cookieStore.getAll()).map(c => c.name)
-		});
 		
 		await logAudit({
 			action: 'user.login',

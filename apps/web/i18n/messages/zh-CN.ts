@@ -1,6 +1,6 @@
 export default {
 	common: {
-		appName: "LinkLore",
+		appName: "Mooyu",
 		appDescription: "小规模学术讨论平台（文档即话题）",
 		loading: "加载中...",
 		error: "错误",
@@ -24,7 +24,7 @@ export default {
 		shelf: "我的书架"
 	},
 	home: {
-		title: "LinkLore",
+		title: "Mooyu",
 		subtitle: "小规模学术讨论平台（文档即话题）",
 		stats: {
 			topics: "话题",

@@ -150,14 +150,10 @@ export default function ShelfBookList({ items }: { items: ShelfItem[] }) {
 							}}
 							onClick={() => window.location.href = `/books/${book.id}`}
 							onMouseEnter={(e) => {
-								e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
-								e.currentTarget.style.transform = 'translateY(-4px)';
-								e.currentTarget.style.borderColor = 'var(--color-accent-warm)';
+								e.currentTarget.style.borderColor = 'var(--color-border)';
 							}}
 							onMouseLeave={(e) => {
-								e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-								e.currentTarget.style.transform = 'translateY(0)';
-								e.currentTarget.style.borderColor = 'var(--color-border-light)';
+								e.currentTarget.style.borderColor = 'var(--color-border)';
 							}}
 						>
 							{book.coverUrl ? (

@@ -67,20 +67,8 @@ export async function GET(
 			}
 		});
 
-		// 计算楼层号（按创建时间顺序）
-		const floorMap = new Map<string, number>();
-		allComments.forEach((comment, index) => {
-			floorMap.set(comment.id, index + 1);
-		});
-
-		// 添加楼层号到评论数据
-		const commentsWithFloor = allComments.map(comment => ({
-			...comment,
-			floor: floorMap.get(comment.id) || 0
-		}));
-
 		// 应用分页和排序
-		const sortedComments = [...commentsWithFloor].sort((a, b) => {
+		const sortedComments = [...allComments].sort((a, b) => {
 			if (sortBy === 'createdAt') {
 				const aVal = new Date(a.createdAt).getTime();
 				const bVal = new Date(b.createdAt).getTime();
@@ -157,12 +145,13 @@ export async function POST(
 		const body = await req.json();
 		const validated = CommentSchema.parse(body);
 
-		// 计算深度（不做限制）
+		// 计算深度：只允许根评论（depth=0）和2级评论（depth=1），没有3级评论
+		// 如果回复2级评论，仍然创建2级评论（depth=1），扁平显示
 		let depth = 0;
 		if (validated.parentId) {
 			const parent = await prisma.topicComment.findUnique({
 				where: { id: validated.parentId },
-				select: { depth: true, topicId: true }
+				select: { depth: true, topicId: true, parentId: true }
 			});
 
 			if (!parent) {
@@ -175,7 +164,10 @@ export async function POST(
 				return NextResponse.json(response, { status });
 			}
 
-			depth = parent.depth + 1;
+			// 限制深度：最大为1（2级评论）
+			// 如果父评论是根评论（depth=0），创建2级评论（depth=1）
+			// 如果父评论是2级评论（depth=1），仍然创建2级评论（depth=1），扁平显示
+			depth = 1;
 		}
 
 		// 创建评论

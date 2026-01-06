@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createModuleLogger } from '@/lib/utils/logger';
-import ChatPageLoader from '@/components/ui/ChatPageLoader';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const log = createModuleLogger('DailyIssueHistoryPage');
 
@@ -60,9 +60,8 @@ export default function DailyIssueHistoryPage() {
 
 	if (loading) {
 		return (
-			<ChatPageLoader
+			<LoadingSpinner fullscreen
 				message="加载中..."
-				subMessage="正在获取历史记录"
 			/>
 		);
 	}
@@ -312,6 +311,7 @@ export default function DailyIssueHistoryPage() {
 		</div>
 	);
 }
+
 
 
 

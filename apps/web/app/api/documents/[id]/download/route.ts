@@ -2,9 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/client';
 import { getOssClient, isLocalStorage } from '@/lib/storage/oss';
 import { getFile } from '@/lib/storage/local';
+import { readSession } from '@/lib/auth/session';
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
+		// 需要登录才能下载文档
+		const session = await readSession();
+		if (!session?.sub) {
+			return NextResponse.json({ error: '未登录' }, { status: 401 });
+		}
+
 		const { id } = await params;
 		const doc = await prisma.document.findUnique({ where: { id } });
 		if (!doc) return NextResponse.json({ error: '文档不存在' }, { status: 404 });

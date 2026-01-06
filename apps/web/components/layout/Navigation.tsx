@@ -81,7 +81,7 @@ export default function Navigation() {
 
 	const navItems = [
 		{ href: '/', label: '首页', icon: HomeIcon },
-		{ href: '/upload', label: '讨论版', icon: MessageIcon },
+		{ href: '/discussion', label: '讨论版', icon: MessageIcon },
 		// 暂时禁用语义溯源功能，后期改造后再启用
 		// { href: '/traces', label: '语义溯源', icon: SearchIcon },
 		{ href: '/library', label: '图书馆', icon: LibraryIcon },
@@ -148,12 +148,12 @@ export default function Navigation() {
 	return (
 		<nav style={{
 			background: 'var(--color-background-paper)',
-			borderBottom: '1px solid var(--color-border-light)',
-			padding: 'var(--spacing-md) 0',
+			borderBottom: '1px solid var(--color-border)',
+			padding: '8px 0',
 			position: 'sticky',
 			top: 0,
 			zIndex: 100,
-			boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
+			boxShadow: 'none'
 		}}>
 			<div style={{
 				maxWidth: 1400,
@@ -169,20 +169,47 @@ export default function Navigation() {
 				<Link href="/" style={{
 					display: 'flex',
 					alignItems: 'center',
-					gap: 'var(--spacing-xs)',
+					gap: '8px',
 					textDecoration: 'none',
 					color: 'var(--color-primary)',
-					fontSize: 'var(--font-size-xl)',
+					fontSize: '20px',
 					fontWeight: 700,
-					letterSpacing: '-0.02em',
+					letterSpacing: 0,
 					whiteSpace: 'nowrap',
-					transition: 'opacity 0.2s'
+					transition: 'opacity 0.2s',
+					paddingLeft: '8px'
 				}}
 				onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
 				onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
 				>
-					<BookIcon size={24} color="var(--color-primary)" style={{ flexShrink: 0 }} />
-					<span>Linklore</span>
+					{/* Logo 图片或图标 */}
+					<img
+						src="/assets/icon.png"
+						alt="Mooyu"
+						onError={(e) => {
+							// 如果图片加载失败，隐藏图片，显示图标
+							e.currentTarget.style.display = 'none';
+							const iconElement = e.currentTarget.nextElementSibling as HTMLElement;
+							if (iconElement) {
+								iconElement.style.display = 'flex';
+							}
+						}}
+						style={{
+							height: '32px',
+							width: 'auto',
+							flexShrink: 0,
+							display: 'block'
+						}}
+					/>
+					<div
+						style={{
+							display: 'none',
+							flexShrink: 0
+						}}
+					>
+						<BookIcon size={32} color="var(--color-primary)" />
+					</div>
+					<span>Mooyu</span>
 				</Link>
 
 				{/* Desktop Navigation Links */}

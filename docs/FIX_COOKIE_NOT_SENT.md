@@ -224,3 +224,9 @@ cat /www/server/panel/vhost/nginx/你的网站.conf | grep -i server_name > /tmp
 
 然后检查这些文件，找出域名不匹配的问题。
 
+
+
+
+
+
+

@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db/client';
 import { routeAiCall } from '@/lib/ai/router';
 import { updateProcessingStatus, checkProcessingDependencies } from './status';
 import { AI_PROCESSING_CONFIG } from '@/lib/config/ai-processing';
+import { createModuleLogger } from '@/lib/utils/logger';
+const log = createModuleLogger('Summarize');
 export async function summarizeAndStore(documentId) {
     // 检查依赖
     const deps = await checkProcessingDependencies(documentId, 'summarize');
@@ -19,12 +21,18 @@ export async function summarizeAndStore(documentId) {
             throw new Error('Document not found');
         if (!doc.extractedText)
             throw new Error('Document text not extracted yet');
+        // 文章类型不进行 AI 分析
+        if (doc.topic.type === 'article') {
+            log.debug('Skipping summarize for article type topic', { topicId: doc.topic.id });
+            await updateProcessingStatus(documentId, 'summarize', 'skipped');
+            return { skipped: true, reason: 'Article type does not support AI analysis' };
+        }
         const text = Buffer.from(doc.extractedText).toString('utf-8');
         // Limit text length for AI processing (configurable)
         const textLimit = AI_PROCESSING_CONFIG.TEXT_LIMITS.SUMMARIZE;
         const textForAi = text.slice(0, textLimit);
         if (text.length > textLimit) {
-            console.log(`[Summarize] Text truncated from ${text.length} to ${textLimit} characters`);
+            log.debug('Text truncated', { originalLength: text.length, truncatedLength: textLimit });
         }
         // Build prompt for multi-dimensional summary
         const prompt = `请对以下文档进行多维度总结，要求：
@@ -98,7 +106,7 @@ ${textForAi}
                 where: { id: doc.topicId },
                 data: { subtitle: summaryData.title } // AI-generated title as subtitle
             });
-            console.log(`[Summarize] Updated topic subtitle with AI-generated title: ${summaryData.title}`);
+            log.debug('Updated topic subtitle with AI-generated title', { title: summaryData.title });
         }
         // 更新状态为 completed
         await updateProcessingStatus(documentId, 'summarize', 'completed');
@@ -106,11 +114,10 @@ ${textForAi}
         try {
             const { enqueueEvaluate } = await import('@/lib/queue/jobs');
             const job = await enqueueEvaluate(doc.id);
-            console.log(`[Summarize] Evaluate job enqueued: ${job.id} (${job.name}) for document ${doc.id}`);
+            log.debug('Evaluate job enqueued', { jobId: job.id, jobName: job.name, documentId: doc.id });
         }
         catch (err) {
-            console.error(`[Summarize] Failed to enqueue evaluate for document ${doc.id}:`, err.message);
-            console.error(`[Summarize] Error stack:`, err.stack);
+            log.error('Failed to enqueue evaluate', err, { documentId: doc.id });
             // Continue even if evaluate fails - can be retried manually
         }
         return { ok: true };
@@ -118,7 +125,7 @@ ${textForAi}
     catch (error) {
         // 更新状态为 failed
         await updateProcessingStatus(documentId, 'summarize', 'failed', error.message);
-        console.error(`[Summarize] Summarization failed for document ${documentId}:`, error);
+        log.error('Summarization failed', error, { documentId });
         throw error;
     }
 }

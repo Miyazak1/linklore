@@ -41,7 +41,15 @@ export function cleanHtml(dirty) {
         },
         allowProtocolRelative: false,
         transformTags: {
-            a: sanitizeHtml.simpleTransform('a', { rel: 'nofollow noreferrer noopener' })
+            a: (tagName, attribs) => {
+                return {
+                    tagName: 'a',
+                    attribs: {
+                        ...attribs,
+                        rel: 'nofollow noreferrer noopener'
+                    }
+                };
+            }
         },
         enforceHtmlBoundary: true
     });

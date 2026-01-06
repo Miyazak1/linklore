@@ -121,3 +121,9 @@ psql $DATABASE_URL -c "ALTER TABLE \"User\" ADD COLUMN IF NOT EXISTS \"avatarUrl
 
 
 
+
+
+
+
+
+

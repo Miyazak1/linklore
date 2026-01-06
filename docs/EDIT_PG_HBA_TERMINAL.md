@@ -150,3 +150,9 @@ sudo nano /var/lib/pgsql/data/pg_hba.conf
 
 
 
+
+
+
+
+
+

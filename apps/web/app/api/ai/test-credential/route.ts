@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-
+import { readSession } from '@/lib/auth/session';
 import { callAiProvider, type AiProvider } from '@/lib/ai/adapters';
 
 const Schema = z.object({
@@ -12,6 +12,12 @@ const Schema = z.object({
 
 export async function POST(req: Request) {
 	try {
+		// 需要登录才能测试凭证
+		const session = await readSession();
+		if (!session?.sub) {
+			return NextResponse.json({ error: '未登录' }, { status: 401 });
+		}
+
 		const { provider, apiKey, model, apiEndpoint } = Schema.parse(await req.json());
 		
 		// Test by making a small API call

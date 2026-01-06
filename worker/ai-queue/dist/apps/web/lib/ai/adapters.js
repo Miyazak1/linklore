@@ -1,4 +1,6 @@
 // AI Provider Adapters
+import { createModuleLogger } from '@/lib/utils/logger';
+const log = createModuleLogger('AI Adapter');
 // Decode encrypted API key
 function decodeSecret(encrypted) {
     const salt = process.env.SESSION_SECRET || 'dev';
@@ -24,8 +26,11 @@ function decodeSecret(encrypted) {
             // 找到了冒号，提取冒号后面的部分作为 API Key
             apiKey = decoded.slice(colonIndex + 1);
             const detectedSalt = decoded.slice(0, colonIndex);
-            console.warn(`[AI Adapter] SESSION_SECRET 不匹配！检测到保存时使用的 SESSION_SECRET 长度: ${detectedSalt.length}, 当前 SESSION_SECRET 长度: ${salt.length}`);
-            console.warn(`[AI Adapter] 已自动从解码后的字符串中提取 API Key`);
+            log.warn('SESSION_SECRET 不匹配', {
+                detectedSaltLength: detectedSalt.length,
+                currentSaltLength: salt.length
+            });
+            log.warn('已自动从解码后的字符串中提取 API Key');
         }
         else {
             // 没有找到冒号，可能是旧格式或未编码的数据
@@ -42,7 +47,10 @@ function decodeSecret(encrypted) {
             const doubleDecoded = Buffer.from(apiKey, 'base64').toString('utf-8');
             // 如果再次解码后看起来像有效的 API Key（以 sk- 开头，或者长度合理）
             if (doubleDecoded.length > 0 && (doubleDecoded.startsWith('sk-') || doubleDecoded.length >= 20)) {
-                console.warn(`[AI Adapter] 检测到 API Key 可能是双重编码，已自动修复。原始长度: ${apiKey.length}, 修复后长度: ${doubleDecoded.length}`);
+                log.warn('检测到 API Key 可能是双重编码，已自动修复', {
+                    originalLength: apiKey.length,
+                    fixedLength: doubleDecoded.length
+                });
                 return doubleDecoded.trim();
             }
         }
@@ -82,9 +90,15 @@ async function callOpenAiCompatible(endpoint, options) {
     const cleanApiKey = options.apiKey.trim();
     // 调试日志：显示 API Key 的部分信息（不完整显示，安全考虑）
     if (cleanApiKey.length !== options.apiKey.length) {
-        console.warn(`[AI Adapter] API Key 包含空白字符，已自动清理。原始长度: ${options.apiKey.length}, 清理后长度: ${cleanApiKey.length}`);
+        log.warn('API Key 包含空白字符，已自动清理', {
+            originalLength: options.apiKey.length,
+            cleanedLength: cleanApiKey.length
+        });
     }
-    console.log(`[AI Adapter] API Key 前4位: ${cleanApiKey.substring(0, 4)}..., 长度: ${cleanApiKey.length}`);
+    log.debug('API Key 信息', {
+        prefix: cleanApiKey.substring(0, 4),
+        length: cleanApiKey.length
+    });
     const response = await fetch(`${apiUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -126,9 +140,12 @@ async function callOpenAiCompatible(endpoint, options) {
         else {
             errorText = JSON.stringify(data);
         }
-        console.error(`[AI Adapter] API调用失败: status=${response.status}, endpoint=${apiUrl}, model=${options.model}`);
-        console.error(`[AI Adapter] 错误详情:`, errorText);
-        console.error(`[AI Adapter] 完整响应:`, JSON.stringify(data, null, 2));
+        log.error('API调用失败', new Error(errorText), {
+            status: response.status,
+            endpoint: apiUrl,
+            model: options.model,
+            response: data
+        });
         // Provide more helpful error messages
         if (response.status === 503) {
             throw new Error(`服务暂时繁忙，请稍后重试。${errorText ? ` (${errorText})` : ''}`);
@@ -257,45 +274,62 @@ export async function callOpenAiCompatibleStream(endpoint, options) {
             requestBody.reasoning_effort = 'low'; // 降低推理努力
             // 或者尝试禁用 reasoning
             // requestBody.enable_reasoning = false; // 如果API支持
-            console.log('[AI Adapter] DeepSeek-V3 模型检测到，添加特殊参数:', {
+            log.debug('DeepSeek-V3 模型检测到，添加特殊参数', {
                 top_p: requestBody.top_p,
                 max_tokens: requestBody.max_tokens,
                 reasoning_effort: requestBody.reasoning_effort
             });
         }
         else {
-            console.log('[AI Adapter] DeepSeek模型检测到，添加特殊参数:', {
+            log.debug('DeepSeek模型检测到，添加特殊参数', {
                 top_p: requestBody.top_p,
                 max_tokens: requestBody.max_tokens
             });
         }
     }
-    console.log('[AI Adapter] 调用API:', {
+    log.debug('调用API', {
         endpoint: `${apiUrl}/chat/completions`,
         model: options.model,
         messagesCount: messages.length,
         hasApiKey: !!cleanApiKey
     });
-    const response = await fetch(`${apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${cleanApiKey}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-    });
-    console.log('[AI Adapter] API响应状态:', response.status, response.statusText);
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        console.error('[AI Adapter] API调用失败:', error);
-        throw new Error(error.error?.message || `API 调用失败: ${response.status} ${response.statusText}`);
+    // 创建 AbortController 用于超时控制（10分钟超时）
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => {
+        fetchController.abort();
+    }, 10 * 60 * 1000); // 10分钟
+    try {
+        const response = await fetch(`${apiUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${cleanApiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody),
+            signal: fetchController.signal,
+            keepalive: true // 保持连接活跃
+        });
+        clearTimeout(fetchTimeout);
+        log.debug('API响应状态', { status: response.status, statusText: response.statusText });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            log.error('API调用失败', error);
+            throw new Error(error?.error?.message || `API 调用失败: ${response.status} ${response.statusText}`);
+        }
+        log.debug('API调用成功，返回流式响应');
+        // 返回 ReadableStream
+        if (!response.body) {
+            throw new Error('响应体为空');
+        }
+        return response.body;
     }
-    console.log('[AI Adapter] API调用成功，返回流式响应');
-    // 返回 ReadableStream
-    if (!response.body) {
-        throw new Error('响应体为空');
+    catch (error) {
+        clearTimeout(fetchTimeout);
+        if (error.name === 'AbortError') {
+            throw new Error('请求超时，请稍后重试');
+        }
+        throw error;
     }
-    return response.body;
 }
 /**
  * 解析流式响应
@@ -308,42 +342,97 @@ export async function* parseStreamResponse(stream) {
     let totalText = '';
     let savedUsage = null; // 保存usage，等收到content后再返回
     let reasoningContentCount = 0; // 统计收到的reasoning_content数量
-    console.log('[parseStreamResponse] 开始解析流式响应');
+    log.debug('开始解析流式响应');
+    // 设置超时时间（5分钟），防止无限等待单个chunk
+    // 注意：这个超时是针对单个chunk的等待时间，不是整个流的超时
+    // AI生成可能需要较长时间，特别是长文本生成
+    const chunkTimeout = 300000; // 5分钟
+    let lastChunkTime = Date.now();
     try {
-        // 设置超时时间（30秒），防止无限等待
-        const timeout = 30000; // 30秒
-        const startTime = Date.now();
         while (true) {
-            // 检查超时
-            if (Date.now() - startTime > timeout) {
-                console.error('[parseStreamResponse] ❌ 超时：等待content chunk超过30秒');
+            // 检查单个chunk超时（如果5分钟没有收到新chunk，认为连接中断）
+            if (Date.now() - lastChunkTime > chunkTimeout) {
+                log.error('超时：等待content chunk超过5分钟', new Error('Chunk timeout'), {
+                    contentLength: totalText.length
+                });
+                try {
+                    reader.cancel(); // 取消读取
+                }
+                catch (e) {
+                    log.error('取消reader失败', e);
+                }
+                // 即使超时，也返回已生成的内容
+                if (totalText.length > 0) {
+                    log.warn('超时但已有内容，返回已生成部分');
+                    if (savedUsage) {
+                        yield {
+                            text: '',
+                            done: true,
+                            usage: savedUsage
+                        };
+                    }
+                }
                 break;
             }
-            const { done, value } = await reader.read();
+            // 为 read() 添加超时保护（60秒），避免无限等待单个chunk
+            // 但不会中断整个流，只是记录警告
+            let readResult;
+            try {
+                const readPromise = reader.read();
+                const readTimeout = setTimeout(() => {
+                    log.warn('单个read()操作超过60秒，但继续等待');
+                }, 60000);
+                readResult = await readPromise;
+                clearTimeout(readTimeout);
+            }
+            catch (readErr) {
+                log.error('read() 抛出错误', readErr, {
+                    totalTextLength: totalText.length
+                });
+                // 如果已有内容，返回已生成的部分
+                if (totalText.length > 0) {
+                    log.warn('read()错误但已有内容，返回已生成部分');
+                    if (savedUsage) {
+                        yield {
+                            text: '',
+                            done: true,
+                            usage: savedUsage
+                        };
+                    }
+                }
+                throw readErr;
+            }
+            const { done, value } = readResult;
+            // 更新最后收到chunk的时间（每次收到数据都重置）
+            if (!done && value && value.length > 0) {
+                lastChunkTime = Date.now();
+                log.debug('收到chunk，重置超时计时器', { size: value.length });
+            }
             if (done) {
-                console.log('[parseStreamResponse] 📥 流结束，总chunk数:', chunkCount, '总文本长度:', totalText.length, 'reasoningContentCount:', reasoningContentCount);
+                log.debug('流结束', { chunkCount, totalTextLength: totalText.length, reasoningContentCount });
                 if (chunkCount === 0) {
-                    console.error('[parseStreamResponse] ❌ 严重问题：流结束但没有收到任何content chunk！');
-                    console.error('[parseStreamResponse] 但收到了', reasoningContentCount, '个reasoning_content chunk');
+                    log.error('严重问题：流结束但没有收到任何content chunk', new Error('No content chunks'), {
+                        reasoningContentCount
+                    });
                 }
                 break;
             }
             const decoded = decoder.decode(value, { stream: true });
             if (chunkCount === 0 && decoded.length > 0) {
-                console.log('[parseStreamResponse] 📥 收到第一批数据，长度:', decoded.length);
+                log.debug('收到第一批数据', { length: decoded.length });
                 // 查找第一个完整的JSON对象来查看结构
                 const firstDataMatch = decoded.match(/data:\s*(\{.*?\})/);
                 if (firstDataMatch) {
                     try {
                         const firstJson = JSON.parse(firstDataMatch[1]);
-                        console.log('[parseStreamResponse] 🔍 第一个数据包结构:', JSON.stringify(firstJson, null, 2).substring(0, 1000));
+                        log.debug('第一个数据包结构', { structure: JSON.stringify(firstJson, null, 2).substring(0, 1000) });
                     }
                     catch (e) {
-                        console.log('[parseStreamResponse] 📥 数据预览:', decoded.substring(0, 500));
+                        log.debug('数据预览', { preview: decoded.substring(0, 500) });
                     }
                 }
                 else {
-                    console.log('[parseStreamResponse] 📥 数据预览:', decoded.substring(0, 500));
+                    log.debug('数据预览', { preview: decoded.substring(0, 500) });
                 }
             }
             buffer += decoded;
@@ -355,7 +444,7 @@ export async function* parseStreamResponse(stream) {
                 if (line.startsWith('data: ')) {
                     const data = line.slice(6).trim();
                     if (data === '[DONE]') {
-                        console.log('[parseStreamResponse] 收到 [DONE] 标记');
+                        log.debug('收到 [DONE] 标记');
                         yield { text: '', done: true };
                         return;
                     }
@@ -366,7 +455,7 @@ export async function* parseStreamResponse(stream) {
                         // 调试：打印第一个数据包的完整结构
                         if (chunkCount === 0 && !json.usage) {
                             const delta = json.choices?.[0]?.delta || {};
-                            console.log('[parseStreamResponse] 🔍 第一个数据包完整结构:', JSON.stringify({
+                            log.debug('第一个数据包完整结构', {
                                 model: json.model,
                                 choices: json.choices?.map((c) => ({
                                     index: c.index,
@@ -380,7 +469,7 @@ export async function* parseStreamResponse(stream) {
                                     finish_reason: c.finish_reason
                                 })),
                                 usage: json.usage
-                            }, null, 2));
+                            });
                         }
                         // 检查是否有delta content（流式chunk）
                         const delta = json.choices?.[0]?.delta || {};
@@ -389,19 +478,24 @@ export async function* parseStreamResponse(stream) {
                         // - 第一个chunk可能只有 reasoning_content（思考过程）
                         // - 后续chunk才有 content（实际回复）
                         // - 我们需要等待 content 出现
-                        if (deltaContent && deltaContent.trim()) {
-                            chunkCount++;
-                            totalText += deltaContent;
-                            if (chunkCount <= 3) {
-                                console.log(`[parseStreamResponse] ✅ Chunk ${chunkCount}:`, deltaContent.substring(0, 50));
+                        if (deltaContent !== undefined && deltaContent !== null) {
+                            // 即使内容为空字符串，也记录（可能是AI在思考）
+                            if (deltaContent.trim()) {
+                                chunkCount++;
+                                totalText += deltaContent;
+                                log.debug(`Chunk ${chunkCount}`, { totalLength: totalText.length });
+                                yield { text: deltaContent, done: false };
                             }
-                            yield { text: deltaContent, done: false };
+                            else {
+                                // 空内容，记录但不yield（可能是AI在思考或格式化）
+                                log.debug('收到空内容chunk，继续等待');
+                            }
                         }
                         else if (delta.reasoning_content) {
                             // DeepSeek-V3 的 reasoning_content（思考过程），我们跳过
                             // 只记录日志，不yield内容
                             if (chunkCount === 0) {
-                                console.log('[parseStreamResponse] ⚠️ 收到 reasoning_content（思考过程），等待 content（实际回复）');
+                                log.debug('收到 reasoning_content（思考过程），等待 content（实际回复）');
                             }
                         }
                         else {
@@ -409,7 +503,7 @@ export async function* parseStreamResponse(stream) {
                             if (json.choices?.[0]?.message?.content) {
                                 // 非流式响应格式
                                 const content = json.choices[0].message.content;
-                                console.log('[parseStreamResponse] ⚠️ 收到非流式内容:', content.substring(0, 50));
+                                log.warn('收到非流式内容', { preview: content.substring(0, 50) });
                                 chunkCount++;
                                 totalText += content;
                                 yield { text: content, done: false };
@@ -417,58 +511,69 @@ export async function* parseStreamResponse(stream) {
                             else if (json.choices?.[0]?.text) {
                                 // 旧版API格式
                                 const content = json.choices[0].text;
-                                console.log('[parseStreamResponse] ⚠️ 收到旧格式内容:', content.substring(0, 50));
+                                log.warn('收到旧格式内容', { preview: content.substring(0, 50) });
                                 chunkCount++;
                                 totalText += content;
                                 yield { text: content, done: false };
                             }
                             else if (chunkCount === 0 && !json.usage) {
                                 // 第一个数据包没有内容，记录结构用于调试
-                                console.log('[parseStreamResponse] ⚠️ 第一个数据包没有内容，完整结构:', JSON.stringify(json, null, 2).substring(0, 500));
+                                log.warn('第一个数据包没有内容', { structure: JSON.stringify(json, null, 2).substring(0, 500) });
                             }
                         }
                         // 检查是否有finish_reason（流结束）
                         const finishReason = json.choices?.[0]?.finish_reason;
                         if (finishReason) {
-                            console.log('[parseStreamResponse] 流完成，finish_reason:', finishReason, 'totalText长度:', totalText.length);
+                            log.debug('收到finish_reason', { finishReason, totalTextLength: totalText.length, chunkCount });
+                            // 如果finish_reason出现但内容很短，记录警告并继续等待
+                            if (totalText.length < 10 && chunkCount > 0) {
+                                log.error('警告：流过早结束', new Error('Stream ended too early'), {
+                                    finishReason,
+                                    contentLength: totalText.length,
+                                    structure: JSON.stringify(json, null, 2).substring(0, 1000)
+                                });
+                                // 即使finish_reason出现，如果内容很短，继续等待更多内容
+                                // 因为可能是AI服务端的误报或网络问题
+                            }
+                            // 如果finish_reason出现，继续等待usage信息和更多content chunk
+                            // 不要立即返回，因为可能还有后续的content chunk
+                            // 只有在流真正结束（done: true）时才返回
                         }
                         // 如果包含 usage 信息（最后一条消息）
                         // 注意：usage 可能在 content 之前到达（特别是 DeepSeek-V3）
                         // 所以不能立即返回，需要继续等待 content
                         if (json.usage) {
-                            console.log('[parseStreamResponse] 📊 收到usage信息:', json.usage, 'totalText长度:', totalText.length);
-                            // 保存usage
+                            log.debug('收到usage信息', { usage: json.usage, totalTextLength: totalText.length, chunkCount });
+                            // 保存usage，但不要立即返回
+                            // 因为可能还有后续的content chunk
                             savedUsage = json.usage;
-                            // 如果已经有内容，可以标记为done
-                            if (totalText.length > 0) {
-                                yield {
-                                    text: '',
-                                    done: true,
-                                    usage: savedUsage
-                                };
-                                return;
+                            // 检查completion_tokens，判断是否真的完成了
+                            const completionTokens = json.usage.completion_tokens || 0;
+                            if (completionTokens > 0) {
+                                // 如果completion_tokens > 0，说明AI生成了内容
+                                // 但可能content chunk还在后面，继续等待
+                                log.debug('completion_tokens > 0，说明AI生成了内容，继续等待content chunk', {
+                                    currentLength: totalText.length,
+                                    expectedTokens: completionTokens
+                                });
+                                // 不返回，继续循环等待content
                             }
-                            else {
-                                // 如果还没有内容，保存usage但继续等待content
-                                console.log('[parseStreamResponse] ⚠️ 收到usage但还没有content，继续等待content chunk...');
-                                console.log('[parseStreamResponse] ⚠️ completion_tokens:', json.usage.completion_tokens || 0);
-                                // 如果 completion_tokens > 0 但还没有收到content，说明content可能在后面
-                                if (json.usage.completion_tokens > 0) {
-                                    console.log('[parseStreamResponse] ⚠️ completion_tokens > 0，说明AI生成了内容，继续等待content chunk...');
-                                }
-                                else if (json.usage.completion_tokens === 0) {
-                                    console.error('[parseStreamResponse] ❌ completion_tokens为0，AI没有生成任何内容！');
-                                    console.error('[parseStreamResponse] 这可能是因为：');
-                                    console.error('  1. 模型配置问题（可能需要禁用reasoning_content）');
-                                    console.error('  2. 请求参数问题（max_tokens、temperature等）');
-                                    console.error('  3. API Key权限问题');
-                                }
-                                // 不返回，继续循环等待content（即使completion_tokens为0，也可能有content chunk）
+                            else if (completionTokens === 0) {
+                                // completion_tokens为0，可能真的没有内容
+                                log.error('completion_tokens为0，AI没有生成任何内容', new Error('No completion tokens'), {
+                                    possibleReasons: [
+                                        '模型配置问题（可能需要禁用reasoning_content）',
+                                        '请求参数问题（max_tokens、temperature等）',
+                                        'API Key权限问题'
+                                    ]
+                                });
+                                // 即使completion_tokens为0，也继续等待，因为可能有content chunk
                             }
+                            // 不返回，继续循环等待content（即使收到usage，也可能还有content chunk）
                         }
                     }
                     catch (e) {
-                        console.error('[parseStreamResponse] ❌ JSON解析错误:', e, 'Data:', data.substring(0, 200));
+                        log.error('JSON解析错误', e, { data: data.substring(0, 200) });
                         // 忽略解析错误（可能是空行或其他格式）
                     }
                 }
@@ -476,7 +581,7 @@ export async function* parseStreamResponse(stream) {
         }
         // 如果流结束，发送done信号（如果有保存的usage）
         if (totalText.length > 0) {
-            console.log('[parseStreamResponse] 流自然结束，总文本:', totalText.length);
+            log.debug('流自然结束', { totalTextLength: totalText.length });
             // 如果有保存的usage，现在发送
             if (savedUsage) {
                 yield {
@@ -487,20 +592,20 @@ export async function* parseStreamResponse(stream) {
             }
         }
         else {
-            console.error('[parseStreamResponse] ❌ 严重问题：流结束但没有收到任何content！');
-            console.error('[parseStreamResponse] 统计信息:', {
+            log.error('严重问题：流结束但没有收到任何content', new Error('No content received'), {
                 reasoningContentCount,
                 chunkCount,
-                totalTextLength: totalText.length
+                totalTextLength: totalText.length,
+                possibleReasons: [
+                    'AI模型没有生成内容（completion_tokens=0）',
+                    '流式响应格式不匹配（可能只有reasoning_content）',
+                    '需要等待更长时间才能收到content chunk',
+                    'DeepSeek-V3可能需要特殊参数来禁用reasoning_content'
+                ]
             });
-            console.error('[parseStreamResponse] 这可能是因为：');
-            console.error('  1. AI模型没有生成内容（completion_tokens=0）');
-            console.error('  2. 流式响应格式不匹配（可能只有reasoning_content）');
-            console.error('  3. 需要等待更长时间才能收到content chunk');
-            console.error('  4. DeepSeek-V3可能需要特殊参数来禁用reasoning_content');
             // 即使没有content，也要发送done信号（带usage），让前端知道流结束了
             if (savedUsage) {
-                console.log('[parseStreamResponse] 发送done信号（即使没有content）');
+                log.warn('发送done信号（即使没有content）');
                 yield {
                     text: '',
                     done: true,
@@ -510,6 +615,12 @@ export async function* parseStreamResponse(stream) {
         }
     }
     finally {
-        reader.releaseLock();
+        // 释放 reader
+        try {
+            reader.releaseLock();
+        }
+        catch (e) {
+            // 忽略释放错误（可能已经释放）
+        }
     }
 }

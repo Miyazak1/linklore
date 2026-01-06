@@ -11,8 +11,8 @@ export default function HomePageRedirect() {
 	const router = useRouter();
 
 	useEffect(() => {
-		// 使用 replace 而不是 push，避免在历史记录中留下首页
-		router.replace('/chat');
+		// 重定向到首页
+		router.replace('/');
 	}, [router]);
 
 	// 显示加载状态
@@ -43,6 +43,7 @@ export default function HomePageRedirect() {
 		</div>
 	);
 }
+
 
 
 

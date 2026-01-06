@@ -71,58 +71,8 @@ export interface IDiscussionModule extends IModule {
 	} | null>;
 }
 
-/**
- * 语义溯源模块接口
- */
-export interface ITraceModule extends IModule {
-	/**
-	 * 创建溯源
-	 */
-	createTrace: (data: {
-		title: string;
-		type: string;
-		content: string;
-	}) => Promise<{
-		id: string;
-		title: string;
-	}>;
 
-	/**
-	 * 获取溯源
-	 */
-	getTrace: (id: string) => Promise<{
-		id: string;
-		title: string;
-		type: string;
-		content: string;
-	} | null>;
-}
 
-/**
- * 聊天模块接口
- */
-export interface IChatModule extends IModule {
-	/**
-	 * 创建聊天室
-	 */
-	createRoom: (data: {
-		type: 'SOLO' | 'DUO';
-		topic?: string;
-		topicDescription?: string;
-	}) => Promise<{
-		id: string;
-		type: string;
-	}>;
-
-	/**
-	 * 获取聊天室
-	 */
-	getRoom: (id: string) => Promise<{
-		id: string;
-		type: string;
-		topic?: string;
-	} | null>;
-}
 
 
 

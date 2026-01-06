@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, KeyboardEvent } from 'react';
+import { useState, KeyboardEvent, useRef, useEffect } from 'react';
 
 interface GameInputProps {
 	onGuess: (char: string) => void;
@@ -11,10 +11,39 @@ interface GameInputProps {
 /**
  * 游戏输入组件
  * 单字符输入框，支持键盘和鼠标输入
+ * 自动聚焦并保持聚焦状态
  */
 export default function GameInput({ onGuess, disabled = false, guessedChars = [] }: GameInputProps) {
 	const [input, setInput] = useState('');
 	const [error, setError] = useState<string | null>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	// 自动聚焦并保持聚焦状态
+	useEffect(() => {
+		if (!disabled && inputRef.current) {
+			inputRef.current.focus();
+		}
+	}, [disabled]);
+
+	// 当输入框失去焦点时，自动重新聚焦（除非被禁用）
+	useEffect(() => {
+		const inputElement = inputRef.current;
+		if (!inputElement || disabled) return;
+
+		const handleBlur = () => {
+			// 延迟重新聚焦，避免与其他交互冲突
+			setTimeout(() => {
+				if (inputElement && !disabled) {
+					inputElement.focus();
+				}
+			}, 100);
+		};
+
+		inputElement.addEventListener('blur', handleBlur);
+		return () => {
+			inputElement.removeEventListener('blur', handleBlur);
+		};
+	}, [disabled]);
 
 	const handleSubmit = () => {
 		const trimmed = input.trim();
@@ -61,17 +90,24 @@ export default function GameInput({ onGuess, disabled = false, guessedChars = []
 		<div style={{
 			display: 'flex',
 			flexDirection: 'column',
-			gap: 'var(--spacing-sm)',
+			gap: '4px',
 			alignItems: 'center'
 		}}>
+			<style>{`
+				.baike-input:focus {
+					outline: none;
+					box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
+				}
+			`}</style>
 			<div style={{
 				display: 'flex',
-				gap: 'var(--spacing-sm)',
+				gap: '4px',
 				alignItems: 'center',
 				width: '100%',
-				maxWidth: '400px'
+				maxWidth: '320px'
 			}}>
 				<input
+					ref={inputRef}
 					type="text"
 					value={input}
 					onChange={handleChange}
@@ -79,15 +115,22 @@ export default function GameInput({ onGuess, disabled = false, guessedChars = []
 					disabled={disabled}
 					placeholder="只输入一个字"
 					maxLength={1}
+					autoFocus
+					className="baike-input"
 					style={{
 						flex: 1,
-						padding: 'var(--spacing-sm) var(--spacing-md)',
-						fontSize: 'var(--font-size-lg)',
-						border: `1px solid ${error ? 'var(--color-error)' : 'var(--color-border)'}`,
-						borderRadius: 'var(--radius-sm)',
+						padding: '8px 12px',
+						fontSize: '15px',
+						border: `1.5px solid ${error ? 'var(--color-error)' : 'var(--color-primary)'}`,
+						borderRadius: '6px',
 						background: 'var(--color-background)',
 						color: 'var(--color-text-primary)',
 						textAlign: 'center',
+						fontWeight: 500,
+						transition: 'all 0.2s ease',
+						boxShadow: error 
+							? '0 0 0 2px rgba(244, 67, 54, 0.1)' 
+							: 'none',
 						...(disabled ? {
 							opacity: 0.6,
 							cursor: 'not-allowed'
@@ -97,21 +140,15 @@ export default function GameInput({ onGuess, disabled = false, guessedChars = []
 				<button
 					onClick={handleSubmit}
 					disabled={disabled || input.trim().length === 0}
+					className="btn-academic-primary"
 					style={{
-						padding: 'var(--spacing-sm) var(--spacing-lg)',
-						fontSize: 'var(--font-size-base)',
-						fontWeight: 500,
-						background: disabled || input.trim().length === 0
-							? 'var(--color-background-subtle)'
-							: 'var(--color-primary)',
-						color: disabled || input.trim().length === 0
-							? 'var(--color-text-tertiary)'
-							: 'white',
-						border: 'none',
-						borderRadius: 'var(--radius-sm)',
-						cursor: disabled || input.trim().length === 0 ? 'not-allowed' : 'pointer',
-						transition: 'background-color var(--transition-fast)',
-						opacity: disabled || input.trim().length === 0 ? 0.6 : 1
+						padding: '8px 16px',
+						fontSize: '14px',
+						fontWeight: 600,
+						minWidth: '48px',
+						borderRadius: '6px',
+						transition: 'all 0.2s ease',
+						boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
 					}}
 				>
 					猜

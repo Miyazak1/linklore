@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createModuleLogger } from '@/lib/utils/logger';
-import ChatPageLoader from '@/components/ui/ChatPageLoader';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const log = createModuleLogger('DailyIssueAnalyticsPage');
 
@@ -71,9 +71,9 @@ function DailyIssueAnalyticsPageContent() {
 
 	if (loading && !analytics) {
 		return (
-			<ChatPageLoader
+			<LoadingSpinner
+				fullscreen
 				message="加载中..."
-				subMessage="正在获取分析数据"
 			/>
 		);
 	}
@@ -434,7 +434,7 @@ function DailyIssueAnalyticsPageContent() {
 
 export default function DailyIssueAnalyticsPage() {
 	return (
-		<Suspense fallback={<ChatPageLoader message="加载中..." subMessage="正在初始化页面" />}>
+		<Suspense fallback={<LoadingSpinner fullscreen message="加载中..." />}>
 			<DailyIssueAnalyticsPageContent />
 		</Suspense>
 	);

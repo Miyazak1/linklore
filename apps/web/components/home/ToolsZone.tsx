@@ -7,18 +7,18 @@
 export default function ToolsZone() {
 	return (
 		<div style={{
-			marginTop: 'var(--spacing-xxl)'
+			marginTop: '56px'
 		}}>
 			<div style={{
-				marginBottom: 'var(--spacing-lg)',
+				marginBottom: '20px',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'space-between'
 			}}>
 				<h2 style={{
-					fontSize: 'var(--font-size-2xl)',
+					fontSize: '18px',
 					fontWeight: 600,
-					color: 'var(--color-text-primary)',
+					color: '#2E3038',
 					margin: 0
 				}}>
 					工具区
@@ -27,30 +27,33 @@ export default function ToolsZone() {
 
 			{/* 预留内容区域 */}
 			<div style={{
-				padding: 'var(--spacing-xl)',
-				background: 'transparent',
-				borderRadius: 'var(--radius-lg)',
-				border: '1px dashed var(--color-border-light)',
+				padding: '60px 40px',
+				background: '#FFFFFF',
+				borderRadius: '8px',
+				border: '1px dashed rgba(0, 0, 0, 0.12)',
 				textAlign: 'center',
-				color: 'var(--color-text-tertiary)',
-				minHeight: '200px',
+				color: '#6B6B6B',
+				minHeight: '180px',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center'
 			}}>
 				<div>
 					<p style={{
-						fontSize: 'var(--font-size-lg)',
+						fontSize: '15px',
 						margin: 0,
-						marginBottom: 'var(--spacing-sm)',
-						color: 'var(--color-text-secondary)'
+						marginBottom: '6px',
+						color: '#2E3038',
+						fontWeight: 500,
+						lineHeight: 1.4
 					}}>
 						工具区
 					</p>
 					<p style={{
-						fontSize: 'var(--font-size-sm)',
+						fontSize: '13px',
 						margin: 0,
-						color: 'var(--color-text-tertiary)'
+						color: '#6B6B6B',
+						lineHeight: 1.4
 					}}>
 						更多实用工具即将上线
 					</p>
@@ -59,6 +62,12 @@ export default function ToolsZone() {
 		</div>
 	);
 }
+
+
+
+
+
+
 
 
 

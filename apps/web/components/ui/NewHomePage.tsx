@@ -2,6 +2,7 @@
 
 import GameZone from '@/components/home/GameZone';
 import ToolsZone from '@/components/home/ToolsZone';
+import AlmanacWidget from '@/components/home/AlmanacWidget';
 
 interface NewHomePageProps {
 	stats: {
@@ -9,8 +10,6 @@ interface NewHomePageProps {
 		totalDocuments: number;
 		totalUsers: number;
 		totalBooks: number;
-		totalTraces?: number;
-		totalEntries?: number;
 	};
 }
 
@@ -26,9 +25,12 @@ export default function NewHomePage({ stats }: NewHomePageProps) {
 		<div style={{ 
 			maxWidth: 1400, 
 			margin: '0 auto',
-			padding: 'clamp(var(--spacing-lg), 4vw, var(--spacing-xxl)) clamp(var(--spacing-md), 3vw, var(--spacing-xl))',
+			padding: '48px var(--spacing-xl)',
 			position: 'relative'
 		}}>
+			{/* 黄历吉日 */}
+			<AlmanacWidget />
+
 			{/* 游戏区 */}
 			<GameZone />
 

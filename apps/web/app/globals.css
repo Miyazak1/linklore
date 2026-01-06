@@ -1,38 +1,46 @@
 /**
- * Global styles for LinkLore
+ * Global styles for Mooyu
  * Includes theme variables and base styles
  */
 
 :root {
-	/* Light theme colors - Academic palette */
-	--color-primary: #1a4480;        /* Deep academic blue */
-	--color-primary-dark: #0d2d54;
-	--color-primary-light: #3d6fa5;
-	--color-primary-lighter: #e8f0f7;
+	/* Reddit-style color palette */
+	--color-primary: #FF4500;        /* Reddit orange/red */
+	--color-primary-dark: #CC3700;
+	--color-primary-light: #FF6B35;
+	--color-primary-lighter: #FFF4F0;
 	
-	--color-secondary: #6b4c93;      /* Academic purple */
-	--color-success: #2d7a32;        /* Muted green */
-	--color-success-lighter: #e8f5e9; /* Light green background */
-	--color-warning: #b8860b;        /* Academic gold */
-	--color-error: #c62828;          /* Muted red */
+	--color-secondary: #0079D3;      /* Reddit blue for links */
+	--color-secondary-dark: #005BA1;
+	--color-secondary-light: #E5F4FC;
 	
-	--color-background: #fafafa;     /* Soft off-white */
+	--color-success: #46D160;        /* Green for success */
+	--color-success-lighter: #E8F5E9;
+	--color-warning: #FFB000;        /* Orange for warnings */
+	--color-error: #FF585B;          /* Red for errors */
+	--color-error-lighter: #FFEBEE;
+	
+	/* Reddit-style backgrounds - clean white */
+	--color-background: #ffffff;     /* Pure white like Reddit */
 	--color-background-paper: #ffffff;
 	--color-background-elevated: #ffffff;
-	--color-background-subtle: #f5f5f5;
+	--color-background-subtle: #f7f9fa; /* Light gray for subtle areas */
+	--color-background-hover: #f7f9fa;  /* Hover state */
 	
-	--color-text-primary: #1a1a1a;   /* Near black for readability */
-	--color-text-secondary: #4a4a4a;  /* Softer gray */
-	--color-text-tertiary: #6b6b6b;  /* Lighter gray */
-	--color-text-disabled: #9e9e9e;
+	/* Reddit-style text colors */
+	--color-text-primary: #1c1c1c;   /* Near black */
+	--color-text-secondary: #7c7c7c;  /* Medium gray */
+	--color-text-tertiary: #a5a5a5;  /* Lighter gray */
+	--color-text-disabled: #c5c5c5;
 	
-	--color-border: #d4d4d4;         /* Subtle borders */
-	--color-border-light: #e8e8e8;
-	--color-border-accent: #1a4480;  /* Primary color for accents */
+	/* Reddit-style borders - subtle gray */
+	--color-border: #e5e5e5;         /* Light gray borders */
+	--color-border-light: #f0f0f0;   /* Very light borders */
+	--color-border-accent: #FF4500;   /* Primary color for accents */
 	
-	/* Academic accent colors */
-	--color-accent-warm: #d4a574;    /* Warm beige */
-	--color-accent-cool: #7a9cc6;    /* Cool blue-gray */
+	/* Reddit accent colors */
+	--color-accent-warm: #FF4500;    /* Reddit orange */
+	--color-accent-cool: #0079D3;    /* Reddit blue */
 	
 	/* Spacing */
 	--spacing-xs: 4px;
@@ -42,7 +50,7 @@
 	--spacing-xl: 32px;
 	--spacing-xxl: 48px;
 	
-	/* Typography - Academic Style */
+	/* Typography - Reddit Style (clean sans-serif) */
 	--font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 	--font-family-serif: "Georgia", "Times New Roman", "Times", serif;
 	--font-family-mono: "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Courier New", monospace;
@@ -68,12 +76,12 @@
 	--radius-lg: 12px;
 	--radius-xl: 16px;
 	
-	/* Shadows - Subtle academic style */
-	--shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
-	--shadow-md: 0 2px 8px 0 rgba(0, 0, 0, 0.1), 0 1px 3px 0 rgba(0, 0, 0, 0.08);
-	--shadow-lg: 0 4px 16px 0 rgba(0, 0, 0, 0.12), 0 2px 4px 0 rgba(0, 0, 0, 0.08);
-	--shadow-xl: 0 8px 24px 0 rgba(0, 0, 0, 0.15), 0 4px 8px 0 rgba(0, 0, 0, 0.1);
-	--shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+	/* Shadows - Reddit style (minimal, clean) */
+	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+	--shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+	--shadow-lg: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+	--shadow-xl: 0 4px 8px 0 rgba(0, 0, 0, 0.12);
+	--shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 	
 	/* Transitions */
 	--transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -123,16 +131,18 @@ body {
 	color: var(--color-text-primary);
 	transition: background-color var(--transition-normal), color var(--transition-normal);
 	font-weight: 400;
-	letter-spacing: 0.01em;
+	letter-spacing: 0;
+	font-size: 14px; /* Reddit uses 14px base */
+	line-height: 1.5;
 }
 
-/* Academic typography styles */
+/* Reddit-style typography */
 h1, h2, h3, h4, h5, h6 {
 	font-family: var(--font-family);
-	font-weight: 600;
-	line-height: var(--line-height-tight);
+	font-weight: 500;
+	line-height: 1.3;
 	color: var(--color-text-primary);
-	letter-spacing: -0.02em;
+	letter-spacing: 0;
 	margin-bottom: var(--spacing-md);
 }
 
@@ -158,22 +168,21 @@ p {
 }
 
 a {
-	color: var(--color-primary);
+	color: var(--color-secondary);
 	text-decoration: none;
 	transition: color var(--transition-fast);
-	border-bottom: 1px solid transparent;
 }
 
 a:hover {
-	color: var(--color-primary-dark);
-	border-bottom-color: var(--color-primary);
+	color: var(--color-secondary-dark);
+	text-decoration: underline;
 }
 
-/* Academic paper-like styling */
-.academic-text {
-	font-family: var(--font-family-serif);
-	line-height: var(--line-height-relaxed);
-	max-width: 65ch; /* Optimal reading width */
+/* Reddit-style text */
+.reddit-text {
+	font-family: var(--font-family);
+	line-height: 1.5;
+	max-width: 100%;
 }
 
 /* Smooth transitions for theme changes */
@@ -181,6 +190,19 @@ a:hover {
 	transition: background-color var(--transition-normal), 
 	            color var(--transition-normal),
 	            border-color var(--transition-normal);
+}
+
+/* 性能优化：启用硬件加速 */
+.sidebar-container,
+.sidebar-overlay {
+	transform: translateZ(0);
+	-webkit-transform: translateZ(0);
+}
+
+/* 优化滚动性能 */
+.sidebar-container nav {
+	-webkit-overflow-scrolling: touch;
+	transform: translateZ(0);
 }
 
 /* Utility classes */
@@ -206,26 +228,32 @@ a:hover {
 	border-bottom: 1px solid var(--color-border-light);
 }
 
+/* Reddit-style card */
 .card {
 	background: var(--color-background-paper);
-	border: 1px solid var(--color-border-light);
-	border-radius: var(--radius-lg);
-	padding: var(--spacing-xl);
-	box-shadow: var(--shadow-subtle);
-	transition: all var(--transition-normal);
+	border: 1px solid var(--color-border);
+	border-radius: 4px;
+	padding: var(--spacing-md);
+	box-shadow: none;
+	transition: border-color var(--transition-fast);
 }
 
 .card:hover {
-	box-shadow: var(--shadow-md);
 	border-color: var(--color-border);
-	transform: translateY(-2px);
 }
 
-/* Academic card variant */
+/* Reddit-style card variant */
 .card-academic {
 	background: var(--color-background-paper);
+	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	padding: var(--spacing-xl);
+	padding: var(--spacing-md);
+	box-shadow: none;
+	transition: border-color var(--transition-fast);
+}
+
+.card-academic:hover {
+	border-color: var(--color-border);
 	box-shadow: var(--shadow-sm);
 }
 
@@ -425,58 +453,95 @@ a:hover {
 		position: static !important;
 		max-height: none !important;
 	}
+
+	/* 移动端：侧边栏覆盖模式，主内容全宽 */
+	.main-content {
+		margin-left: 0 !important;
+		margin-right: 0 !important;
+	}
+
+	/* 移动端侧边栏样式 */
+	.sidebar-container {
+		width: 256px !important;
+		box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+	}
+
+	.sidebar-overlay {
+		display: block !important;
+	}
+
+	/* 移动端菜单按钮 */
+	.mobile-menu-button {
+		display: flex !important;
+	}
+
+	/* 移动端：桌面端折叠按钮在移动端隐藏 */
+	@media (max-width: 768px) {
+		.sidebar-container button[title*="折叠"],
+		.sidebar-container button[title*="展开"] {
+			display: none !important;
+		}
+	}
 }
 
-/* Academic style utilities */
-.academic-badge {
+/* 桌面端中等屏幕：侧边栏自动折叠或调整 */
+@media (min-width: 769px) and (max-width: 1024px) {
+	.main-content {
+		margin-left: 64px !important;
+	}
+}
+
+/* Reddit-style utilities */
+.reddit-badge {
 	display: inline-block;
-	padding: var(--spacing-xs) var(--spacing-sm);
+	padding: 2px 8px;
 	background: var(--color-background-subtle);
 	color: var(--color-text-secondary);
-	border: 1px solid var(--color-border-light);
-	border-radius: var(--radius-sm);
-	font-size: var(--font-size-xs);
-	font-weight: 500;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-}
-
-.academic-divider {
-	height: 1px;
-	background: var(--color-border-light);
 	border: none;
-	margin: var(--spacing-xl) 0;
-}
-
-.academic-metadata {
-	font-size: var(--font-size-sm);
-	color: var(--color-text-secondary);
-	line-height: var(--line-height-relaxed);
-}
-
-.academic-link {
-	color: var(--color-primary);
-	text-decoration: none;
-	border-bottom: 1px solid transparent;
-	transition: all var(--transition-fast);
-}
-
-.academic-link:hover {
-	color: var(--color-primary-dark);
-	border-bottom-color: var(--color-primary);
-}
-
-/* Academic button styles */
-.btn-academic {
-	padding: var(--spacing-sm) var(--spacing-lg);
-	font-size: var(--font-size-base);
+	border-radius: 2px;
+	font-size: 12px;
 	font-weight: 500;
-	border-radius: var(--radius-md);
-	border: 1px solid var(--color-border);
-	background: var(--color-background-paper);
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.reddit-divider {
+	height: 1px;
+	background: var(--color-border);
+	border: none;
+	margin: var(--spacing-md) 0;
+}
+
+.reddit-metadata {
+	font-size: 12px;
+	color: var(--color-text-secondary);
+	line-height: 1.4;
+}
+
+.reddit-link {
+	color: var(--color-secondary);
+	text-decoration: none;
+	transition: color var(--transition-fast);
+}
+
+.reddit-link:hover {
+	color: var(--color-secondary-dark);
+	text-decoration: underline;
+}
+
+/* Reddit-style button styles */
+.btn-academic {
+	padding: 4px 16px;
+	font-size: var(--font-size-sm);
+	font-weight: 700;
+	border-radius: 9999px; /* Fully rounded like Reddit */
+	border: 1px solid transparent;
+	background: var(--color-background-subtle);
 	color: var(--color-text-primary);
 	cursor: pointer;
 	transition: all var(--transition-fast);
+	text-transform: none;
+	letter-spacing: 0;
 }
 
 .btn-academic-primary {
@@ -488,13 +553,12 @@ a:hover {
 .btn-academic-primary:hover {
 	background: var(--color-primary-dark);
 	border-color: var(--color-primary-dark);
-	transform: translateY(-1px);
-	box-shadow: var(--shadow-md);
+	box-shadow: none;
 }
 
 .btn-academic:hover {
-	background: var(--color-background-subtle);
-	border-color: var(--color-primary);
+	background: var(--color-background-hover);
+	border-color: var(--color-border);
 }
 
 /* Responsive layout for topic detail page */
@@ -570,6 +634,371 @@ a:hover {
 	
 	h3 {
 		font-size: var(--font-size-lg) !important;
+	}
+}
+
+/* ============================================
+   表单样式工具类
+   ============================================ */
+
+/* 表单容器 */
+.form-container {
+	background: var(--color-background-paper);
+	border-radius: var(--radius-lg);
+	padding: var(--spacing-xxl);
+	border: 1px solid var(--color-border-light);
+}
+
+/* 表单字段组 */
+.form-field-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-xl);
+}
+
+/* 表单标签 */
+.form-label {
+	display: block;
+	margin-bottom: var(--spacing-xs);
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+}
+
+/* 表单提示文字 */
+.form-hint {
+	font-size: var(--font-size-xs);
+	color: var(--color-text-tertiary);
+	margin: 0 0 var(--spacing-sm) 0;
+	line-height: var(--line-height-relaxed);
+}
+
+/* Reddit-style form input */
+.form-input {
+	width: 100%;
+	padding: 8px 12px;
+	border: 1px solid var(--color-border);
+	border-radius: 4px;
+	font-size: 14px;
+	background: var(--color-background);
+	color: var(--color-text-primary);
+	transition: all var(--transition-fast);
+	font-family: inherit;
+}
+
+.form-input:focus {
+	outline: none;
+	border-color: var(--color-secondary);
+	box-shadow: 0 0 0 1px var(--color-secondary);
+}
+
+/* Reddit-style textarea */
+.form-textarea {
+	width: 100%;
+	padding: 8px 12px;
+	border: 1px solid var(--color-border);
+	border-radius: 4px;
+	font-size: 14px;
+	background: var(--color-background);
+	color: var(--color-text-primary);
+	font-family: inherit;
+	resize: vertical;
+	transition: all var(--transition-fast);
+}
+
+.form-textarea:focus {
+	outline: none;
+	border-color: var(--color-secondary);
+	box-shadow: 0 0 0 1px var(--color-secondary);
+}
+
+/* ============================================
+   布局工具类
+   ============================================ */
+
+/* Reddit-style page container */
+.page-container {
+	padding: var(--spacing-md);
+	max-width: 1200px;
+	margin: 0 auto;
+	background: var(--color-background);
+	min-height: calc(100vh - 200px);
+	position: relative;
+}
+
+/* Reddit-style page header */
+.page-header {
+	margin-bottom: var(--spacing-lg);
+	text-align: left;
+}
+
+.page-title {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 500;
+	color: var(--color-text-primary);
+}
+
+.page-subtitle {
+	margin: 4px 0 0;
+	font-size: 12px;
+	color: var(--color-text-secondary);
+}
+
+/* 返回按钮 */
+.back-button {
+	position: absolute;
+	left: var(--spacing-xl);
+	padding: var(--spacing-sm);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-background-paper);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all var(--transition-fast);
+}
+
+.back-button:hover {
+	background: var(--color-background-subtle);
+	border-color: var(--color-primary);
+}
+
+/* Flex 布局工具 */
+.flex-row {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-md);
+}
+
+.flex-col {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-md);
+}
+
+/* Reddit-style icon container */
+.icon-container {
+	width: 40px;
+	height: 40px;
+	border-radius: 4px;
+	background: var(--color-primary);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+/* ============================================
+   上传和图片相关
+   ============================================ */
+
+/* 上传按钮 */
+.upload-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+	padding: var(--spacing-sm) var(--spacing-md);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-background);
+	color: var(--color-text-primary);
+	font-size: var(--font-size-sm);
+	cursor: pointer;
+	transition: all var(--transition-fast);
+}
+
+.upload-button:hover {
+	border-color: var(--color-primary);
+	background: var(--color-primary-lighter);
+}
+
+.upload-button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+/* 文件输入标签 */
+.file-input-label {
+	display: inline-block;
+	cursor: pointer;
+}
+
+/* 图片预览容器 */
+.image-preview {
+	margin-top: var(--spacing-sm);
+	position: relative;
+	display: inline-block;
+}
+
+.image-preview img {
+	max-width: 200px;
+	max-height: 150px;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-border-light);
+	object-fit: cover;
+}
+
+/* 删除图片按钮 */
+.image-delete-button {
+	position: absolute;
+	top: -8px;
+	right: -8px;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: var(--color-error);
+	color: white;
+	border: none;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: var(--font-size-sm);
+	transition: all var(--transition-fast);
+}
+
+.image-delete-button:hover {
+	background: var(--color-error);
+	opacity: 0.9;
+	transform: scale(1.1);
+}
+
+/* ============================================
+   题目列表相关
+   ============================================ */
+
+/* 题目列表容器 */
+.question-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-md);
+	margin-bottom: var(--spacing-lg);
+}
+
+/* 题目项 */
+.question-item {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-sm);
+}
+
+/* 题目编号 */
+.question-number {
+	min-width: 24px;
+	font-size: var(--font-size-base);
+	color: var(--color-text-secondary);
+	font-weight: 500;
+}
+
+/* 题目输入框 */
+.question-input {
+	flex: 1;
+	padding: var(--spacing-sm) var(--spacing-md);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	font-size: var(--font-size-base);
+	background: var(--color-background);
+	color: var(--color-text-primary);
+	transition: all var(--transition-fast);
+}
+
+.question-input:focus {
+	outline: none;
+	border-color: var(--color-primary);
+	box-shadow: 0 0 0 2px rgba(26, 68, 128, 0.1);
+}
+
+/* 提示输入框 */
+.question-hint {
+	width: 150px;
+	padding: var(--spacing-sm) var(--spacing-md);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	font-size: var(--font-size-base);
+	background: var(--color-background);
+	color: var(--color-text-primary);
+	transition: all var(--transition-fast);
+}
+
+.question-hint:focus {
+	outline: none;
+	border-color: var(--color-primary);
+	box-shadow: 0 0 0 2px rgba(26, 68, 128, 0.1);
+}
+
+/* ============================================
+   操作按钮组
+   ============================================ */
+
+/* 操作按钮组 */
+.action-buttons {
+	display: flex;
+	gap: var(--spacing-sm);
+	flex-wrap: wrap;
+}
+
+/* 提交按钮组 */
+.submit-buttons {
+	display: flex;
+	gap: var(--spacing-md);
+	margin-top: var(--spacing-xxl);
+	justify-content: flex-end;
+}
+
+/* ============================================
+   错误和提示
+   ============================================ */
+
+/* Reddit-style error message */
+.error-message {
+	padding: 12px;
+	margin-top: var(--spacing-md);
+	background: var(--color-error-lighter, #ffebee);
+	color: var(--color-error);
+	border-radius: 4px;
+	border: 1px solid var(--color-error);
+	font-size: 14px;
+}
+
+/* 成功提示框 */
+.success-message {
+	padding: var(--spacing-md);
+	margin-top: var(--spacing-lg);
+	background: var(--color-success-lighter);
+	color: var(--color-success);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-success);
+	font-size: var(--font-size-sm);
+}
+
+/* ============================================
+   响应式调整
+   ============================================ */
+
+@media (max-width: 768px) {
+	.form-container {
+		padding: var(--spacing-lg) !important;
+	}
+	
+	.page-container {
+		padding: var(--spacing-md) !important;
+	}
+	
+	.back-button {
+		left: var(--spacing-md);
+	}
+	
+	.submit-buttons {
+		flex-direction: column;
+	}
+	
+	.submit-buttons button {
+		width: 100%;
+	}
+	
+	.question-hint {
+		width: 120px;
 	}
 }
 

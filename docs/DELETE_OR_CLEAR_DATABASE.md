@@ -278,3 +278,9 @@ psql -U linklore_user -d linklore -h localhost -c "\dt"
 
 
 
+
+
+
+
+
+

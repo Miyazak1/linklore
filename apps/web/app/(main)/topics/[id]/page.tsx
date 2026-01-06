@@ -7,10 +7,12 @@ import TopicComments from '@/components/topic/TopicComments';
 import DiscussionParticipantWrapper from '@/components/topic/DiscussionParticipantWrapper';
 import JoinDiscussionButton from '@/components/topic/JoinDiscussionButton';
 import ParticipantAvatars from '@/components/topic/ParticipantAvatars';
+import Avatar from '@/components/ui/Avatar';
+import BackToDiscussionButton from '@/components/topic/BackToDiscussionButton';
 // DocumentNode type is still used for documentTree variable, but DocumentTree component is removed
 type DocumentNode = {
 	id: string;
-	author: { email: string };
+	author: { email: string; name: string | null; avatarUrl: string | null };
 	createdAt: Date;
 	extractedTextHtml: string | null;
 	evaluations: any[];
@@ -19,9 +21,6 @@ type DocumentNode = {
 	depth: number;
 	topic?: { discipline?: string | null };
 };
-import QualityBadges from '@/components/topic/QualityBadges';
-import AnalysisLogic from '@/components/topic/AnalysisLogic';
-import { isBlindReviewWindow } from '@/lib/topics/visibility';
 import { getDocumentTree } from '@/lib/topics/documentTree';
 
 type Props = { params: Promise<{ id: string }> };
@@ -36,12 +35,14 @@ export default async function TopicDetailPage({ params }: Props) {
 		
 		const topic = await prisma.topic.findUnique({ 
 			where: { id },
-			include: { author: { select: { email: true } } }
+			include: { author: { select: { email: true, name: true, avatarUrl: true } } }
 		});
 		
 		if (!topic) {
 			notFound();
 		}
+		
+		const isArticle = topic.type === 'article';
 		
 		// Get document tree (不加载extractedText以提升性能，只加载根文档的内容)
 		const docTree = await getDocumentTree(id, false);
@@ -62,8 +63,10 @@ export default async function TopicDetailPage({ params }: Props) {
 			}
 		}
 		const summary = originalDocNode?.summaries?.[0] || null;
-		const blind = topic?.createdAt ? isBlindReviewWindow(topic.createdAt) : false;
-		const authorEmail = blind ? '匿名' : topic?.author?.email || '未知';
+		const author = topic?.author;
+		const authorName = author?.name || (author?.email ? author.email.split('@')[0] : '未知用户');
+		const authorAvatarUrl = author?.avatarUrl || null;
+		const authorEmail = author?.email || '';
 		
 		// Convert tree to client-friendly format
 		// 注意：extractedText不再包含在树中，需要按需通过API加载
@@ -152,8 +155,8 @@ export default async function TopicDetailPage({ params }: Props) {
 						discussionCount: 0 // 这个需要更复杂的计算，暂时设为0
 					}));
 				}),
-				// 预加载共识数据（检查是否有缓存）
-				prisma.consensusSnapshot.findFirst({
+				// 预加载共识数据（检查是否有缓存）- 仅讨论类型
+				topic.type === 'discussion' ? prisma.consensusSnapshot.findFirst({
 					where: { topicId: id },
 					orderBy: { snapshotAt: 'desc' },
 					select: {
@@ -178,7 +181,7 @@ export default async function TopicDetailPage({ params }: Props) {
 						};
 					}
 					return null;
-				})
+				}) : Promise.resolve(null)
 			]);
 			
 			// 处理评论数据
@@ -202,8 +205,8 @@ export default async function TopicDetailPage({ params }: Props) {
 				preloadedUsers = usersRes.value;
 			}
 			
-			// 处理共识数据
-			if (consensusRes.status === 'fulfilled') {
+			// 处理共识数据（只预加载讨论类型的共识数据）
+			if (consensusRes.status === 'fulfilled' && topic.type === 'discussion') {
 				preloadedConsensus = consensusRes.value;
 			}
 		} catch (preloadError) {
@@ -230,8 +233,11 @@ export default async function TopicDetailPage({ params }: Props) {
 					background: 'var(--color-background-paper)',
 					borderRadius: 'var(--radius-lg)',
 					boxShadow: 'var(--shadow-sm)',
-					border: '1px solid var(--color-border-light)'
+					border: '1px solid var(--color-border-light)',
+					position: 'relative'
 				}}>
+					{/* 返回讨论版按钮 */}
+					<BackToDiscussionButton />
 					<h1 style={{ 
 						marginTop: 0,
 						marginBottom: (topic as any)?.subtitle ? 'var(--spacing-sm)' : 'var(--spacing-md)',
@@ -242,7 +248,8 @@ export default async function TopicDetailPage({ params }: Props) {
 						WebkitTextFillColor: 'transparent',
 						backgroundClip: 'text',
 						lineHeight: '1.3',
-						letterSpacing: '-0.02em'
+						letterSpacing: '-0.02em',
+						paddingRight: '140px' // 为返回按钮留出空间
 					}}>
 						{topic?.title || '处理中...'}
 					</h1>
@@ -266,40 +273,43 @@ export default async function TopicDetailPage({ params }: Props) {
 						paddingTop: 'var(--spacing-md)',
 						borderTop: '1px solid var(--color-border-light)',
 						fontSize: 'var(--font-size-sm)',
-						color: 'var(--color-text-secondary)'
+						color: 'var(--color-text-secondary)',
+						alignItems: 'center'
 					}}>
-						{blind && (
-							<span style={{ 
-								color: 'var(--color-warning)',
-								fontWeight: 500,
-								padding: 'var(--spacing-xs) var(--spacing-sm)',
-								background: 'rgba(184, 134, 11, 0.1)',
-								borderRadius: 'var(--radius-sm)'
-							}}>
-								盲评进行中（前 48 小时隐藏作者）
-							</span>
-						)}
-						{!blind && (
+						<span style={{ 
+							display: 'flex', 
+							alignItems: 'center', 
+							gap: 'var(--spacing-xs)'
+						}}>
+							<Avatar
+								avatarUrl={authorAvatarUrl}
+								name={authorName}
+								email={authorEmail}
+								size={24}
+							/>
 							<span>
-								<strong style={{ color: 'var(--color-text-primary)' }}>作者：</strong>{authorEmail}
+								<strong style={{ color: 'var(--color-text-primary)' }}>作者：</strong>
+								{authorName}
 							</span>
-						)}
+						</span>
 						<span>
 							<strong style={{ color: 'var(--color-text-primary)' }}>创建于：</strong>
 							{topic?.createdAt ? new Date(topic.createdAt).toLocaleString('zh-CN') : ''}
 						</span>
-						<span>
-							<strong style={{ color: 'var(--color-text-primary)' }}>文档数：</strong>
-							{documentTree.length > 0 ? (() => {
-								// 计算所有文档数量（包括子文档）
-								const countAll = (nodes: typeof documentTree): number => {
-									return nodes.reduce((sum, node) => {
-										return sum + 1 + countAll(node.children as typeof documentTree);
-									}, 0);
-								};
-								return countAll(documentTree);
-							})() : 0}
-						</span>
+						{!isArticle && (
+							<span>
+								<strong style={{ color: 'var(--color-text-primary)' }}>文档数：</strong>
+								{documentTree.length > 0 ? (() => {
+									// 计算所有文档数量（包括子文档）
+									const countAll = (nodes: typeof documentTree): number => {
+										return nodes.reduce((sum, node) => {
+											return sum + 1 + countAll(node.children as typeof documentTree);
+										}, 0);
+									};
+									return countAll(documentTree);
+								})() : 0}
+							</span>
+						)}
 						{topic?.discipline && (
 							<span>
 								<strong style={{ color: 'var(--color-text-primary)' }}>学科：</strong>{topic.discipline}
@@ -671,259 +681,45 @@ export default async function TopicDetailPage({ params }: Props) {
 					/>
 				</div>
 				
-				{/* 参与讨论按钮 - 未参与者可见 */}
-				<JoinDiscussionButton topicId={id} />
+				{/* 讨论类型才显示讨论相关功能 */}
+				{!isArticle && (
+					<>
+						{/* 参与讨论按钮 - 未参与者可见 */}
+						<JoinDiscussionButton topicId={id} />
+						
+						{/* 讨论者头像列表 - 显示所有参与者 */}
+						<ParticipantAvatars topicId={id} maxVisible={8} />
+						
+						{/* 文档上传 - 只有参与者可见 */}
+						<DiscussionParticipantWrapper topicId={id}>
+							<DocumentUpload topicId={id} />
+						</DiscussionParticipantWrapper>
+						
+						{/* 分歧和共识分析 - 只有讨论者可见 */}
+						<DiscussionParticipantWrapper topicId={id}>
+							<UserConsensusSelector topicId={id} initialUsers={preloadedUsers} />
+						</DiscussionParticipantWrapper>
+					</>
+				)}
 				
-				{/* 讨论者头像列表 - 显示所有参与者 */}
-				<ParticipantAvatars topicId={id} maxVisible={8} />
-				
-				{/* 文档上传 - 只有参与者可见 */}
-				<DiscussionParticipantWrapper topicId={id}>
-					<DocumentUpload topicId={id} />
-				</DiscussionParticipantWrapper>
-				
-				{/* 分歧和共识分析 - 只有讨论者可见 */}
-				<DiscussionParticipantWrapper topicId={id}>
-					<UserConsensusSelector topicId={id} initialUsers={preloadedUsers} />
-				</DiscussionParticipantWrapper>
-				
-				{/* 评论区域 - 所有人可见 */}
+				{/* 评论区域 - 所有人可见（文章和讨论都支持） */}
 				<TopicComments topicId={id} initialComments={preloadedComments} />
-				
-				{/* Export Actions */}
-				<div className="card-academic" style={{ 
-					marginBottom: 'var(--spacing-xl)',
-					padding: 'var(--spacing-lg)',
-					borderLeftColor: 'var(--color-accent-cool)'
-				}}>
-					<h3 style={{ 
-						marginTop: 0,
-						marginBottom: 'var(--spacing-md)',
-						fontSize: 'var(--font-size-lg)',
-						color: 'var(--color-text-primary)'
-					}}>导出</h3>
-					<div style={{ 
-						display: 'flex', 
-						gap: 'var(--spacing-md)', 
-						flexWrap: 'wrap'
-					}}>
-						<a 
-							href={`/api/topics/${id}/export`} 
-							className="btn-academic"
-							style={{ textDecoration: 'none' }}
-						>
-							导出话题包 ZIP
-						</a>
-						<a 
-							href={`/api/topics/${id}/export-markdown`} 
-							className="btn-academic"
-							style={{ textDecoration: 'none' }}
-						>
-							导出 Markdown
-						</a>
-					</div>
-				</div>
 			</section>
-			<aside style={{ 
-				display: 'flex',
-				flexDirection: 'column',
-				gap: 'var(--spacing-lg)',
-				position: 'sticky',
-				top: 'var(--spacing-xl)',
-				alignSelf: 'start',
-				maxHeight: 'calc(100vh - var(--spacing-xl) * 2)',
-				overflowY: 'auto'
-			}}>
-				{/* AI Evaluation */}
-				<div className="card-academic" style={{ 
-					borderLeftColor: 'var(--color-primary)',
-					padding: 'var(--spacing-lg)'
+			{!isArticle && (
+				<aside style={{ 
+					display: 'flex',
+					flexDirection: 'column',
+					gap: 'var(--spacing-lg)',
+					position: 'sticky',
+					top: 'var(--spacing-xl)',
+					alignSelf: 'start',
+					maxHeight: 'calc(100vh - var(--spacing-xl) * 2)',
+					overflowY: 'auto'
 				}}>
-					<div style={{ 
-						marginBottom: 'var(--spacing-md)'
-					}}>
-						<h3 style={{ 
-							margin: 0,
-							fontSize: 'var(--font-size-lg)',
-							color: 'var(--color-primary)'
-						}}>AI 评价</h3>
-					</div>
-					{originalDocNode?.evaluations && originalDocNode.evaluations.length > 0 ? (
-						<div>
-							{originalDocNode.evaluations.map((evaluation: any) => {
-								const scores = typeof evaluation.scores === 'object' ? evaluation.scores : {};
-								const scoreEntries = Object.entries(scores);
-								
-								// Calculate weighted average score based on discipline
-								const discipline = evaluation.discipline || 'default';
-								const RUBRICS: Record<string, Record<string, number>> = {
-									default: { '结构': 0.2, '逻辑': 0.25, '观点': 0.25, '证据': 0.2, '引用': 0.1 },
-									'哲学': { '结构': 0.15, '逻辑': 0.3, '观点': 0.3, '论证': 0.15, '引用': 0.1 },
-									'文学': { '结构': 0.2, '表达': 0.3, '观点': 0.25, '材料': 0.15, '引用': 0.1 },
-									'历史': { '结构': 0.15, '逻辑': 0.2, '观点': 0.25, '史料': 0.3, '引用': 0.1 },
-									'科学': { '结构': 0.15, '逻辑': 0.25, '观点': 0.2, '数据': 0.3, '引用': 0.1 }
-								};
-								const weights = RUBRICS[discipline] || RUBRICS.default;
-								
-								let weightedSum = 0;
-								let totalWeight = 0;
-								scoreEntries.forEach(([key, value]) => {
-									const weight = weights[key] || 0;
-									const score = typeof value === 'number' ? value : 0;
-									weightedSum += score * weight;
-									totalWeight += weight;
-								});
-								const overallScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
-								
-								return (
-									<div key={evaluation.id}>
-										<div style={{ 
-											fontWeight: 600, 
-											marginBottom: 'var(--spacing-sm)',
-											fontSize: 'var(--font-size-sm)',
-											color: 'var(--color-text-primary)',
-											paddingBottom: 'var(--spacing-xs)',
-											borderBottom: '1px solid var(--color-border-light)'
-										}}>
-											学科：{discipline === 'default' ? '通用' : discipline}
-										</div>
-										<div style={{ 
-											display: 'flex',
-											flexDirection: 'column',
-											gap: 'var(--spacing-xs)',
-											marginTop: 'var(--spacing-sm)',
-											marginBottom: 'var(--spacing-md)'
-										}}>
-											{scoreEntries.filter(([key]) => key !== '_reasoning').map(([key, value]) => {
-												const weight = weights[key] || 0;
-												const reasoning = (scores as any)?._reasoning?.[key] || null;
-												return (
-													<div key={key} style={{ 
-														padding: 'var(--spacing-xs)',
-														borderRadius: 'var(--radius-sm)',
-														background: reasoning ? 'var(--color-background-subtle)' : 'transparent'
-													}}>
-														<div style={{ 
-															display: 'flex',
-															justifyContent: 'space-between',
-															alignItems: 'center',
-															fontSize: 'var(--font-size-sm)'
-														}}>
-															<span style={{ color: 'var(--color-text-secondary)' }}>
-																{key}
-																{weight > 0 ? (
-																	<span style={{ 
-																		fontSize: 'var(--font-size-xs)', 
-																		color: 'var(--color-text-tertiary)',
-																		marginLeft: 'var(--spacing-xs)'
-																	}}>
-																		({(weight * 100).toFixed(0)}%)
-																	</span>
-																) : null}
-																：
-															</span>
-															<span style={{ 
-																fontWeight: 600,
-																color: typeof value === 'number' && value >= 8 ? 'var(--color-success)' : 
-																       typeof value === 'number' && value >= 6 ? 'var(--color-warning)' : 
-																       'var(--color-text-primary)'
-															}}>
-																{typeof value === 'number' ? `${value}/10` : (value ? String(value) : 'N/A')}
-															</span>
-														</div>
-														{reasoning && (
-															<div style={{ 
-																marginTop: 'var(--spacing-xs)',
-																fontSize: 'var(--font-size-xs)',
-																color: 'var(--color-text-tertiary)',
-																fontStyle: 'italic',
-																lineHeight: 'var(--line-height-relaxed)',
-																paddingLeft: 'var(--spacing-sm)',
-																borderLeft: '2px solid var(--color-border-light)'
-															}}>
-																评分依据：{reasoning}
-															</div>
-														)}
-													</div>
-												);
-											})}
-										</div>
-										{/* Overall Score with Calculation */}
-										<div style={{ 
-											marginTop: 'var(--spacing-md)',
-											paddingTop: 'var(--spacing-md)',
-											borderTop: '2px solid var(--color-border)'
-										}}>
-											<div style={{ 
-												display: 'flex',
-												justifyContent: 'space-between',
-												alignItems: 'center',
-												marginBottom: 'var(--spacing-xs)'
-											}}>
-												<span style={{ 
-													fontSize: 'var(--font-size-sm)',
-													fontWeight: 600,
-													color: 'var(--color-text-primary)'
-												}}>
-													整体评分：
-												</span>
-												<span style={{ 
-													fontSize: 'var(--font-size-lg)',
-													fontWeight: 700,
-													color: overallScore >= 8 ? 'var(--color-success)' : 
-													       overallScore >= 6 ? 'var(--color-warning)' : 
-													       'var(--color-error)'
-												}}>
-													{overallScore.toFixed(1)}/10
-												</span>
-											</div>
-											<div style={{ 
-												fontSize: 'var(--font-size-xs)',
-												color: 'var(--color-text-tertiary)',
-												fontStyle: 'italic',
-												marginTop: 'var(--spacing-xs)',
-												paddingTop: 'var(--spacing-xs)',
-												borderTop: '1px solid var(--color-border-light)'
-											}}>
-												计算方式：加权平均 = Σ(各维度得分 × 权重) / Σ权重
-												<br />
-												示例：{scoreEntries.filter(([key]) => key !== '_reasoning').slice(0, 3).map(([key, value]) => {
-													const weight = weights[key] || 0;
-													return `${key}(${value}×${(weight * 100).toFixed(0)}%)`;
-												}).join(' + ')} + ... = {overallScore.toFixed(1)}
-											</div>
-										</div>
-										{evaluation.verdict && (
-											<div style={{ 
-												marginTop: 'var(--spacing-md)',
-												paddingTop: 'var(--spacing-md)',
-												borderTop: '1px solid var(--color-border-light)',
-												fontSize: 'var(--font-size-sm)', 
-												color: 'var(--color-text-secondary)', 
-												lineHeight: 'var(--line-height-relaxed)',
-												fontStyle: 'italic'
-											}}>
-												{evaluation.verdict}
-											</div>
-										)}
-									</div>
-								);
-							})}
-						</div>
-					) : (
-						<p style={{ 
-							color: 'var(--color-text-tertiary)', 
-							fontSize: 'var(--font-size-sm)',
-							fontStyle: 'italic'
-						}}>
-							评价生成中，请稍候...
-						</p>
-					)}
-				</div>
-				<ConsensusPanel topicId={id} initialData={preloadedConsensus} />
-				<QualityBadges topicId={id} />
-				<AnalysisLogic />
-			</aside>
+					{/* 讨论类型才显示共识面板 */}
+					<ConsensusPanel topicId={id} initialData={preloadedConsensus} />
+				</aside>
+			)}
 		</main>
 		);
 	} catch (err: any) {

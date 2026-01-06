@@ -148,3 +148,9 @@ PGPASSWORD=Nuan2230543 psql -h 127.0.0.1 -U linklore_user -d linklore -c "\dt _p
 
 
 
+
+
+
+
+
+

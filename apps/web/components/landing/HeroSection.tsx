@@ -19,7 +19,7 @@ export default function HeroSection() {
 					lineHeight: 1.2,
 				}}
 			>
-				LinkLore
+				Mooyu
 			</h1>
 			<p
 				style={{
