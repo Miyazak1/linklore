@@ -93,7 +93,7 @@ export function isGuestUser(user: { email: string }): boolean {
 
 /**
  * 关联匿名用户的数据到注册用户
- * 将匿名用户创建的所有数据（聊天室、消息等）转移到注册用户
+ * 聊天功能已移除，现在只删除匿名用户记录
  * 
  * @param guestUserId 匿名用户ID
  * @param registeredUserId 注册用户ID
@@ -104,44 +104,10 @@ export async function associateGuestData(
 ): Promise<void> {
 	// 使用事务确保数据一致性
 	await prisma.$transaction(async (tx) => {
-		// 1. 转移聊天室（作为创建者的）
-		await tx.chatRoom.updateMany({
-			where: { creatorId: guestUserId },
-			data: { creatorId: registeredUserId }
-		});
-
-		// 2. 转移聊天室（作为参与者的）
-		await tx.chatRoom.updateMany({
-			where: { participantId: guestUserId },
-			data: { participantId: registeredUserId }
-		});
-
-		// 3. 转移消息
-		await tx.chatMessage.updateMany({
-			where: { senderId: guestUserId },
-			data: { senderId: registeredUserId }
-		});
-
-		// 4. 转移消息点赞（ChatMessageLike 模型尚未在 schema 中定义，暂时跳过）
-		// TODO: 在 schema 中添加 ChatMessageLike 模型后启用
-		// await tx.chatMessageLike.updateMany({
-		// 	where: { userId: guestUserId },
-		// 	data: { userId: registeredUserId }
-		// });
-
-		// 5. 转移聊天邀请（ChatInvitation 模型尚未在 schema 中定义，暂时跳过）
-		// TODO: 在 schema 中添加 ChatInvitation 模型后启用
-		// await tx.chatInvitation.updateMany({
-		// 	where: { inviterId: guestUserId },
-		// 	data: { inviterId: registeredUserId }
-		// });
-
-		// await tx.chatInvitation.updateMany({
-		// 	where: { inviteeId: guestUserId },
-		// 	data: { inviteeId: registeredUserId }
-		// });
-
-		// 7. 删除匿名用户记录（数据已转移）
+		// 聊天功能已移除，不再需要转移聊天相关数据
+		// 只需要删除匿名用户记录
+		
+		// 删除匿名用户记录
 		await tx.user.delete({
 			where: { id: guestUserId }
 		});
@@ -157,20 +123,11 @@ export async function cleanupInactiveGuestUsers(): Promise<number> {
 	thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
 	// 查找30天未使用的匿名用户
-	// 判断标准：该用户创建的所有聊天室的最后更新时间都超过30天
+	// 聊天功能已移除，直接查找30天前创建的匿名用户
 	const inactiveGuests = await prisma.user.findMany({
 		where: {
 			email: { endsWith: '@temp.local' },
-			chatRoomsAsCreator: {
-				none: {
-					updatedAt: { gte: thirtyDaysAgo }
-				}
-			},
-			chatRoomsAsParticipant: {
-				none: {
-					updatedAt: { gte: thirtyDaysAgo }
-				}
-			}
+			createdAt: { lt: thirtyDaysAgo }
 		},
 		select: { id: true }
 	});
