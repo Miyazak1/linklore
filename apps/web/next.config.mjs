@@ -3,6 +3,8 @@ import crypto from 'crypto';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	// 启用 standalone 模式，用于生产环境部署
+	output: 'standalone',
 	experimental: {
 		serverActions: {
 			// 支持生产环境域名（从环境变量读取）
