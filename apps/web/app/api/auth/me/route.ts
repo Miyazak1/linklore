@@ -44,17 +44,13 @@ export async function GET() {
 			return NextResponse.json({ user: null });
 		}
 		
-		// 检查是否是匿名用户
-		const isGuest = user.email.endsWith('@temp.local');
-
 		return NextResponse.json({ 
 			user: {
 				id: user.id,
 				email: user.email,
 				name: user.name || null,
 				avatarUrl: (user as any).avatarUrl || null,
-				role: user.role,
-				isGuest
+				role: user.role
 			}
 		});
 	} catch (err: any) {

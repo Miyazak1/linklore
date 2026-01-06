@@ -58,8 +58,7 @@ export async function GET() {
 				name: user.name,
 				role: user.role,
 				avatarUrl: (user as any).avatarUrl || null,
-				createdAt: user.createdAt.toISOString(),
-				isGuest: user.email.endsWith('@temp.local')
+				createdAt: user.createdAt.toISOString()
 			} : null,
 			message: isExpired ? '会话已过期' : user ? '已登录' : '会话中的用户不存在于数据库'
 		});
