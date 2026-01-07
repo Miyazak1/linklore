@@ -256,22 +256,34 @@ function BaikeGamePageContent() {
 					const serverGuessCount = responseData.data.guessCount;
 					const serverIsCompleted = responseData.data.isCompleted || false;
 
-					// 只在服务器数据与乐观更新不一致时更新
-					if (
-						JSON.stringify(serverRevealedChars.sort()) !== JSON.stringify(newRevealedChars.sort()) ||
-						serverGuessCount !== newGuessCount ||
-						serverIsCompleted !== newIsCompleted
-					) {
-						setGameState(prevState => {
-							if (!prevState) return prevState;
-							return {
-								...prevState,
-								revealedChars: serverRevealedChars,
-								guessCount: serverGuessCount,
-								isCompleted: serverIsCompleted
-							};
+					// 关键修复：确保 guessedChars 与 revealedChars 保持一致
+					// 所有在 revealedChars 中的字符都应该在 guessedChars 中
+					// 同时保留所有猜过的字符（包括猜错的）
+					setGameState(prevState => {
+						if (!prevState) return prevState;
+						
+						// 确保服务器返回的 revealedChars 中的所有字符都在 guessedChars 中
+						const revealedCharsSet = new Set(
+							serverRevealedChars.map((c: string) => c.toLowerCase())
+						);
+						
+						// 合并：保留所有已猜过的字符，确保 revealedChars 中的字符都在 guessedChars 中
+						const updatedGuessedChars = [...prevState.guessedChars];
+						serverRevealedChars.forEach((rc: string) => {
+							if (!updatedGuessedChars.some(gc => gc.toLowerCase() === rc.toLowerCase())) {
+								updatedGuessedChars.push(rc);
+							}
 						});
-					}
+
+						// 使用服务器返回的准确数据更新状态
+						return {
+							...prevState,
+							revealedChars: serverRevealedChars,
+							guessCount: serverGuessCount,
+							isCompleted: serverIsCompleted,
+							guessedChars: updatedGuessedChars
+						};
+					});
 				}
 			})
 			.catch(err => {

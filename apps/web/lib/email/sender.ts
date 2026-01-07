@@ -7,8 +7,16 @@ import { createModuleLogger } from '@/lib/utils/logger';
 
 const log = createModuleLogger('EmailSender');
 
-// 创建邮件传输器
-function createTransporter() {
+// 创建邮件传输器（延迟初始化）
+let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+
+function getTransporter() {
+	// 如果已经初始化，直接返回
+	if (transporter !== null) {
+		return transporter;
+	}
+
+	// 延迟初始化：每次调用时重新读取环境变量
 	const host = process.env.SMTP_HOST;
 	const port = parseInt(process.env.SMTP_PORT || '587', 10);
 	const user = process.env.SMTP_USER;
@@ -19,12 +27,17 @@ function createTransporter() {
 		log.warn('SMTP配置不完整，邮件发送功能将被禁用', {
 			hasHost: !!host,
 			hasUser: !!user,
+			hasPassword: !!password,
+			// 调试信息：显示实际读取到的值（不显示密码）
+			host: host || 'undefined',
+			user: user || 'undefined',
 			hasPassword: !!password
 		});
+		transporter = null;
 		return null;
 	}
 
-	return nodemailer.createTransport({
+	transporter = nodemailer.createTransport({
 		host,
 		port,
 		secure, // true for 465, false for other ports
@@ -33,9 +46,16 @@ function createTransporter() {
 			pass: password
 		}
 	});
-}
 
-const transporter = createTransporter();
+	log.info('SMTP 传输器已初始化', {
+		host,
+		port,
+		user,
+		secure
+	});
+
+	return transporter;
+}
 
 /**
  * 发送邮件
@@ -46,6 +66,7 @@ export async function sendEmail(options: {
 	html: string;
 	text?: string;
 }): Promise<boolean> {
+	const transporter = getTransporter();
 	if (!transporter) {
 		log.error('邮件发送器未初始化，无法发送邮件');
 		return false;
