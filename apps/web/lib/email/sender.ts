@@ -30,8 +30,7 @@ function getTransporter() {
 			hasPassword: !!password,
 			// 调试信息：显示实际读取到的值（不显示密码）
 			host: host || 'undefined',
-			user: user || 'undefined',
-			hasPassword: !!password
+			user: user || 'undefined'
 		});
 		transporter = null;
 		return null;

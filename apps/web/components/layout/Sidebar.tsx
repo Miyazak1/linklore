@@ -15,7 +15,6 @@ import {
 	MessageIcon, 
 	SearchIcon, 
 	BookIcon, 
-	LibraryIcon, 
 	ChartIcon,
 	UserIcon,
 	SettingsIcon,
@@ -297,7 +296,6 @@ function SidebarContent() {
 	const navItems = [
 		{ href: '/', label: '首页', icon: HomeIcon },
 		{ href: '/discussion', label: '讨论版', icon: MessageIcon },
-		{ href: '/library', label: '图书馆', icon: LibraryIcon },
 		{ href: '/workshop', label: '游戏工坊', icon: GamepadIcon },
 		{ href: '/digest', label: '周报摘要', icon: ChartIcon },
 	];
@@ -660,43 +658,6 @@ function SidebarContent() {
 								{/* 菜单项 */}
 								<div style={{ padding: 'var(--spacing-xs) 0' }}>
 									<Link
-										href="/shelf"
-										onClick={() => {
-											setUserMenuOpen(false);
-											if (isMobile) {
-												setMobileOpen(false);
-											}
-										}}
-										style={{
-											display: 'flex',
-											alignItems: 'center',
-											gap: 'var(--spacing-sm)',
-											padding: 'var(--spacing-sm) var(--spacing-md)',
-											textDecoration: 'none',
-											fontSize: 'var(--font-size-sm)',
-											color: isActive('/shelf')
-												? 'var(--color-primary)'
-												: 'var(--color-text-primary)',
-											background: isActive('/shelf')
-												? 'var(--color-primary-lighter)'
-												: 'transparent',
-											transition: 'all var(--transition-fast)'
-										}}
-										onMouseEnter={(e) => {
-											if (!isActive('/shelf')) {
-												e.currentTarget.style.background = 'var(--color-background-subtle)';
-											}
-										}}
-										onMouseLeave={(e) => {
-											if (!isActive('/shelf')) {
-												e.currentTarget.style.background = 'transparent';
-											}
-										}}
-									>
-										<LibraryIcon size={16} color="currentColor" />
-										<span>我的书架</span>
-									</Link>
-									<Link
 										href="/settings/ai"
 										onClick={() => {
 											setUserMenuOpen(false);
@@ -834,43 +795,6 @@ function SidebarContent() {
 								>
 									{/* 菜单项 */}
 									<div style={{ padding: 'var(--spacing-xs) 0' }}>
-										<Link
-											href="/shelf"
-											onClick={() => {
-												setUserMenuOpen(false);
-												if (isMobile) {
-													setMobileOpen(false);
-												}
-											}}
-											style={{
-												display: 'flex',
-												alignItems: 'center',
-												gap: 'var(--spacing-sm)',
-												padding: 'var(--spacing-sm) var(--spacing-md)',
-												textDecoration: 'none',
-												fontSize: 'var(--font-size-sm)',
-												color: isActive('/shelf')
-													? 'var(--color-primary)'
-													: 'var(--color-text-primary)',
-												background: isActive('/shelf')
-													? 'var(--color-primary-lighter)'
-													: 'transparent',
-												transition: 'all var(--transition-fast)'
-											}}
-											onMouseEnter={(e) => {
-												if (!isActive('/shelf')) {
-													e.currentTarget.style.background = 'var(--color-background-subtle)';
-												}
-											}}
-											onMouseLeave={(e) => {
-												if (!isActive('/shelf')) {
-													e.currentTarget.style.background = 'transparent';
-												}
-											}}
-										>
-											<LibraryIcon size={16} color="currentColor" />
-											<span>我的书架</span>
-										</Link>
 										<Link
 											href="/settings/ai"
 											onClick={() => {

@@ -19,35 +19,6 @@ export interface IModule {
 	dependencies?: string[];
 }
 
-/**
- * 图书馆模块接口
- */
-export interface ILibraryModule extends IModule {
-	/**
-	 * 搜索图书
-	 */
-	searchBooks: (query: string) => Promise<Array<{
-		id?: string;
-		title: string;
-		author: string | null;
-		coverUrl: string | null;
-		overview?: string | null;
-		source?: string | null;
-	}>>;
-
-	/**
-	 * 根据ID获取图书
-	 */
-	getBookById: (id: string) => Promise<{
-		id: string;
-		title: string;
-		author: string | null;
-		coverUrl: string | null;
-		overview?: string | null;
-		source?: string | null;
-		assets?: Array<{ id: string; fileKey: string; mime: string }>;
-	} | null>;
-}
 
 /**
  * 讨论版模块接口

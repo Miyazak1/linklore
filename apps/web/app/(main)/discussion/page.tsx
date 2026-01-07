@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import LazyTopicList from '@/components/lazy/LazyTopicList';
 import TopicSearch from '@/components/topic/TopicSearch';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageIcon, FileIcon, LibraryIcon, ClockIcon, RocketIcon, CheckCircleIcon, XCircleIcon, SparklesIcon, LoadingSpinner } from '@/components/ui/Icons';
+import { MessageIcon, FileIcon, ClockIcon, RocketIcon, CheckCircleIcon, XCircleIcon, SparklesIcon, LoadingSpinner } from '@/components/ui/Icons';
 
 export default function UploadPage() {
 	const { user } = useAuth();
@@ -796,7 +796,7 @@ export default function UploadPage() {
 						justifyContent: 'center',
 						flexShrink: 0
 					}}>
-						<LibraryIcon size={20} color="var(--color-primary)" />
+						<MessageIcon size={20} color="var(--color-primary)" />
 					</div>
 					<h2 style={{ 
 						margin: 0,

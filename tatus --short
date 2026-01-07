@@ -1,0 +1,112 @@
+[1mdiff --git a/apps/web/lib/email/sender.ts b/apps/web/lib/email/sender.ts[m
+[1mindex fadfe5e..7a21dc7 100644[m
+[1m--- a/apps/web/lib/email/sender.ts[m
+[1m+++ b/apps/web/lib/email/sender.ts[m
+[36m@@ -7,8 +7,16 @@[m [mimport { createModuleLogger } from '@/lib/utils/logger';[m
+ [m
+ const log = createModuleLogger('EmailSender');[m
+ [m
+[31m-// 创建邮件传输器[m
+[31m-function createTransporter() {[m
+[32m+[m[32m// 创建邮件传输器（延迟初始化）[m
+[32m+[m[32mlet transporter: ReturnType<typeof nodemailer.createTransport> | null = null;[m
+[32m+[m
+[32m+[m[32mfunction getTransporter() {[m
+[32m+[m	[32m// 如果已经初始化，直接返回[m
+[32m+[m	[32mif (transporter !== null) {[m
+[32m+[m		[32mreturn transporter;[m
+[32m+[m	[32m}[m
+[32m+[m
+[32m+[m	[32m// 延迟初始化：每次调用时重新读取环境变量[m
+ 	const host = process.env.SMTP_HOST;[m
+ 	const port = parseInt(process.env.SMTP_PORT || '587', 10);[m
+ 	const user = process.env.SMTP_USER;[m
+[36m@@ -19,12 +27,17 @@[m [mfunction createTransporter() {[m
+ 		log.warn('SMTP配置不完整，邮件发送功能将被禁用', {[m
+ 			hasHost: !!host,[m
+ 			hasUser: !!user,[m
+[32m+[m			[32mhasPassword: !!password,[m
+[32m+[m			[32m// 调试信息：显示实际读取到的值（不显示密码）[m
+[32m+[m			[32mhost: host || 'undefined',[m
+[32m+[m			[32muser: user || 'undefined',[m
+ 			hasPassword: !!password[m
+ 		});[m
+[32m+[m		[32mtransporter = null;[m
+ 		return null;[m
+ 	}[m
+ [m
+[31m-	return nodemailer.createTransport({[m
+[32m+[m	[32mtransporter = nodemailer.createTransport({[m
+ 		host,[m
+ 		port,[m
+ 		secure, // true for 465, false for other ports[m
+[36m@@ -33,9 +46,16 @@[m [mfunction createTransporter() {[m
+ 			pass: password[m
+ 		}[m
+ 	});[m
+[31m-}[m
+ [m
+[31m-const transporter = createTransporter();[m
+[32m+[m	[32mlog.info('SMTP 传输器已初始化', {[m
+[32m+[m		[32mhost,[m
+[32m+[m		[32mport,[m
+[32m+[m		[32muser,[m
+[32m+[m		[32msecure[m
+[32m+[m	[32m});[m
+[32m+[m
+[32m+[m	[32mreturn transporter;[m
+[32m+[m[32m}[m
+ [m
+ /**[m
+  * 发送邮件[m
+[36m@@ -46,6 +66,7 @@[m [mexport async function sendEmail(options: {[m
+ 	html: string;[m
+ 	text?: string;[m
+ }): Promise<boolean> {[m
+[32m+[m	[32mconst transporter = getTransporter();[m
+ 	if (!transporter) {[m
+ 		log.error('邮件发送器未初始化，无法发送邮件');[m
+ 		return false;[m
+ CLEANUP_CONSOLE_LOG_GUIDE.md                      |   2 [32m+[m
+ OPTIMIZATION_PROGRESS_REPORT.md                   |   2 [32m+[m
+ PERFORMANCE_OPTIMIZATION.md                       |   2 [32m+[m
+ SECURITY_FIXES_SUMMARY.md                         |   2 [32m+[m
+ apps/web/app/(main)/books/[id]/page.tsx           |  64 [31m--[m
+ apps/web/app/(main)/discussion/page.tsx           |   4 [32m+[m[31m-[m
+ apps/web/app/(main)/games/baike/page.tsx          |  68 [32m+[m[31m-[m
+ apps/web/app/(main)/library/page.tsx              | 113 [31m---[m
+ apps/web/app/(main)/page.tsx                      |  18 [32m+[m[31m-[m
+ apps/web/app/(main)/shelf/page.tsx                |  85 [31m---[m
+ apps/web/app/api/auth/signup/route.ts             |  25 [32m+[m[31m-[m
+ apps/web/app/api/books/[id]/shelf/route.ts        |  58 [31m--[m
+ apps/web/app/api/books/add/route.ts               |  66 [31m--[m
+ apps/web/app/api/books/list/route.ts              | 281 [31m--------[m
+ apps/web/app/api/books/my-shelf/route.ts          |  29 [31m-[m
+ apps/web/app/api/books/search/route.ts            |  95 [31m---[m
+ apps/web/components/auth/SignInModal.tsx          | 106 [32m++[m[31m-[m
+ apps/web/components/auth/SignUpModal.tsx          | 375 [32m++++++++[m[31m--[m
+ apps/web/components/games/baike/GameInput.tsx     |  31 [32m+[m[31m-[m
+ apps/web/components/layout/Navigation.tsx         |  52 [31m--[m
+ apps/web/components/layout/Sidebar.tsx            |  76 [31m--[m
+ apps/web/components/library/BookDetail.tsx        | 643 [31m-----------------[m
+ apps/web/components/library/BookFilterBar.tsx     | 431 [31m------------[m
+ apps/web/components/library/BookList.tsx          | 379 [31m----------[m
+ apps/web/components/library/BookSearch.tsx        | 353 [31m----------[m
+ apps/web/components/library/BookUpload.tsx        | 814 [31m----------------------[m
+ apps/web/components/library/LibraryBanner.tsx     | 304 [31m--------[m
+ apps/web/components/library/LibraryBookList.tsx   | 237 [31m-------[m
+ apps/web/components/library/ShelfBookList.tsx     | 296 [31m--------[m
+ apps/web/components/practices/TheoryAssistant.tsx | 133 [31m----[m
+ apps/web/components/ui/ClientHomePage.tsx         |  37 [31m-[m
+ apps/web/components/ui/NewHomePage.tsx            |   1 [31m-[m
+ apps/web/i18n/messages/en-US.ts                   |  10 [31m-[m
+ apps/web/i18n/messages/zh-CN.ts                   |  10 [31m-[m
+ apps/web/lib/email/sender.ts                      |   3 [32m+[m[31m-[m
+ apps/web/lib/modules/interfaces.ts                |  29 [31m-[m
+ apps/web/middleware.ts                            |   2 [32m+[m[31m-[m
+ apps/web/next.config.mjs                          |   6 [32m+[m[31m-[m
+ apps/web/package.json                             |   1 [32m+[m
+ apps/web/scripts/check-module-isolation.ts        |   5 [31m-[m
+ apps/web/shared/components/BookSearchDialog.tsx   | 775 [31m--------------------[m
+ apps/web/shared/components/README.md              |  24 [32m+[m[31m-[m
+ 42 files changed, 477 insertions(+), 5570 deletions(-)

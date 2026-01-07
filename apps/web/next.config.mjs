@@ -3,8 +3,10 @@ import crypto from 'crypto';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-	// 启用 standalone 模式，用于 PM2 部署
-	output: 'standalone',
+	// standalone 模式：只在服务器上构建时启用（用于 PM2 部署）
+	// 本地开发时不启用，避免 Windows 符号链接权限问题
+	// 服务器上构建时设置：ENABLE_STANDALONE=true pnpm build
+	output: process.env.ENABLE_STANDALONE === 'true' ? 'standalone' : undefined,
 	experimental: {
 		serverActions: {
 			// 支持生产环境域名（从环境变量读取）

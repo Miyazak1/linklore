@@ -9,7 +9,6 @@ interface NewHomePageProps {
 		totalTopics: number;
 		totalDocuments: number;
 		totalUsers: number;
-		totalBooks: number;
 	};
 }
 

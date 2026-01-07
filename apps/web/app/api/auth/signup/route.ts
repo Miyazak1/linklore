@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/client';
 import { hash } from 'bcryptjs';
 import { createSession, clearSession } from '@/lib/auth/session';
 import { verifyAndConsumeInvite } from '@/lib/auth/invite';
+import { verifyRegistrationCode } from '@/lib/auth/verificationCode';
 import { createModuleLogger } from '@/lib/utils/logger';
 
 const log = createModuleLogger('Signup API');
@@ -11,6 +12,7 @@ const log = createModuleLogger('Signup API');
 const SignupSchema = z.object({
 	email: z.string().email(),
 	password: z.string().min(8).max(100),
+	verificationCode: z.string().length(6, '验证码必须是6位数字'),
 	inviteCode: z.preprocess(
 		(val) => {
 			// 将空字符串转换为 undefined
@@ -26,23 +28,29 @@ const SignupSchema = z.object({
 export async function POST(req: Request) {
 	try {
 		const json = await req.json();
-		const { email, password, inviteCode } = SignupSchema.parse(json);
+		const { email, password, verificationCode, inviteCode } = SignupSchema.parse(json);
+		
+		// 检查邮箱是否已注册
 		const existing = await prisma.user.findUnique({ where: { email } });
 		if (existing) {
 			return NextResponse.json({ error: '邮箱已注册' }, { status: 400 });
 		}
+
+		// 验证验证码
+		const codeVerification = verifyRegistrationCode(email, verificationCode);
+		if (!codeVerification.success) {
+			return NextResponse.json({ error: codeVerification.error || '验证码错误' }, { status: 400 });
+		}
+
+		// 创建用户（验证码已验证，直接设置为已验证）
 		const passwordHash = await hash(password, 10);
 		const user = await prisma.user.create({
 			data: { 
 				email, 
 				passwordHash, 
-				emailVerified: false 
+				emailVerified: true // 验证码已验证，直接设置为已验证
 			}
 		});
-
-		// 发送邮箱验证邮件
-		const { createAndSendVerificationToken } = await import('@/lib/auth/emailVerification');
-		await createAndSendVerificationToken(user.id, user.email);
 
 		// 暂时取消邀请码验证：如果提供了邀请码才验证，否则跳过
 		if (inviteCode && inviteCode.trim().length >= 4) {
@@ -60,8 +68,11 @@ export async function POST(req: Request) {
 		// 创建新用户的 session
 		await createSession({ sub: user.id, email: user.email, role: user.role });
 		
-		return NextResponse.json({ ok: true });
+		return NextResponse.json({ ok: true, user: { id: user.id, email: user.email } });
 	} catch (err: any) {
+		if (err.name === 'ZodError') {
+			return NextResponse.json({ error: err.errors[0]?.message || '参数错误' }, { status: 400 });
+		}
 		return NextResponse.json({ error: err.message || '注册失败' }, { status: 400 });
 	}
 }

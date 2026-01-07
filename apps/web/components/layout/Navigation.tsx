@@ -12,7 +12,6 @@ import {
 	MessageIcon, 
 	SearchIcon, 
 	BookIcon, 
-	LibraryIcon, 
 	ChartIcon,
 	MenuIcon,
 	CloseIcon,
@@ -84,7 +83,6 @@ export default function Navigation() {
 		{ href: '/discussion', label: '讨论版', icon: MessageIcon },
 		// 暂时禁用语义溯源功能，后期改造后再启用
 		// { href: '/traces', label: '语义溯源', icon: SearchIcon },
-		{ href: '/library', label: '图书馆', icon: LibraryIcon },
 		{ href: '/digest', label: '周报摘要', icon: ChartIcon },
 	];
 
@@ -359,35 +357,6 @@ export default function Navigation() {
 									{/* 菜单项 */}
 									<div style={{ padding: 'var(--spacing-xs) 0' }}>
 										<Link
-											href="/shelf"
-											onClick={() => setUserMenuOpen(false)}
-											style={{
-												display: 'block',
-												padding: 'var(--spacing-sm) var(--spacing-md)',
-												textDecoration: 'none',
-												fontSize: 'var(--font-size-sm)',
-												color: isActive('/shelf')
-													? 'var(--color-primary)'
-													: 'var(--color-text-primary)',
-												background: isActive('/shelf')
-													? 'var(--color-primary-lighter)'
-													: 'transparent',
-												transition: 'all var(--transition-fast)'
-											}}
-											onMouseEnter={(e) => {
-												if (!isActive('/shelf')) {
-													e.currentTarget.style.background = 'var(--color-background-subtle)';
-												}
-											}}
-											onMouseLeave={(e) => {
-												if (!isActive('/shelf')) {
-													e.currentTarget.style.background = 'transparent';
-												}
-											}}
-										>
-											<LibraryIcon size={16} color="currentColor" /> 我的书架
-										</Link>
-										<Link
 											href="/settings/ai"
 											onClick={() => setUserMenuOpen(false)}
 											style={{
@@ -565,27 +534,6 @@ export default function Navigation() {
 								}}>
 									我的
 								</div>
-								<Link
-									href="/shelf"
-									onClick={() => setMobileMenuOpen(false)}
-									style={{
-										display: 'block',
-										padding: 'var(--spacing-sm) var(--spacing-md)',
-										borderRadius: 'var(--radius-md)',
-										textDecoration: 'none',
-										fontSize: 'var(--font-size-sm)',
-										fontWeight: 500,
-										color: isActive('/shelf')
-											? 'var(--color-primary)'
-											: 'var(--color-text-secondary)',
-										background: isActive('/shelf')
-											? 'var(--color-primary-lighter)'
-											: 'transparent',
-										marginBottom: 'var(--spacing-xs)'
-									}}
-								>
-									<LibraryIcon size={16} color="currentColor" /> 我的书架
-								</Link>
 								<Link
 									href="/settings/ai"
 									onClick={() => setMobileMenuOpen(false)}

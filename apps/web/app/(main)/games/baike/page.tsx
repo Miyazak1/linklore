@@ -170,15 +170,19 @@ function BaikeGamePageContent() {
 		const isFound = targetTitle.includes(normalizedChar) || targetContent.includes(normalizedChar);
 
 		// 如果猜对了，先更新 revealedChars，确保字符不会出现在错误区域
-		const newRevealedChars = isFound 
-			? [...gameState.revealedChars, char]
+		// 检查是否已经在 revealedChars 中（大小写不敏感）
+		const alreadyRevealed = gameState.revealedChars.some(rc => rc.toLowerCase() === normalizedChar);
+		const newRevealedChars = isFound && !alreadyRevealed
+			? [...gameState.revealedChars, char] // 使用原始字符，保留大小写
 			: gameState.revealedChars;
 		
-		// guessedChars 包含所有猜过的字符
-		// 注意：如果猜对了，字符会同时出现在 revealedChars 和 guessedChars 中
-		// 但计算错误字符时，会过滤掉在 revealedChars 中的字符，所以不会出现在错误列表中
-		const newGuessedChars = [...gameState.guessedChars, char];
-		const newGuessCount = gameState.guessCount + 1;
+		// guessedChars 包含所有猜过的字符（包括猜错的）
+		// 检查是否已经猜过（大小写不敏感）
+		const alreadyGuessed = gameState.guessedChars.some(gc => gc.toLowerCase() === normalizedChar);
+		const newGuessedChars = alreadyGuessed
+			? gameState.guessedChars
+			: [...gameState.guessedChars, char];
+		const newGuessCount = gameState.guessCount + (alreadyGuessed ? 0 : 1);
 
 		// 检查是否完成（基于标题）
 		const allCharsRevealed = gameState.targetTitle.split('').every(c => {
@@ -252,7 +256,7 @@ function BaikeGamePageContent() {
 					}
 				} else {
 					// 服务器验证成功，使用服务器返回的准确数据
-					const serverRevealedChars = responseData.data.revealedChars || newRevealedChars;
+					const serverRevealedChars = responseData.data.revealedChars || [];
 					const serverGuessCount = responseData.data.guessCount;
 					const serverIsCompleted = responseData.data.isCompleted || false;
 
@@ -262,26 +266,50 @@ function BaikeGamePageContent() {
 					setGameState(prevState => {
 						if (!prevState) return prevState;
 						
-						// 确保服务器返回的 revealedChars 中的所有字符都在 guessedChars 中
-						const revealedCharsSet = new Set(
-							serverRevealedChars.map((c: string) => c.toLowerCase())
-						);
+						// 合并 revealedChars：服务器返回的 + 乐观更新中已添加的（如果服务器没有）
+						// 使用 Set 去重（大小写不敏感）
+						const revealedCharsMap = new Map<string, string>(); // key: lowercase, value: original
 						
-						// 合并：保留所有已猜过的字符，确保 revealedChars 中的字符都在 guessedChars 中
-						const updatedGuessedChars = [...prevState.guessedChars];
+						// 先添加服务器返回的（优先使用服务器的数据）
 						serverRevealedChars.forEach((rc: string) => {
-							if (!updatedGuessedChars.some(gc => gc.toLowerCase() === rc.toLowerCase())) {
-								updatedGuessedChars.push(rc);
+							revealedCharsMap.set(rc.toLowerCase(), rc);
+						});
+						
+						// 再添加乐观更新中的（如果服务器没有）
+						prevState.revealedChars.forEach(rc => {
+							const lower = rc.toLowerCase();
+							if (!revealedCharsMap.has(lower)) {
+								revealedCharsMap.set(lower, rc);
 							}
 						});
+						
+						const mergedRevealedChars = Array.from(revealedCharsMap.values());
+						
+						// 合并 guessedChars：保留所有已猜过的字符
+						const guessedCharsMap = new Map<string, string>(); // key: lowercase, value: original
+						
+						// 先添加当前已猜过的字符
+						prevState.guessedChars.forEach(gc => {
+							guessedCharsMap.set(gc.toLowerCase(), gc);
+						});
+						
+						// 确保 revealedChars 中的所有字符都在 guessedChars 中
+						mergedRevealedChars.forEach(rc => {
+							const lower = rc.toLowerCase();
+							if (!guessedCharsMap.has(lower)) {
+								guessedCharsMap.set(lower, rc);
+							}
+						});
+						
+						const mergedGuessedChars = Array.from(guessedCharsMap.values());
 
-						// 使用服务器返回的准确数据更新状态
+						// 使用合并后的数据更新状态
 						return {
 							...prevState,
-							revealedChars: serverRevealedChars,
-							guessCount: serverGuessCount,
+							revealedChars: mergedRevealedChars,
+							guessCount: serverGuessCount || prevState.guessCount,
 							isCompleted: serverIsCompleted,
-							guessedChars: updatedGuessedChars
+							guessedChars: mergedGuessedChars
 						};
 					});
 				}

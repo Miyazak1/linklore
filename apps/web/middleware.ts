@@ -4,7 +4,7 @@ import { readSessionFromRequest } from './lib/auth/middleware';
 import { checkRateLimit } from './lib/rate-limit/middleware';
 
 // Protected routes that require authentication
-const protectedRoutes = ['/discussion', '/settings', '/shelf'];
+const protectedRoutes = ['/discussion', '/settings'];
 
 export async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;

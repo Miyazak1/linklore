@@ -9,10 +9,10 @@ export default async function HomePage() {
 	try {
 		// Get statistics with caching
 		const cacheKey = 'home:stats';
-		let cached: { topics: number; documents: number; users: number; books: number } | null = null;
+		let cached: { topics: number; documents: number; users: number } | null = null;
 		
 		try {
-			cached = await getCache<{ topics: number; documents: number; users: number; books: number }>(cacheKey);
+			cached = await getCache<{ topics: number; documents: number; users: number }>(cacheKey);
 		} catch (cacheErr) {
 			log.warn('Cache error (non-fatal)', { error: cacheErr });
 		}
@@ -20,21 +20,18 @@ export default async function HomePage() {
 		let totalTopics: number;
 		let totalDocuments: number;
 		let totalUsers: number;
-		let totalBooks: number;
 		
 		if (cached) {
 			totalTopics = cached.topics;
 			totalDocuments = cached.documents;
 			totalUsers = cached.users;
-			totalBooks = cached.books;
 		} else {
 			try {
 				// Fetch all counts in parallel
-				[totalTopics, totalDocuments, totalUsers, totalBooks] = await Promise.all([
+				[totalTopics, totalDocuments, totalUsers] = await Promise.all([
 					prisma.topic.count(),
 					prisma.document.count(),
-					prisma.user.count(),
-					prisma.book.count()
+					prisma.user.count()
 				]);
 				
 				// Cache for 5 minutes (non-blocking)
@@ -42,8 +39,7 @@ export default async function HomePage() {
 					await setCache(cacheKey, { 
 						topics: totalTopics, 
 						documents: totalDocuments, 
-						users: totalUsers, 
-						books: totalBooks
+						users: totalUsers
 					}, 300);
 				} catch (setCacheErr) {
 					log.warn('Set cache error (non-fatal)', { error: setCacheErr });
@@ -54,7 +50,6 @@ export default async function HomePage() {
 				totalTopics = 0;
 				totalDocuments = 0;
 				totalUsers = 0;
-				totalBooks = 0;
 			}
 		}
 
@@ -66,8 +61,7 @@ export default async function HomePage() {
 				<NewHomePage stats={{ 
 					totalTopics, 
 					totalDocuments, 
-					totalUsers, 
-					totalBooks
+					totalUsers
 				}} />
 			</main>
 		);

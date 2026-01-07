@@ -18,10 +18,8 @@ export default {
 	nav: {
 		home: "首页",
 		upload: "发起话题（上传文档）",
-		library: "公共图书馆",
 		practices: "实践记录",
 		aiSettings: "我的 AI",
-		shelf: "我的书架"
 	},
 	home: {
 		title: "Mooyu",
@@ -76,14 +74,6 @@ export default {
 		testConnection: "测试连通",
 		saveConfig: "保存配置",
 		usage: "本月用量"
-	},
-	library: {
-		title: "公共图书馆",
-		description: "搜索并添加书籍到公共图书馆，或上传电子书文件。所有用户都可以看到。",
-		addToShelf: "添加到书架",
-		removeFromShelf: "从书架移除",
-		readOnline: "在线阅读",
-		download: "下载"
 	},
 	evaluation: {
 		title: "AI 评价",

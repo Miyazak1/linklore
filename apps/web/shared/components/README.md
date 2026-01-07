@@ -6,29 +6,7 @@
 
 ## 当前组件
 
-### BookSearchDialog
-
-**用途**: 图书搜索对话框，可在聊天、讨论版等模块中使用
-
-**使用方式**:
-
-```typescript
-import BookSearchDialog from '@/shared/components/BookSearchDialog';
-
-function MyComponent() {
-  const [showDialog, setShowDialog] = useState(false);
-  
-  return (
-    <BookSearchDialog
-      open={showDialog}
-      onClose={() => setShowDialog(false)}
-      onSelect={(book) => {
-        console.log('Selected book:', book);
-      }}
-    />
-  );
-}
-```
+（暂无共享组件）
 
 ## 添加新共享组件
 

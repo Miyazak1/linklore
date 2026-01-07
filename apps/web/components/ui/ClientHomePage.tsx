@@ -5,7 +5,6 @@ interface ClientHomePageProps {
 		totalTopics: number;
 		totalDocuments: number;
 		totalUsers: number;
-		totalBooks: number;
 	};
 }
 
@@ -129,32 +128,6 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						fontWeight: 500
 					}}>用户</div>
 				</div>
-				<div 
-					className="card-academic animate-scale-in"
-					style={{ 
-						padding: 'var(--spacing-xl)', 
-						textAlign: 'left',
-						animationDelay: '0.4s',
-						animationFillMode: 'both'
-					}}
-				>
-					<div style={{ 
-						fontSize: 'var(--font-size-3xl)', 
-						fontWeight: 700, 
-						color: 'var(--color-secondary)', 
-						marginBottom: 'var(--spacing-xs)',
-						lineHeight: 1.2
-					}}>
-						{stats.totalBooks}
-					</div>
-					<div style={{ 
-						fontSize: 'var(--font-size-sm)', 
-						color: 'var(--color-text-secondary)',
-						textTransform: 'uppercase',
-						letterSpacing: '0.05em',
-						fontWeight: 500
-					}}>书籍</div>
-				</div>
 			</div>
 
 			<div style={{ 
@@ -185,16 +158,6 @@ export default function ClientHomePage({ stats }: ClientHomePageProps) {
 						transition: 'all var(--transition-fast)',
 						border: 'none'
 					}}>发起话题</a>
-					<a href="/library" style={{ 
-						padding: 'var(--spacing-sm) var(--spacing-md)',
-						background: 'var(--color-background-paper)',
-						color: 'var(--color-text-primary)',
-						border: '1px solid var(--color-border)',
-						borderRadius: 'var(--radius-md)',
-						fontSize: 'var(--font-size-sm)',
-						fontWeight: 500,
-						transition: 'all var(--transition-fast)'
-					}}>公共图书馆</a>
 					<a href="/practices" style={{ 
 						padding: 'var(--spacing-sm) var(--spacing-md)',
 						background: 'var(--color-background-paper)',

@@ -18,32 +18,21 @@ export default function GameInput({ onGuess, disabled = false, guessedChars = []
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// 自动聚焦并保持聚焦状态
+	// 自动聚焦（仅在组件挂载时，且未禁用时）
 	useEffect(() => {
 		if (!disabled && inputRef.current) {
-			inputRef.current.focus();
+			// 延迟聚焦，避免与其他组件冲突
+			const timer = setTimeout(() => {
+				if (inputRef.current && !disabled) {
+					inputRef.current.focus();
+				}
+			}, 200);
+			return () => clearTimeout(timer);
 		}
 	}, [disabled]);
 
-	// 当输入框失去焦点时，自动重新聚焦（除非被禁用）
-	useEffect(() => {
-		const inputElement = inputRef.current;
-		if (!inputElement || disabled) return;
-
-		const handleBlur = () => {
-			// 延迟重新聚焦，避免与其他交互冲突
-			setTimeout(() => {
-				if (inputElement && !disabled) {
-					inputElement.focus();
-				}
-			}, 100);
-		};
-
-		inputElement.addEventListener('blur', handleBlur);
-		return () => {
-			inputElement.removeEventListener('blur', handleBlur);
-		};
-	}, [disabled]);
+	// 移除强制重新聚焦的逻辑，允许用户正常交互
+	// 如果用户点击其他地方，不应该强制聚焦回来
 
 	const handleSubmit = () => {
 		const trimmed = input.trim();

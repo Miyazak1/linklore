@@ -18,10 +18,8 @@ export default {
 	nav: {
 		home: "Home",
 		upload: "Create Topic (Upload Document)",
-		library: "Public Library",
 		practices: "Practices",
 		aiSettings: "My AI",
-		shelf: "My Shelf"
 	},
 	home: {
 		title: "Mooyu",
@@ -76,14 +74,6 @@ export default {
 		testConnection: "Test Connection",
 		saveConfig: "Save Configuration",
 		usage: "Monthly Usage"
-	},
-	library: {
-		title: "Public Library",
-		description: "Search and add books to the public library, or upload e-book files. All users can see them.",
-		addToShelf: "Add to Shelf",
-		removeFromShelf: "Remove from Shelf",
-		readOnline: "Read Online",
-		download: "Download"
 	},
 	evaluation: {
 		title: "AI Evaluation",

@@ -29,11 +29,6 @@ const modules = {
 		components: 'components/topic',
 		dbModels: ['Topic', 'Document', 'Summary', 'Evaluation', 'Disagreement', 'ConsensusSnapshot', 'UserConsensus'],
 	},
-	library: {
-		path: 'app/api/books',
-		components: 'components/library',
-		dbModels: ['Book', 'BookshelfItem', 'BookAsset'],
-	},
 };
 
 /**
