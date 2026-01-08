@@ -27,14 +27,32 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: mooyu-redis
-    ports:
-      - "6379:6379"
+    # 端口映射已移除：Redis 仅通过 Docker 网络访问，提高安全性
+    # 如需从主机访问，可取消注释：ports: - "6379:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    # 如果设置了 REDIS_PASSWORD，则使用密码；否则不使用密码
+    command: >
+      sh -c "
+      if [ -n \"$$REDIS_PASSWORD\" ]; then
+        redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\"
+      else
+        redis-server --appendonly yes
+      fi
+      "
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # 健康检查：如果有密码则使用密码，否则直接 ping
+      test: >
+        sh -c "
+        if [ -n \"$$REDIS_PASSWORD\" ]; then
+          redis-cli -a \"$$REDIS_PASSWORD\" ping
+        else
+          redis-cli ping
+        fi
+        "
       interval: 5s
       timeout: 3s
       retries: 5
@@ -55,7 +73,10 @@ services:
       # 会话密钥（请修改为随机字符串）
       SESSION_SECRET: ${SESSION_SECRET:-mooyu-secret-change-this-to-random-32-chars-minimum}
       # Redis 配置
+      # 如果 Redis 设置了密码，请设置 REDIS_URL 为: redis://:密码@redis:6379
+      # 如果 Redis 没有密码，使用默认值: redis://redis:6379
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       # Next.js 配置
       NODE_ENV: production
       PORT: 3000
