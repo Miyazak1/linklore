@@ -31,27 +31,48 @@ ENV NODE_ENV=production
 ENV ENABLE_STANDALONE=true
 RUN pnpm build
 
-# 复制 static 和 public 到 standalone 目录
-RUN cp -r .next/static .next/standalone/apps/web/.next/ && \
-    cp -r public .next/standalone/apps/web/
-
-# 确保 Prisma Client 被包含在 standalone 输出中
-# standalone 模式应该已经包含了，但为了保险，我们手动复制
-# 在 monorepo 中，Prisma 可能在根目录或 apps/web 的 node_modules 中
+# 检查 standalone 输出结构并统一路径到 apps/web/.next/standalone-output
+# standalone 模式在 monorepo 中的输出路径可能是 .next/standalone/ 或 .next/standalone/apps/web/
 WORKDIR /app
-RUN mkdir -p apps/web/.next/standalone/apps/web/node_modules && \
+RUN if [ -d "apps/web/.next/standalone/apps/web" ]; then \
+      # 如果 standalone 在 apps/web 子目录，移动到统一位置
+      mv apps/web/.next/standalone/apps/web apps/web/.next/standalone-output; \
+    elif [ -d "apps/web/.next/standalone" ]; then \
+      # 检查是否有 apps/web 子目录
+      if [ -d "apps/web/.next/standalone/apps/web" ]; then \
+        mv apps/web/.next/standalone/apps/web apps/web/.next/standalone-output; \
+      else \
+        # 直接使用 standalone 目录
+        mv apps/web/.next/standalone apps/web/.next/standalone-output; \
+      fi; \
+    else \
+      echo "Error: standalone output not found"; \
+      ls -la apps/web/.next/ || true; \
+      exit 1; \
+    fi && \
+    STANDALONE_DIR="apps/web/.next/standalone-output" && \
+    # 复制 static 和 public 到 standalone 目录
+    cp -r apps/web/.next/static $STANDALONE_DIR/.next/static && \
+    cp -r apps/web/public $STANDALONE_DIR/public && \
+    # 确保 Prisma Client 被包含
+    mkdir -p $STANDALONE_DIR/node_modules && \
     if [ -d "node_modules/.prisma" ]; then \
-      cp -r node_modules/.prisma apps/web/.next/standalone/apps/web/node_modules/.prisma 2>/dev/null || true; \
+      cp -r node_modules/.prisma $STANDALONE_DIR/node_modules/.prisma 2>/dev/null || true; \
     fi && \
     if [ -d "node_modules/@prisma" ]; then \
-      cp -r node_modules/@prisma apps/web/.next/standalone/apps/web/node_modules/@prisma 2>/dev/null || true; \
+      cp -r node_modules/@prisma $STANDALONE_DIR/node_modules/@prisma 2>/dev/null || true; \
     fi && \
     if [ -d "apps/web/node_modules/.prisma" ]; then \
-      cp -r apps/web/node_modules/.prisma apps/web/.next/standalone/apps/web/node_modules/.prisma 2>/dev/null || true; \
+      cp -r apps/web/node_modules/.prisma $STANDALONE_DIR/node_modules/.prisma 2>/dev/null || true; \
     fi && \
     if [ -d "apps/web/node_modules/@prisma" ]; then \
-      cp -r apps/web/node_modules/@prisma apps/web/.next/standalone/apps/web/node_modules/@prisma 2>/dev/null || true; \
-    fi
+      cp -r apps/web/node_modules/@prisma $STANDALONE_DIR/node_modules/@prisma 2>/dev/null || true; \
+    fi && \
+    # 输出 standalone 目录结构用于调试
+    echo "Standalone directory structure:" && \
+    ls -la $STANDALONE_DIR/ && \
+    echo "Checking for server.js:" && \
+    ls -la $STANDALONE_DIR/server.js || ls -la $STANDALONE_DIR/*.js || true
 
 # 阶段 2: 生产运行环境
 FROM node:20-alpine AS runner
@@ -66,8 +87,8 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # 从 builder 复制 standalone 输出
-# standalone 模式的输出结构: .next/standalone/apps/web/
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone/apps/web ./
+# 在 builder 阶段已经统一到 apps/web/.next/standalone-output
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone-output ./
 
 # 复制 static 文件（standalone 模式需要手动复制）
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
