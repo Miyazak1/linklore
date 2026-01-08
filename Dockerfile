@@ -35,6 +35,24 @@ RUN pnpm build
 RUN cp -r .next/static .next/standalone/apps/web/.next/ && \
     cp -r public .next/standalone/apps/web/
 
+# 确保 Prisma Client 被包含在 standalone 输出中
+# standalone 模式应该已经包含了，但为了保险，我们手动复制
+# 在 monorepo 中，Prisma 可能在根目录或 apps/web 的 node_modules 中
+WORKDIR /app
+RUN mkdir -p apps/web/.next/standalone/apps/web/node_modules && \
+    if [ -d "node_modules/.prisma" ]; then \
+      cp -r node_modules/.prisma apps/web/.next/standalone/apps/web/node_modules/.prisma 2>/dev/null || true; \
+    fi && \
+    if [ -d "node_modules/@prisma" ]; then \
+      cp -r node_modules/@prisma apps/web/.next/standalone/apps/web/node_modules/@prisma 2>/dev/null || true; \
+    fi && \
+    if [ -d "apps/web/node_modules/.prisma" ]; then \
+      cp -r apps/web/node_modules/.prisma apps/web/.next/standalone/apps/web/node_modules/.prisma 2>/dev/null || true; \
+    fi && \
+    if [ -d "apps/web/node_modules/@prisma" ]; then \
+      cp -r apps/web/node_modules/@prisma apps/web/.next/standalone/apps/web/node_modules/@prisma 2>/dev/null || true; \
+    fi
+
 # 阶段 2: 生产运行环境
 FROM node:20-alpine AS runner
 
@@ -57,10 +75,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/sta
 # 复制 public 文件
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
 
-# 复制 Prisma schema 和生成的 client（用于运行时）
+# 复制 Prisma schema（用于运行时，如果需要）
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+
+# Prisma Client 应该已经在 standalone 输出的 node_modules 中了
+# 如果没有，standalone 模式会自动处理，或者我们已经在 builder 阶段复制了
 
 USER nextjs
 
