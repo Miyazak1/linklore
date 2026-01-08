@@ -1,0 +1,63 @@
+version: '3.8'
+
+# 生产环境配置（覆盖 docker-compose.yml）
+# 使用方法: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  web:
+    # 生产环境可以移除端口映射，通过 Nginx 反向代理
+    ports: []
+    # 或者只监听本地
+    # ports:
+    #   - "127.0.0.1:3000:3000"
+    environment:
+      # 生产环境 URL
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://www.mooyu.fun}
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    # 生产环境资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    # 生产环境资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+

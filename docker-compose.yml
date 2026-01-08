@@ -1,23 +1,105 @@
+version: '3.8'
+
 services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: mooyu-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mooyu}
+      POSTGRES_USER: ${POSTGRES_USER:-mooyu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fdn4jjKXGZ56LJLh}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mooyu -d mooyu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mooyu-network
+
+  # Redis 缓存和队列
   redis:
     image: redis:7.2-alpine
-    container_name: linklore-redis
+    container_name: mooyu-redis
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - mooyu-network
+
+  # Next.js 应用
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mooyu-web
+    ports:
+      - "3000:3000"
+    environment:
+      # 数据库配置
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mooyu}:${POSTGRES_PASSWORD:-fdn4jjKXGZ56LJLh}@postgres:5432/${POSTGRES_DB:-mooyu}
+      # 会话密钥（请修改为随机字符串）
+      SESSION_SECRET: ${SESSION_SECRET:-mooyu-secret-change-this-to-random-32-chars-minimum}
+      # Redis 配置
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      # Next.js 配置
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      # 应用 URL（用于 Server Actions）
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # OSS 配置（根据实际情况填写）
+      OSS_REGION: ${OSS_REGION:-oss-cn-hangzhou}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_BUCKET: ${OSS_BUCKET:-}
+      # AI 配置
+      AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-openai}
+      AI_ALLOWED_PROVIDERS: ${AI_ALLOWED_PROVIDERS:-openai,qwen}
+      AI_FALLBACK_PROVIDER: ${AI_FALLBACK_PROVIDER:-qwen}
+      AI_MONTHLY_USER_CAP_CENTS: ${AI_MONTHLY_USER_CAP_CENTS:-500}
+      AI_JOB_COST_LIMIT_CENTS: ${AI_JOB_COST_LIMIT_CENTS:-50}
+      # 队列配置
+      QUEUE_CONCURRENCY: ${QUEUE_CONCURRENCY:-1}
+      # 文件配置
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-20}
+      ALLOWED_EXT: ${ALLOWED_EXT:-doc,docx,txt,md}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mooyu-network
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
+  postgres-data:
+    driver: local
   redis-data:
+    driver: local
 
-
-
-
-
+networks:
+  mooyu-network:
+    driver: bridge
