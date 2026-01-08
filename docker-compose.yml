@@ -10,8 +10,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-mooyu}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fdn4jjKXGZ56LJLh}
       PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
+    # 端口映射已移除：PostgreSQL 仅通过 Docker 网络访问，提高安全性
+    # 如需从主机访问，可取消注释：ports: - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
