@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { ComponentType } from 'react';
+import { IconProps } from '@/components/ui/Icons';
 
 export interface GameConfig {
 	id: string;
 	name: string;
 	description: string;
-	icon: string;
+	icon: ComponentType<IconProps>;
 	route: string;
 	status: 'active' | 'coming-soon';
 	featured?: boolean;
@@ -69,10 +71,12 @@ export default function GameCard({ game }: GameCardProps) {
 					style={{ 
 						fontSize: '48px', 
 						marginBottom: 'var(--spacing-sm)',
-						lineHeight: 1
+						lineHeight: 1,
+						display: 'flex',
+						alignItems: 'center'
 					}}
 				>
-					{game.icon}
+					<game.icon size={48} />
 				</div>
 
 				{/* 游戏名称 */}
