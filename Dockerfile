@@ -44,26 +44,40 @@ RUN apk add --no-cache libc6-compat && \
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# 复制 package 文件（用于安装生产依赖）
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./root-package.json
-COPY --from=builder --chown=nextjs:nodejs /app/pnpm-workspace.yaml ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/package.json ./package.json
-
 # 复制应用构建产物
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/package.json ./package.json
 
 # 复制 Prisma schema
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# 安装生产依赖（不使用 --frozen-lockfile，因为 lockfile 可能不匹配）
-# 只安装生产依赖，确保所有运行时依赖都被正确安装
-RUN pnpm install --prod --no-frozen-lockfile && \
-    # 验证关键模块
-    echo "Verifying critical modules..." && \
+# 直接从 builder 阶段复制完整的 node_modules（包括 .pnpm 和所有符号链接）
+# 这样可以确保所有依赖（包括 styled-jsx）都被正确复制
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/node_modules ./node_modules
+
+# 验证关键模块
+RUN echo "Verifying critical modules..." && \
     for mod in "next" "styled-jsx" "react" "react-dom"; do \
-      if [ ! -d "node_modules/$mod" ] && [ ! -f "node_modules/$mod/package.json" ]; then \
+      # 检查模块是否存在（可能是目录或符号链接）
+      if [ ! -e "node_modules/$mod" ] && [ ! -e "node_modules/$mod/package.json" ]; then \
         echo "✗ ERROR: $mod module not found!" && \
+        # 尝试在 .pnpm 中查找
+        if [ -d "node_modules/.pnpm" ]; then \
+          found=$(find node_modules/.pnpm -type d -name "$mod" -path "*/node_modules/$mod" 2>/dev/null | head -1); \
+          if [ -n "$found" ]; then \
+            echo "  Found in .pnpm: $found" && \
+            # 创建符号链接或复制
+            mkdir -p "node_modules/$(dirname "$mod")" 2>/dev/null || true; \
+            if [ -d "$found" ]; then \
+              cp -r "$found" "node_modules/$mod" 2>/dev/null || true; \
+              if [ -d "node_modules/$mod" ]; then \
+                echo "  ✓ $mod copied from .pnpm"; \
+                continue; \
+              fi; \
+            fi; \
+          fi; \
+        fi && \
         exit 1; \
       else \
         echo "✓ $mod module found"; \
