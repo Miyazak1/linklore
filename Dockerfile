@@ -70,13 +70,23 @@ RUN if [ -d "apps/web/.next/standalone/apps/web" ]; then \
     fi && \
     # 修复 pnpm 符号链接问题：复制 .pnpm 目录
     # standalone 输出中的 node_modules 包含符号链接，指向 pnpm 的 .pnpm 目录
+    echo "Checking for .pnpm directory..." && \
     if [ -d "node_modules/.pnpm" ]; then \
-      echo "Copying pnpm .pnpm directory..."; \
-      cp -r node_modules/.pnpm $STANDALONE_DIR/node_modules/.pnpm 2>/dev/null || true; \
+      echo "Found .pnpm in root, copying..."; \
+      mkdir -p $STANDALONE_DIR/node_modules/.pnpm && \
+      cp -r node_modules/.pnpm/* $STANDALONE_DIR/node_modules/.pnpm/ 2>&1 | head -5 || echo "Copy failed, continuing..."; \
     fi && \
     if [ -d "apps/web/node_modules/.pnpm" ]; then \
-      echo "Copying web node_modules/.pnpm directory..."; \
-      cp -r apps/web/node_modules/.pnpm $STANDALONE_DIR/node_modules/.pnpm 2>/dev/null || true; \
+      echo "Found .pnpm in web, copying..."; \
+      mkdir -p $STANDALONE_DIR/node_modules/.pnpm && \
+      cp -r apps/web/node_modules/.pnpm/* $STANDALONE_DIR/node_modules/.pnpm/ 2>&1 | head -5 || echo "Copy failed, continuing..."; \
+    fi && \
+    # 验证 .pnpm 是否被复制
+    if [ -d "$STANDALONE_DIR/node_modules/.pnpm" ]; then \
+      echo "✓ .pnpm directory exists in standalone output"; \
+      ls -la $STANDALONE_DIR/node_modules/.pnpm | head -5; \
+    else \
+      echo "✗ Warning: .pnpm directory not found in standalone output"; \
     fi && \
     # 验证 next 模块是否存在
     if [ ! -e "$STANDALONE_DIR/node_modules/next" ]; then \
