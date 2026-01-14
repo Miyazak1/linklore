@@ -68,34 +68,38 @@ RUN if [ -d "apps/web/.next/standalone/apps/web" ]; then \
     if [ -d "apps/web/node_modules/@prisma" ]; then \
       cp -r apps/web/node_modules/@prisma $STANDALONE_DIR/node_modules/@prisma 2>/dev/null || true; \
     fi && \
-    # 修复 pnpm 符号链接问题：复制 .pnpm 目录
-    # standalone 输出中的 node_modules 包含符号链接，指向 pnpm 的 .pnpm 目录
-    echo "Checking for .pnpm directory..." && \
-    if [ -d "node_modules/.pnpm" ]; then \
-      echo "Found .pnpm in root, copying..."; \
-      mkdir -p $STANDALONE_DIR/node_modules/.pnpm && \
-      cp -r node_modules/.pnpm/* $STANDALONE_DIR/node_modules/.pnpm/ 2>&1 | head -5 || echo "Copy failed, continuing..."; \
-    fi && \
-    if [ -d "apps/web/node_modules/.pnpm" ]; then \
-      echo "Found .pnpm in web, copying..."; \
-      mkdir -p $STANDALONE_DIR/node_modules/.pnpm && \
-      cp -r apps/web/node_modules/.pnpm/* $STANDALONE_DIR/node_modules/.pnpm/ 2>&1 | head -5 || echo "Copy failed, continuing..."; \
-    fi && \
-    # 验证 .pnpm 是否被复制
-    if [ -d "$STANDALONE_DIR/node_modules/.pnpm" ]; then \
-      echo "✓ .pnpm directory exists in standalone output"; \
-      ls -la $STANDALONE_DIR/node_modules/.pnpm | head -5; \
+    # 修复 pnpm 符号链接问题：使用 pnpm deploy 创建扁平化的 node_modules
+    echo "Fixing pnpm symlinks by flattening node_modules..." && \
+    cd $STANDALONE_DIR && \
+    if [ -f "package.json" ]; then \
+      echo "Using pnpm deploy to flatten node_modules..."; \
+      # 使用 pnpm deploy 创建扁平化的 node_modules（跟随符号链接）
+      pnpm deploy --filter=. --prod 2>&1 | head -10 || \
+      (echo "pnpm deploy failed, using cp -rL to follow symlinks..." && \
+       if [ -d "/app/apps/web/node_modules" ]; then \
+         rm -rf node_modules && \
+         cp -rL /app/apps/web/node_modules node_modules 2>&1 | head -10 || true; \
+       elif [ -d "/app/node_modules" ]; then \
+         rm -rf node_modules && \
+         cp -rL /app/node_modules node_modules 2>&1 | head -10 || true; \
+       fi); \
     else \
-      echo "✗ Warning: .pnpm directory not found in standalone output"; \
-    fi && \
-    # 验证 next 模块是否存在
-    if [ ! -e "$STANDALONE_DIR/node_modules/next" ]; then \
-      echo "Warning: next module not found, attempting to copy..."; \
-      if [ -d "apps/web/node_modules/next" ]; then \
-        cp -r apps/web/node_modules/next $STANDALONE_DIR/node_modules/next 2>/dev/null || true; \
-      elif [ -d "node_modules/next" ]; then \
-        cp -r node_modules/next $STANDALONE_DIR/node_modules/next 2>/dev/null || true; \
+      echo "No package.json in standalone, copying node_modules with symlink resolution..."; \
+      if [ -d "/app/apps/web/node_modules" ]; then \
+        rm -rf node_modules && \
+        cp -rL /app/apps/web/node_modules node_modules 2>&1 | head -10 || true; \
       fi; \
+    fi && \
+    cd /app && \
+    # 验证 next 模块
+    echo "Verifying next module..." && \
+    if [ -d "$STANDALONE_DIR/node_modules/next" ] || [ -L "$STANDALONE_DIR/node_modules/next" ]; then \
+      echo "✓ next module found"; \
+      ls -la $STANDALONE_DIR/node_modules/next | head -3; \
+    else \
+      echo "✗ Warning: next module still not found!"; \
+      echo "Available modules:"; \
+      ls -la $STANDALONE_DIR/node_modules/ | head -10; \
     fi && \
     # 输出 standalone 目录结构用于调试
     echo "Standalone directory structure:" && \
