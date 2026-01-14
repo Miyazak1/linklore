@@ -39,12 +39,13 @@ RUN echo "Creating flattened node_modules to resolve symlinks..." && \
     # 方法1：使用 cp -rL 跟随符号链接（Alpine Linux 支持 -L 选项）
     echo "Attempting cp -rL (follow symlinks)..." && \
     cp -rL node_modules node_modules_flat 2>&1 | head -3 && \
-    # 验证 next 模块是否存在
-    if [ -d "node_modules_flat/next" ]; then \
-      echo "✓ next module found after cp -rL"; \
+    # 验证 next 模块和 .bin 目录是否存在
+    if [ -d "node_modules_flat/next" ] && [ -d "node_modules_flat/.bin" ]; then \
+      echo "✓ next module and .bin directory found after cp -rL"; \
       ls -la node_modules_flat/next | head -3; \
+      ls -la node_modules_flat/.bin/next 2>/dev/null && echo "✓ .bin/next exists" || echo "✗ .bin/next missing"; \
     else \
-      echo "✗ next module not found, trying alternative method..."; \
+      echo "✗ next module or .bin not found, trying alternative method..."; \
       # 方法2：直接复制 .pnpm 和所有符号链接目标
       if [ -d "node_modules/.pnpm" ]; then \
         echo "Copying .pnpm directory..."; \
@@ -66,9 +67,20 @@ RUN echo "Creating flattened node_modules to resolve symlinks..." && \
           cp -r "$link" "node_modules_flat/$name" 2>/dev/null || true; \
         fi; \
       done && \
+      # 确保 .bin 目录被复制
+      if [ -d "node_modules/.bin" ]; then \
+        echo "Copying .bin directory..."; \
+        mkdir -p node_modules_flat/.bin && \
+        cp -r node_modules/.bin/* node_modules_flat/.bin/ 2>&1 | head -3 || true; \
+      fi && \
       # 最终验证
       if [ -d "node_modules_flat/next" ]; then \
         echo "✓ next module found after alternative method"; \
+        if [ -f "node_modules_flat/.bin/next" ] || [ -L "node_modules_flat/.bin/next" ]; then \
+          echo "✓ .bin/next found"; \
+        else \
+          echo "✗ Warning: .bin/next not found, will use npx"; \
+        fi; \
       else \
         echo "✗ ERROR: next module still not found!"; \
         ls -la node_modules_flat/ | head -10; \
@@ -108,6 +120,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 启动应用（使用 next start）
-CMD ["node_modules/.bin/next", "start", "-p", "3000"]
+# 启动应用（使用 npx 或直接调用 next）
+# 如果 node_modules/.bin/next 不存在，使用 npx
+CMD ["sh", "-c", "if [ -f node_modules/.bin/next ]; then node_modules/.bin/next start -p 3000; else npx next start -p 3000; fi"]
 
