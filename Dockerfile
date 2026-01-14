@@ -68,29 +68,37 @@ RUN if [ -d "apps/web/.next/standalone/apps/web" ]; then \
     if [ -d "apps/web/node_modules/@prisma" ]; then \
       cp -r apps/web/node_modules/@prisma $STANDALONE_DIR/node_modules/@prisma 2>/dev/null || true; \
     fi && \
-    # 修复 pnpm 符号链接问题：使用 pnpm deploy 创建扁平化的 node_modules
-    echo "Fixing pnpm symlinks by flattening node_modules..." && \
-    cd $STANDALONE_DIR && \
-    if [ -f "package.json" ]; then \
-      echo "Using pnpm deploy to flatten node_modules..."; \
-      # 使用 pnpm deploy 创建扁平化的 node_modules（跟随符号链接）
-      pnpm deploy --filter=. --prod 2>&1 | head -10 || \
-      (echo "pnpm deploy failed, using cp -rL to follow symlinks..." && \
-       if [ -d "/app/apps/web/node_modules" ]; then \
-         rm -rf node_modules && \
-         cp -rL /app/apps/web/node_modules node_modules 2>&1 | head -10 || true; \
-       elif [ -d "/app/node_modules" ]; then \
-         rm -rf node_modules && \
-         cp -rL /app/node_modules node_modules 2>&1 | head -10 || true; \
-       fi); \
-    else \
-      echo "No package.json in standalone, copying node_modules with symlink resolution..."; \
-      if [ -d "/app/apps/web/node_modules" ]; then \
-        rm -rf node_modules && \
-        cp -rL /app/apps/web/node_modules node_modules 2>&1 | head -10 || true; \
+    # 修复 pnpm 符号链接问题：直接复制整个 .pnpm 目录和所有依赖
+    echo "Fixing pnpm symlinks..." && \
+    # 方法1：复制 .pnpm 目录（pnpm 的虚拟存储）
+    if [ -d "node_modules/.pnpm" ]; then \
+      echo "Copying .pnpm from root..."; \
+      mkdir -p $STANDALONE_DIR/node_modules/.pnpm && \
+      cp -r node_modules/.pnpm/* $STANDALONE_DIR/node_modules/.pnpm/ 2>&1 | head -3 || true; \
+    fi && \
+    if [ -d "apps/web/node_modules/.pnpm" ]; then \
+      echo "Copying .pnpm from web..."; \
+      mkdir -p $STANDALONE_DIR/node_modules/.pnpm && \
+      cp -r apps/web/node_modules/.pnpm/* $STANDALONE_DIR/node_modules/.pnpm/ 2>&1 | head -3 || true; \
+    fi && \
+    # 方法2：如果 next 模块仍然不存在，直接复制整个 next 目录
+    if [ ! -e "$STANDALONE_DIR/node_modules/next" ] || [ ! -d "$STANDALONE_DIR/node_modules/next" ]; then \
+      echo "next module missing, copying directly..."; \
+      if [ -d "apps/web/node_modules/next" ]; then \
+        echo "Copying next from apps/web/node_modules..."; \
+        cp -r apps/web/node_modules/next $STANDALONE_DIR/node_modules/next 2>&1 | head -3 || true; \
+      elif [ -d "node_modules/next" ]; then \
+        echo "Copying next from root node_modules..."; \
+        cp -r node_modules/next $STANDALONE_DIR/node_modules/next 2>&1 | head -3 || true; \
+      fi; \
+      # 如果还是找不到，尝试从 .pnpm 中提取
+      if [ ! -d "$STANDALONE_DIR/node_modules/next" ] && [ -d "$STANDALONE_DIR/node_modules/.pnpm" ]; then \
+        echo "Extracting next from .pnpm..."; \
+        find $STANDALONE_DIR/node_modules/.pnpm -name "next" -type d -path "*/node_modules/next" 2>/dev/null | head -1 | while read next_path; do \
+          cp -r "$next_path" $STANDALONE_DIR/node_modules/next 2>/dev/null && echo "Copied from .pnpm" || true; \
+        done; \
       fi; \
     fi && \
-    cd /app && \
     # 验证 next 模块
     echo "Verifying next module..." && \
     if [ -d "$STANDALONE_DIR/node_modules/next" ] || [ -L "$STANDALONE_DIR/node_modules/next" ]; then \
