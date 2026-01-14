@@ -32,61 +32,78 @@ ENV NODE_ENV=production
 # ENV ENABLE_STANDALONE=true
 RUN pnpm build
 
-# 在 builder 阶段创建扁平化的 node_modules（解决符号链接问题）
+# 在 builder 阶段创建扁平化的 node_modules（彻底解决符号链接问题）
 WORKDIR /app/apps/web
 RUN echo "Creating flattened node_modules to resolve symlinks..." && \
     mkdir -p node_modules_flat && \
-    # 方法1：使用 cp -rL 跟随符号链接（Alpine Linux 支持 -L 选项）
-    echo "Attempting cp -rL (follow symlinks)..." && \
-    cp -rL node_modules node_modules_flat 2>&1 | head -3 && \
-    # 验证 next 模块和 .bin 目录是否存在
-    if [ -d "node_modules_flat/next" ] && [ -d "node_modules_flat/.bin" ]; then \
-      echo "✓ next module and .bin directory found after cp -rL"; \
-      ls -la node_modules_flat/next | head -3; \
-      ls -la node_modules_flat/.bin/next 2>/dev/null && echo "✓ .bin/next exists" || echo "✗ .bin/next missing"; \
-    else \
-      echo "✗ next module or .bin not found, trying alternative method..."; \
-      # 方法2：直接复制 .pnpm 和所有符号链接目标
-      if [ -d "node_modules/.pnpm" ]; then \
-        echo "Copying .pnpm directory..."; \
-        mkdir -p node_modules_flat/.pnpm && \
-        cp -r node_modules/.pnpm/* node_modules_flat/.pnpm/ 2>&1 | head -3; \
-      fi && \
-      # 复制所有符号链接的实际目标
-      echo "Resolving and copying symlink targets..."; \
-      for link in node_modules/*; do \
-        if [ -L "$link" ]; then \
-          target=$(readlink -f "$link" 2>/dev/null || readlink "$link"); \
-          if [ -d "$target" ] || [ -f "$target" ]; then \
-            name=$(basename "$link"); \
-            echo "Copying $name from $target"; \
-            cp -r "$target" "node_modules_flat/$name" 2>/dev/null || true; \
-          fi; \
-        elif [ -d "$link" ] || [ -f "$link" ]; then \
-          name=$(basename "$link"); \
-          cp -r "$link" "node_modules_flat/$name" 2>/dev/null || true; \
+    # 方法1：先复制整个 .pnpm 目录（包含所有实际包）
+    if [ -d "node_modules/.pnpm" ]; then \
+      echo "Copying .pnpm directory (contains all actual packages)..." && \
+      cp -r node_modules/.pnpm node_modules_flat/.pnpm 2>&1 | head -5 || true; \
+    fi && \
+    # 方法2：使用 find 和 cp -rL 递归复制所有符号链接目标
+    echo "Resolving and copying all symlink targets..." && \
+    find node_modules -maxdepth 1 -type l -exec sh -c ' \
+      link="$1"; \
+      name=$(basename "$link"); \
+      target=$(readlink -f "$link" 2>/dev/null || readlink "$link"); \
+      if [ -n "$target" ] && [ -e "$target" ]; then \
+        echo "Copying $name from $target"; \
+        if [ -d "$target" ]; then \
+          cp -r "$target" "node_modules_flat/$name" 2>/dev/null || true; \
+        elif [ -f "$target" ]; then \
+          mkdir -p "node_modules_flat/$(dirname "$name")" && \
+          cp "$target" "node_modules_flat/$name" 2>/dev/null || true; \
         fi; \
-      done && \
-      # 确保 .bin 目录被复制
-      if [ -d "node_modules/.bin" ]; then \
-        echo "Copying .bin directory..."; \
-        mkdir -p node_modules_flat/.bin && \
-        cp -r node_modules/.bin/* node_modules_flat/.bin/ 2>&1 | head -3 || true; \
-      fi && \
-      # 最终验证
-      if [ -d "node_modules_flat/next" ]; then \
-        echo "✓ next module found after alternative method"; \
-        if [ -f "node_modules_flat/.bin/next" ] || [ -L "node_modules_flat/.bin/next" ]; then \
-          echo "✓ .bin/next found"; \
-        else \
-          echo "✗ Warning: .bin/next not found, will use npx"; \
+      fi \
+    ' _ {} \; && \
+    # 方法3：复制所有非符号链接的目录和文件
+    echo "Copying non-symlink directories and files..." && \
+    for item in node_modules/*; do \
+      if [ ! -L "$item" ]; then \
+        name=$(basename "$item"); \
+        if [ -d "$item" ] && [ ! -d "node_modules_flat/$name" ]; then \
+          echo "Copying directory $name"; \
+          cp -r "$item" "node_modules_flat/$name" 2>/dev/null || true; \
+        elif [ -f "$item" ] && [ ! -f "node_modules_flat/$name" ]; then \
+          echo "Copying file $name"; \
+          cp "$item" "node_modules_flat/$name" 2>/dev/null || true; \
         fi; \
-      else \
-        echo "✗ ERROR: next module still not found!"; \
-        ls -la node_modules_flat/ | head -10; \
-        exit 1; \
       fi; \
-    fi
+    done && \
+    # 方法4：确保 .bin 目录被完整复制（包括所有可执行文件）
+    if [ -d "node_modules/.bin" ]; then \
+      echo "Copying .bin directory..." && \
+      mkdir -p node_modules_flat/.bin && \
+      cp -r node_modules/.bin/* node_modules_flat/.bin/ 2>&1 | head -5 || true; \
+      # 如果 .bin 中有符号链接，也要解析
+      find node_modules/.bin -type l -exec sh -c ' \
+        link="$1"; \
+        name=$(basename "$link"); \
+        target=$(readlink -f "$link" 2>/dev/null || readlink "$link"); \
+        if [ -n "$target" ] && [ -e "$target" ]; then \
+          cp "$target" "node_modules_flat/.bin/$name" 2>/dev/null || true; \
+        fi \
+      ' _ {} \; || true; \
+    fi && \
+    # 最终验证关键模块
+    echo "Verifying critical modules..." && \
+    MISSING="" && \
+    for mod in "next" "styled-jsx" "react" "react-dom"; do \
+      if [ ! -d "node_modules_flat/$mod" ] && [ ! -f "node_modules_flat/$mod/package.json" ]; then \
+        echo "✗ ERROR: $mod module not found!" && \
+        MISSING="$MISSING $mod"; \
+      else \
+        echo "✓ $mod module found"; \
+      fi; \
+    done && \
+    if [ -n "$MISSING" ]; then \
+      echo "Missing modules:$MISSING" && \
+      echo "Available modules:" && \
+      ls -la node_modules_flat/ | head -20 && \
+      exit 1; \
+    fi && \
+    echo "✓ All critical modules verified"
 
 # 阶段 2: 生产运行环境
 FROM node:20-alpine AS runner
