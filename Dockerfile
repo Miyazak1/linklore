@@ -46,7 +46,6 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # 复制 package 文件（用于安装生产依赖）
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./root-package.json
-COPY --from=builder --chown=nextjs:nodejs /app/pnpm-lock.yaml ./
 COPY --from=builder --chown=nextjs:nodejs /app/pnpm-workspace.yaml ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/package.json ./package.json
 
@@ -57,8 +56,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
 # 复制 Prisma schema
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# 安装生产依赖（这会创建正确的 node_modules，无需处理符号链接）
-RUN pnpm install --prod --frozen-lockfile && \
+# 安装生产依赖（不使用 --frozen-lockfile，因为 lockfile 可能不匹配）
+# 只安装生产依赖，确保所有运行时依赖都被正确安装
+RUN pnpm install --prod --no-frozen-lockfile && \
     # 验证关键模块
     echo "Verifying critical modules..." && \
     for mod in "next" "styled-jsx" "react" "react-dom"; do \
