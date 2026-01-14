@@ -68,11 +68,34 @@ RUN if [ -d "apps/web/.next/standalone/apps/web" ]; then \
     if [ -d "apps/web/node_modules/@prisma" ]; then \
       cp -r apps/web/node_modules/@prisma $STANDALONE_DIR/node_modules/@prisma 2>/dev/null || true; \
     fi && \
+    # 修复 pnpm 符号链接问题：复制 .pnpm 目录
+    # standalone 输出中的 node_modules 包含符号链接，指向 pnpm 的 .pnpm 目录
+    if [ -d "node_modules/.pnpm" ]; then \
+      echo "Copying pnpm .pnpm directory..."; \
+      cp -r node_modules/.pnpm $STANDALONE_DIR/node_modules/.pnpm 2>/dev/null || true; \
+    fi && \
+    if [ -d "apps/web/node_modules/.pnpm" ]; then \
+      echo "Copying web node_modules/.pnpm directory..."; \
+      cp -r apps/web/node_modules/.pnpm $STANDALONE_DIR/node_modules/.pnpm 2>/dev/null || true; \
+    fi && \
+    # 验证 next 模块是否存在
+    if [ ! -e "$STANDALONE_DIR/node_modules/next" ]; then \
+      echo "Warning: next module not found, attempting to copy..."; \
+      if [ -d "apps/web/node_modules/next" ]; then \
+        cp -r apps/web/node_modules/next $STANDALONE_DIR/node_modules/next 2>/dev/null || true; \
+      elif [ -d "node_modules/next" ]; then \
+        cp -r node_modules/next $STANDALONE_DIR/node_modules/next 2>/dev/null || true; \
+      fi; \
+    fi && \
     # 输出 standalone 目录结构用于调试
     echo "Standalone directory structure:" && \
     ls -la $STANDALONE_DIR/ && \
+    echo "Checking node_modules:" && \
+    ls -la $STANDALONE_DIR/node_modules/ | head -10 && \
     echo "Checking for server.js:" && \
-    ls -la $STANDALONE_DIR/server.js || ls -la $STANDALONE_DIR/*.js || true
+    ls -la $STANDALONE_DIR/server.js || ls -la $STANDALONE_DIR/*.js || true && \
+    echo "Verifying next module:" && \
+    ls -la $STANDALONE_DIR/node_modules/next 2>/dev/null || echo "Warning: next module not found"
 
 # 阶段 2: 生产运行环境
 FROM node:20-alpine AS runner
