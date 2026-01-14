@@ -32,66 +32,82 @@ ENV NODE_ENV=production
 # ENV ENABLE_STANDALONE=true
 RUN pnpm build
 
-# 在 builder 阶段创建扁平化的 node_modules（彻底解决符号链接问题）
+# 在 builder 阶段使用 pnpm deploy 创建完全扁平化的 node_modules（彻底解决符号链接问题）
 WORKDIR /app/apps/web
-RUN echo "Creating flattened node_modules to resolve symlinks..." && \
+RUN echo "Creating flattened node_modules using pnpm deploy..." && \
     mkdir -p node_modules_flat && \
-    # 方法1：先复制整个 .pnpm 目录（包含所有实际包）
-    if [ -d "node_modules/.pnpm" ]; then \
-      echo "Copying .pnpm directory (contains all actual packages)..." && \
-      cp -r node_modules/.pnpm node_modules_flat/.pnpm 2>&1 | head -5 || true; \
-    fi && \
-    # 方法2：使用 find 和 cp -rL 递归复制所有符号链接目标
-    echo "Resolving and copying all symlink targets..." && \
-    find node_modules -maxdepth 1 -type l -exec sh -c ' \
-      link="$1"; \
-      name=$(basename "$link"); \
-      target=$(readlink -f "$link" 2>/dev/null || readlink "$link"); \
-      if [ -n "$target" ] && [ -e "$target" ]; then \
-        echo "Copying $name from $target"; \
-        if [ -d "$target" ]; then \
-          cp -r "$target" "node_modules_flat/$name" 2>/dev/null || true; \
-        elif [ -f "$target" ]; then \
-          mkdir -p "node_modules_flat/$(dirname "$name")" && \
-          cp "$target" "node_modules_flat/$name" 2>/dev/null || true; \
+    # 方法1：使用 pnpm deploy 创建扁平化的 node_modules（推荐方法）
+    echo "Attempting pnpm deploy (creates flat node_modules without symlinks)..." && \
+    pnpm deploy --filter=. --prod --dir node_modules_flat 2>&1 | tail -10 || \
+    (echo "pnpm deploy failed, trying alternative method..." && \
+     # 方法2：如果 pnpm deploy 失败，使用 cp -rL 递归跟随符号链接
+     echo "Using cp -rL to follow all symlinks recursively..." && \
+     cp -rL node_modules node_modules_flat 2>&1 | head -5 || \
+     # 方法3：如果 cp -rL 也失败，手动复制 .pnpm 和解析所有符号链接
+     (echo "cp -rL failed, using manual symlink resolution..." && \
+      if [ -d "node_modules/.pnpm" ]; then \
+        echo "Copying .pnpm directory..." && \
+        cp -r node_modules/.pnpm node_modules_flat/.pnpm 2>&1 | head -3 || true; \
+      fi && \
+      # 递归查找并复制所有符号链接目标
+      find node_modules -type l | while read link; do \
+        name=$(basename "$link"); \
+        rel_path=$(echo "$link" | sed 's|^node_modules/||'); \
+        target=$(readlink -f "$link" 2>/dev/null || readlink "$link"); \
+        if [ -n "$target" ] && [ -e "$target" ]; then \
+          dest_dir="node_modules_flat/$(dirname "$rel_path")"; \
+          mkdir -p "$dest_dir" 2>/dev/null || true; \
+          if [ -d "$target" ]; then \
+            cp -r "$target" "node_modules_flat/$rel_path" 2>/dev/null || true; \
+          elif [ -f "$target" ]; then \
+            cp "$target" "node_modules_flat/$rel_path" 2>/dev/null || true; \
+          fi; \
         fi; \
-      fi \
-    ' _ {} \; && \
-    # 方法3：复制所有非符号链接的目录和文件
-    echo "Copying non-symlink directories and files..." && \
-    for item in node_modules/*; do \
-      if [ ! -L "$item" ]; then \
-        name=$(basename "$item"); \
-        if [ -d "$item" ] && [ ! -d "node_modules_flat/$name" ]; then \
-          echo "Copying directory $name"; \
-          cp -r "$item" "node_modules_flat/$name" 2>/dev/null || true; \
-        elif [ -f "$item" ] && [ ! -f "node_modules_flat/$name" ]; then \
-          echo "Copying file $name"; \
-          cp "$item" "node_modules_flat/$name" 2>/dev/null || true; \
+      done && \
+      # 复制所有非符号链接的目录
+      find node_modules -type d ! -type l | while read dir; do \
+        rel_path=$(echo "$dir" | sed 's|^node_modules/||'); \
+        if [ -n "$rel_path" ] && [ "$rel_path" != "." ]; then \
+          if [ ! -d "node_modules_flat/$rel_path" ] && [ ! -L "node_modules_flat/$rel_path" ]; then \
+            mkdir -p "node_modules_flat/$rel_path" 2>/dev/null || true; \
+            # 复制目录中的文件（非符号链接）
+            find "$dir" -maxdepth 1 -type f ! -type l -exec cp {} "node_modules_flat/$rel_path/" 2>/dev/null \; || true; \
+          fi; \
         fi; \
-      fi; \
-    done && \
-    # 方法4：确保 .bin 目录被完整复制（包括所有可执行文件）
+      done)) && \
+    # 确保 .bin 目录被完整复制
     if [ -d "node_modules/.bin" ]; then \
       echo "Copying .bin directory..." && \
       mkdir -p node_modules_flat/.bin && \
-      cp -r node_modules/.bin/* node_modules_flat/.bin/ 2>&1 | head -5 || true; \
-      # 如果 .bin 中有符号链接，也要解析
-      find node_modules/.bin -type l -exec sh -c ' \
+      cp -rL node_modules/.bin/* node_modules_flat/.bin/ 2>&1 | head -3 || \
+      (find node_modules/.bin -type l -exec sh -c ' \
         link="$1"; \
         name=$(basename "$link"); \
         target=$(readlink -f "$link" 2>/dev/null || readlink "$link"); \
         if [ -n "$target" ] && [ -e "$target" ]; then \
           cp "$target" "node_modules_flat/.bin/$name" 2>/dev/null || true; \
         fi \
-      ' _ {} \; || true; \
+      ' _ {} \; || true); \
     fi && \
-    # 最终验证关键模块
+    # 最终验证关键模块（包括 styled-jsx）
     echo "Verifying critical modules..." && \
     MISSING="" && \
     for mod in "next" "styled-jsx" "react" "react-dom"; do \
       if [ ! -d "node_modules_flat/$mod" ] && [ ! -f "node_modules_flat/$mod/package.json" ]; then \
         echo "✗ ERROR: $mod module not found!" && \
+        # 尝试在 .pnpm 中查找
+        if [ -d "node_modules_flat/.pnpm" ]; then \
+          found=$(find node_modules_flat/.pnpm -type d -name "$mod" 2>/dev/null | head -1); \
+          if [ -n "$found" ]; then \
+            echo "  Found in .pnpm: $found, creating symlink..." && \
+            mkdir -p "node_modules_flat/$(dirname "$mod")" 2>/dev/null || true; \
+            cp -r "$found" "node_modules_flat/$mod" 2>/dev/null || true; \
+            if [ -d "node_modules_flat/$mod" ]; then \
+              echo "  ✓ $mod copied from .pnpm"; \
+              continue; \
+            fi; \
+          fi; \
+        fi && \
         MISSING="$MISSING $mod"; \
       else \
         echo "✓ $mod module found"; \
@@ -99,8 +115,10 @@ RUN echo "Creating flattened node_modules to resolve symlinks..." && \
     done && \
     if [ -n "$MISSING" ]; then \
       echo "Missing modules:$MISSING" && \
-      echo "Available modules:" && \
-      ls -la node_modules_flat/ | head -20 && \
+      echo "Searching for styled-jsx in .pnpm..." && \
+      find node_modules_flat/.pnpm -type d -name "*styled-jsx*" 2>/dev/null | head -5 || echo "Not found in .pnpm" && \
+      echo "Available top-level modules:" && \
+      ls -1 node_modules_flat/ | head -30 && \
       exit 1; \
     fi && \
     echo "✓ All critical modules verified"
