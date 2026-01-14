@@ -25,99 +25,56 @@ COPY . .
 # 生成 Prisma Client
 RUN pnpm prisma generate
 
-# 构建 Next.js（standalone 模式）
+# 构建 Next.js（不使用 standalone 模式，避免 pnpm 符号链接问题）
 WORKDIR /app/apps/web
 ENV NODE_ENV=production
-ENV ENABLE_STANDALONE=true
+# 暂时不使用 standalone 模式，直接使用标准构建
+# ENV ENABLE_STANDALONE=true
 RUN pnpm build
 
-# 检查 standalone 输出结构并统一路径到 apps/web/.next/standalone-output
-# standalone 模式在 monorepo 中的输出路径可能是 .next/standalone/ 或 .next/standalone/apps/web/
-WORKDIR /app
-RUN if [ -d "apps/web/.next/standalone/apps/web" ]; then \
-      # 如果 standalone 在 apps/web 子目录，移动到统一位置
-      mv apps/web/.next/standalone/apps/web apps/web/.next/standalone-output; \
-    elif [ -d "apps/web/.next/standalone" ]; then \
-      # 检查是否有 apps/web 子目录
-      if [ -d "apps/web/.next/standalone/apps/web" ]; then \
-        mv apps/web/.next/standalone/apps/web apps/web/.next/standalone-output; \
+# 在 builder 阶段创建扁平化的 node_modules（解决符号链接问题）
+WORKDIR /app/apps/web
+RUN echo "Creating flattened node_modules to resolve symlinks..." && \
+    mkdir -p node_modules_flat && \
+    # 方法1：使用 cp -rL 跟随符号链接（Alpine Linux 支持 -L 选项）
+    echo "Attempting cp -rL (follow symlinks)..." && \
+    cp -rL node_modules node_modules_flat 2>&1 | head -3 && \
+    # 验证 next 模块是否存在
+    if [ -d "node_modules_flat/next" ]; then \
+      echo "✓ next module found after cp -rL"; \
+      ls -la node_modules_flat/next | head -3; \
+    else \
+      echo "✗ next module not found, trying alternative method..."; \
+      # 方法2：直接复制 .pnpm 和所有符号链接目标
+      if [ -d "node_modules/.pnpm" ]; then \
+        echo "Copying .pnpm directory..."; \
+        mkdir -p node_modules_flat/.pnpm && \
+        cp -r node_modules/.pnpm/* node_modules_flat/.pnpm/ 2>&1 | head -3; \
+      fi && \
+      # 复制所有符号链接的实际目标
+      echo "Resolving and copying symlink targets..."; \
+      for link in node_modules/*; do \
+        if [ -L "$link" ]; then \
+          target=$(readlink -f "$link" 2>/dev/null || readlink "$link"); \
+          if [ -d "$target" ] || [ -f "$target" ]; then \
+            name=$(basename "$link"); \
+            echo "Copying $name from $target"; \
+            cp -r "$target" "node_modules_flat/$name" 2>/dev/null || true; \
+          fi; \
+        elif [ -d "$link" ] || [ -f "$link" ]; then \
+          name=$(basename "$link"); \
+          cp -r "$link" "node_modules_flat/$name" 2>/dev/null || true; \
+        fi; \
+      done && \
+      # 最终验证
+      if [ -d "node_modules_flat/next" ]; then \
+        echo "✓ next module found after alternative method"; \
       else \
-        # 直接使用 standalone 目录
-        mv apps/web/.next/standalone apps/web/.next/standalone-output; \
+        echo "✗ ERROR: next module still not found!"; \
+        ls -la node_modules_flat/ | head -10; \
+        exit 1; \
       fi; \
-    else \
-      echo "Error: standalone output not found"; \
-      ls -la apps/web/.next/ || true; \
-      exit 1; \
-    fi && \
-    STANDALONE_DIR="apps/web/.next/standalone-output" && \
-    # 复制 static 和 public 到 standalone 目录
-    cp -r apps/web/.next/static $STANDALONE_DIR/.next/static && \
-    cp -r apps/web/public $STANDALONE_DIR/public && \
-    # 确保 Prisma Client 被包含
-    mkdir -p $STANDALONE_DIR/node_modules && \
-    if [ -d "node_modules/.prisma" ]; then \
-      cp -r node_modules/.prisma $STANDALONE_DIR/node_modules/.prisma 2>/dev/null || true; \
-    fi && \
-    if [ -d "node_modules/@prisma" ]; then \
-      cp -r node_modules/@prisma $STANDALONE_DIR/node_modules/@prisma 2>/dev/null || true; \
-    fi && \
-    if [ -d "apps/web/node_modules/.prisma" ]; then \
-      cp -r apps/web/node_modules/.prisma $STANDALONE_DIR/node_modules/.prisma 2>/dev/null || true; \
-    fi && \
-    if [ -d "apps/web/node_modules/@prisma" ]; then \
-      cp -r apps/web/node_modules/@prisma $STANDALONE_DIR/node_modules/@prisma 2>/dev/null || true; \
-    fi && \
-    # 修复 pnpm 符号链接问题：直接复制整个 .pnpm 目录和所有依赖
-    echo "Fixing pnpm symlinks..." && \
-    # 方法1：复制 .pnpm 目录（pnpm 的虚拟存储）
-    if [ -d "node_modules/.pnpm" ]; then \
-      echo "Copying .pnpm from root..."; \
-      mkdir -p $STANDALONE_DIR/node_modules/.pnpm && \
-      cp -r node_modules/.pnpm/* $STANDALONE_DIR/node_modules/.pnpm/ 2>&1 | head -3 || true; \
-    fi && \
-    if [ -d "apps/web/node_modules/.pnpm" ]; then \
-      echo "Copying .pnpm from web..."; \
-      mkdir -p $STANDALONE_DIR/node_modules/.pnpm && \
-      cp -r apps/web/node_modules/.pnpm/* $STANDALONE_DIR/node_modules/.pnpm/ 2>&1 | head -3 || true; \
-    fi && \
-    # 方法2：如果 next 模块仍然不存在，直接复制整个 next 目录
-    if [ ! -e "$STANDALONE_DIR/node_modules/next" ] || [ ! -d "$STANDALONE_DIR/node_modules/next" ]; then \
-      echo "next module missing, copying directly..."; \
-      if [ -d "apps/web/node_modules/next" ]; then \
-        echo "Copying next from apps/web/node_modules..."; \
-        cp -r apps/web/node_modules/next $STANDALONE_DIR/node_modules/next 2>&1 | head -3 || true; \
-      elif [ -d "node_modules/next" ]; then \
-        echo "Copying next from root node_modules..."; \
-        cp -r node_modules/next $STANDALONE_DIR/node_modules/next 2>&1 | head -3 || true; \
-      fi; \
-      # 如果还是找不到，尝试从 .pnpm 中提取
-      if [ ! -d "$STANDALONE_DIR/node_modules/next" ] && [ -d "$STANDALONE_DIR/node_modules/.pnpm" ]; then \
-        echo "Extracting next from .pnpm..."; \
-        find $STANDALONE_DIR/node_modules/.pnpm -name "next" -type d -path "*/node_modules/next" 2>/dev/null | head -1 | while read next_path; do \
-          cp -r "$next_path" $STANDALONE_DIR/node_modules/next 2>/dev/null && echo "Copied from .pnpm" || true; \
-        done; \
-      fi; \
-    fi && \
-    # 验证 next 模块
-    echo "Verifying next module..." && \
-    if [ -d "$STANDALONE_DIR/node_modules/next" ] || [ -L "$STANDALONE_DIR/node_modules/next" ]; then \
-      echo "✓ next module found"; \
-      ls -la $STANDALONE_DIR/node_modules/next | head -3; \
-    else \
-      echo "✗ Warning: next module still not found!"; \
-      echo "Available modules:"; \
-      ls -la $STANDALONE_DIR/node_modules/ | head -10; \
-    fi && \
-    # 输出 standalone 目录结构用于调试
-    echo "Standalone directory structure:" && \
-    ls -la $STANDALONE_DIR/ && \
-    echo "Checking node_modules:" && \
-    ls -la $STANDALONE_DIR/node_modules/ | head -10 && \
-    echo "Checking for server.js:" && \
-    ls -la $STANDALONE_DIR/server.js || ls -la $STANDALONE_DIR/*.js || true && \
-    echo "Verifying next module:" && \
-    ls -la $STANDALONE_DIR/node_modules/next 2>/dev/null || echo "Warning: next module not found"
+    fi
 
 # 阶段 2: 生产运行环境
 FROM node:20-alpine AS runner
@@ -131,21 +88,16 @@ RUN apk add --no-cache libc6-compat
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# 从 builder 复制 standalone 输出
-# 在 builder 阶段已经统一到 apps/web/.next/standalone-output
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone-output ./
-
-# 复制 static 文件（standalone 模式需要手动复制）
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
-
-# 复制 public 文件
+# 复制应用文件
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/package.json ./package.json
 
-# 复制 Prisma schema（用于运行时，如果需要）
+# 复制扁平化的 node_modules（已解决符号链接问题）
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/node_modules_flat ./node_modules
+
+# 复制 Prisma schema
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-
-# Prisma Client 应该已经在 standalone 输出的 node_modules 中了
-# 如果没有，standalone 模式会自动处理，或者我们已经在 builder 阶段复制了
 
 USER nextjs
 
@@ -156,6 +108,6 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 启动应用（standalone 模式下 server.js 在根目录）
-CMD ["node", "server.js"]
+# 启动应用（使用 next start）
+CMD ["node_modules/.bin/next", "start", "-p", "3000"]
 
