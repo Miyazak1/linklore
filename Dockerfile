@@ -30,6 +30,34 @@ WORKDIR /app/apps/web
 ENV NODE_ENV=production
 RUN pnpm build
 
+# 在 builder 阶段创建扁平的 node_modules（解决符号链接问题）
+# 使用 tar 来复制并解析符号链接（更可靠）
+WORKDIR /app/apps/web
+RUN echo "Creating flat node_modules structure using tar..." && \
+    mkdir -p /tmp/flat-node_modules && \
+    # 使用 tar 复制整个 node_modules，自动解析符号链接
+    tar -chf - -C node_modules . | tar -xf - -C /tmp/flat-node_modules && \
+    # 验证关键模块
+    echo "Verifying modules in flat structure..." && \
+    for mod in "next" "styled-jsx" "react" "react-dom"; do \
+      if [ -d "/tmp/flat-node_modules/$mod" ] && [ -f "/tmp/flat-node_modules/$mod/package.json" ]; then \
+        echo "✓ $mod found in flat structure"; \
+      else \
+        echo "✗ $mod NOT found, attempting manual copy..." && \
+        # 如果 tar 没有复制成功，尝试手动从 .pnpm 复制
+        if [ -d "node_modules/.pnpm" ]; then \
+          found=$(find node_modules/.pnpm -type d -name "$mod" -path "*/node_modules/$mod" 2>/dev/null | head -1); \
+          if [ -n "$found" ] && [ -d "$found" ]; then \
+            cp -r "$found" "/tmp/flat-node_modules/$mod" && \
+            echo "  ✓ $mod copied from .pnpm: $found"; \
+          else \
+            echo "  ✗ $mod not found in .pnpm either"; \
+          fi; \
+        fi; \
+      fi; \
+    done && \
+    echo "Flat node_modules structure created"
+
 # 阶段 2: 生产运行环境
 FROM node:20-alpine AS runner
 
@@ -52,45 +80,22 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/package.json ./package.j
 # 复制 Prisma schema
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# 直接从 builder 阶段复制完整的 node_modules（包括 .pnpm 和所有符号链接）
-# 这样可以确保所有依赖（包括 styled-jsx）都被正确复制
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/node_modules ./node_modules
+# 复制扁平的 node_modules（已解决符号链接问题）
+COPY --from=builder --chown=nextjs:nodejs /tmp/flat-node_modules ./node_modules
 
-# 验证关键模块（使用更智能的检查，支持符号链接）
-RUN echo "Verifying critical modules..." && \
-    MISSING="" && \
+# 最终验证关键模块
+RUN echo "Final verification of critical modules..." && \
     for mod in "next" "styled-jsx" "react" "react-dom"; do \
-      # 检查模块是否存在（支持符号链接、目录、文件）
-      if [ -e "node_modules/$mod" ] || [ -L "node_modules/$mod" ] || [ -f "node_modules/$mod/package.json" ] || [ -d "node_modules/$mod/package.json" ]; then \
-        echo "✓ $mod module found"; \
+      if [ -d "node_modules/$mod" ] && [ -f "node_modules/$mod/package.json" ]; then \
+        echo "✓ $mod module verified"; \
       else \
-        echo "✗ $mod module not found, searching in .pnpm..." && \
-        # 尝试在 .pnpm 中查找
-        if [ -d "node_modules/.pnpm" ]; then \
-          found=$(find node_modules/.pnpm -type d -name "$mod" -path "*/node_modules/$mod" 2>/dev/null | head -1); \
-          if [ -n "$found" ] && [ -d "$found" ]; then \
-            echo "  Found in .pnpm: $found, copying..." && \
-            mkdir -p "node_modules" 2>/dev/null || true; \
-            cp -r "$found" "node_modules/$mod" 2>/dev/null && \
-            if [ -d "node_modules/$mod" ] || [ -e "node_modules/$mod" ]; then \
-              echo "  ✓ $mod copied from .pnpm"; \
-              continue; \
-            fi; \
-          fi; \
-        fi && \
-        echo "✗ ERROR: $mod module still not found!" && \
-        MISSING="$MISSING $mod"; \
+        echo "✗ ERROR: $mod module still missing!" && \
+        echo "  Checking node_modules structure:" && \
+        ls -la node_modules/ | grep -E "($mod|\.bin)" | head -5 || echo "  Not found" && \
+        exit 1; \
       fi; \
     done && \
-    if [ -n "$MISSING" ]; then \
-      echo "Missing modules:$MISSING" && \
-      echo "Available modules in node_modules:" && \
-      ls -la node_modules/ | head -20 && \
-      echo "Searching for styled-jsx in .pnpm:" && \
-      find node_modules/.pnpm -type d -name "*styled-jsx*" 2>/dev/null | head -5 || echo "Not found" && \
-      exit 1; \
-    fi && \
-    echo "✓ All critical modules verified"
+    echo "✓ All critical modules verified successfully"
 
 USER nextjs
 
