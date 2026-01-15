@@ -31,45 +31,41 @@ ENV NODE_ENV=production
 RUN pnpm build
 
 # 在 builder 阶段创建扁平的 node_modules（解决符号链接问题）
-# 使用 pnpm deploy 创建扁平结构（最可靠的方法）
+# 使用 tar 复制整个 node_modules，自动解析所有符号链接
 WORKDIR /app/apps/web
-RUN echo "Creating flat node_modules structure using pnpm deploy..." && \
-    mkdir -p /tmp/flat-deploy && \
-    # 使用 pnpm deploy 创建扁平结构（会解析所有符号链接）
-    pnpm deploy /tmp/flat-deploy --filter=@linklore/web && \
-    # 验证关键模块
-    echo "Verifying modules in flat structure..." && \
+RUN echo "Creating flat node_modules structure using tar (resolves symlinks)..." && \
+    mkdir -p /tmp/flat-node_modules && \
+    # 使用 tar 复制整个 node_modules，-h 选项会跟随符号链接
+    cd node_modules && \
+    tar -chf - . | tar -xf - -C /tmp/flat-node_modules && \
+    # 验证关键模块是否存在
+    echo "Verifying critical modules..." && \
+    MISSING="" && \
     for mod in "next" "styled-jsx" "react" "react-dom"; do \
-      if [ -d "/tmp/flat-deploy/node_modules/$mod" ] && [ -f "/tmp/flat-deploy/node_modules/$mod/package.json" ]; then \
-        echo "✓ $mod found in flat structure"; \
+      if [ -d "/tmp/flat-node_modules/$mod" ] && [ -f "/tmp/flat-node_modules/$mod/package.json" ]; then \
+        echo "✓ $mod found"; \
       else \
-        echo "✗ $mod NOT found, attempting fallback..." && \
-        # 如果 pnpm deploy 失败，尝试从原始 node_modules 复制
-        if [ -d "node_modules/$mod" ] || [ -L "node_modules/$mod" ]; then \
-          mkdir -p /tmp/flat-deploy/node_modules && \
-          cp -rL "node_modules/$mod" "/tmp/flat-deploy/node_modules/$mod" 2>/dev/null || \
-          cp -r "node_modules/$mod" "/tmp/flat-deploy/node_modules/$mod" 2>/dev/null && \
-          echo "  ✓ $mod copied from original node_modules"; \
-        elif [ -d "node_modules/.pnpm" ]; then \
-          found=$(find node_modules/.pnpm -type d -name "$mod" -path "*/node_modules/$mod" 2>/dev/null | head -1); \
-          if [ -n "$found" ] && [ -d "$found" ]; then \
-            mkdir -p /tmp/flat-deploy/node_modules && \
-            cp -r "$found" "/tmp/flat-deploy/node_modules/$mod" && \
-            echo "  ✓ $mod copied from .pnpm: $found"; \
-          else \
-            echo "  ✗ $mod not found anywhere!"; \
-          fi; \
+        echo "✗ $mod NOT found, searching in .pnpm..." && \
+        # 在 .pnpm 中查找并复制
+        found=$(find .pnpm -type d -name "$mod" -path "*/node_modules/$mod" 2>/dev/null | head -1); \
+        if [ -n "$found" ] && [ -d "$found" ]; then \
+          cp -r "$found" "/tmp/flat-node_modules/$mod" && \
+          echo "  ✓ $mod copied from .pnpm: $found"; \
+        else \
+          echo "  ✗ $mod still not found!" && \
+          MISSING="$MISSING $mod"; \
         fi; \
       fi; \
     done && \
-    # 确保 .bin 目录也被复制
-    if [ -d "node_modules/.bin" ]; then \
-      mkdir -p /tmp/flat-deploy/node_modules/.bin && \
-      cp -rL node_modules/.bin/* /tmp/flat-deploy/node_modules/.bin/ 2>/dev/null || \
-      cp -r node_modules/.bin/* /tmp/flat-deploy/node_modules/.bin/ 2>/dev/null && \
-      echo "✓ .bin directory copied"; \
+    if [ -n "$MISSING" ]; then \
+      echo "ERROR: Missing modules:$MISSING" && \
+      echo "Available modules in flat structure:" && \
+      ls -la /tmp/flat-node_modules/ | head -20 && \
+      echo "Searching for styled-jsx in .pnpm:" && \
+      find .pnpm -type d -name "*styled-jsx*" 2>/dev/null | head -5 || echo "Not found" && \
+      exit 1; \
     fi && \
-    echo "Flat node_modules structure created successfully"
+    echo "✓ Flat node_modules structure created successfully"
 
 # 阶段 2: 生产运行环境
 FROM node:20-alpine AS runner
@@ -94,7 +90,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/package.json ./package.j
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # 复制扁平的 node_modules（已解决符号链接问题）
-COPY --from=builder --chown=nextjs:nodejs /tmp/flat-deploy/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /tmp/flat-node_modules ./node_modules
 
 # 最终验证关键模块
 RUN echo "Final verification of critical modules..." && \
