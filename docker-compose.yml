@@ -113,6 +113,34 @@ services:
       retries: 3
       start_period: 40s
 
+  # AI 任务队列 Worker
+  worker:
+    build:
+      context: .
+      dockerfile: worker/ai-queue/Dockerfile
+    container_name: mooyu-worker
+    environment:
+      # 数据库配置
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mooyu}:${POSTGRES_PASSWORD:-fdn4jjKXGZ56LJLh}@postgres:5432/${POSTGRES_DB:-mooyu}
+      # Redis 配置
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # AI 配置
+      AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-openai}
+      AI_ALLOWED_PROVIDERS: ${AI_ALLOWED_PROVIDERS:-openai,qwen}
+      AI_FALLBACK_PROVIDER: ${AI_FALLBACK_PROVIDER:-qwen}
+      QUEUE_CONCURRENCY: ${QUEUE_CONCURRENCY:-1}
+      # 其他配置
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mooyu-network
+
 volumes:
   postgres-data:
     driver: local

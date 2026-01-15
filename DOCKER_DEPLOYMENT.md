@@ -295,3 +295,4 @@ docker-compose exec postgres psql -U mooyu -d mooyu -c "SELECT 1;"
 
 
 
+
