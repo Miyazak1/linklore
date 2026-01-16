@@ -57,7 +57,10 @@ export async function getDocumentTree(topicId, includeText = false) {
             size: doc.size,
             createdAt: doc.createdAt,
             extractedText: includeText ? doc.extractedText : null, // 按需加载
-            summaries: doc.summaries,
+            summaries: doc.summaries.map(s => ({
+                ...s,
+                keywords: Array.isArray(s.keywords) ? s.keywords : undefined
+            })),
             evaluations: doc.evaluations,
             children: [],
             depth: 0

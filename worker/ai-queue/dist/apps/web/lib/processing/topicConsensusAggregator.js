@@ -35,7 +35,9 @@ export async function calculateTopicConsensus(topicId) {
     const userPairs = [];
     userConsensusRecords.forEach(record => {
         if (record.consensusScore !== null) {
-            const docCount = record.docIds.length;
+            // 将 JSON 类型的 docIds 转换为 string[]
+            const docIds = Array.isArray(record.docIds) ? record.docIds : [];
+            const docCount = docIds.length;
             const discussionPaths = record.discussionPaths || [];
             const discussionRounds = discussionPaths.length;
             // 计算平均深度

@@ -296,18 +296,19 @@ async function saveDisagreements(topicId: string, disagreements: DisagreementDat
 		
 		if (!existingHashes.has(hash)) {
 			await prisma.disagreement.create({
-				data: {
+				data: 				{
 					topicId,
 					title: d.title,
 					description: d.description || null,
-					docIds: d.docIds,
+					// 确保 docIds 和 branchPath 是数组类型（Prisma 会自动转换为 JSON）
+					docIds: Array.isArray(d.docIds) ? d.docIds : (d.docIds ? [d.docIds] : []),
 					doc1Id: d.doc1Id || null,
 					doc2Id: d.doc2Id || null,
 					claim1: d.claim1 || null,
 					claim2: d.claim2 || null,
 					severity: d.severity || null,
 					confidence: d.confidence || null,
-					branchPath: d.branchPath || [],
+					branchPath: Array.isArray(d.branchPath) ? d.branchPath : (d.branchPath ? [d.branchPath] : []),
 					aiGenerated: true,
 					verified: false
 				}
@@ -326,8 +327,12 @@ export async function validateDisagreements(topicId: string): Promise<void> {
 
 	for (const d of disagreements) {
 		// 检查涉及的文档是否还存在
+		// 将 JSON 类型的 docIds 转换为 string[]
+		const docIds = Array.isArray(d.docIds) ? d.docIds as string[] : [];
+		if (docIds.length === 0) continue;
+		
 		const docs = await prisma.document.findMany({
-			where: { id: { in: d.docIds } },
+			where: { id: { in: docIds } },
 			include: {
 				evaluations: { orderBy: { createdAt: 'desc' }, take: 1 },
 				topic: { select: { discipline: true } }

@@ -57,7 +57,9 @@ export async function calculateTopicConsensus(topicId: string): Promise<TopicCon
 
 	userConsensusRecords.forEach(record => {
 		if (record.consensusScore !== null) {
-			const docCount = record.docIds.length;
+			// 将 JSON 类型的 docIds 转换为 string[]
+			const docIds = Array.isArray(record.docIds) ? record.docIds as string[] : [];
+			const docCount = docIds.length;
 			const discussionPaths = (record.discussionPaths as any) || [];
 			const discussionRounds = discussionPaths.length;
 			
