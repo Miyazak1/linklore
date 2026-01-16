@@ -17,7 +17,7 @@ async function fixPendingDocuments() {
 			AND: [
 				{
 					processingStatus: {
-						path: ['extract'],
+						path: 'extract',
 						equals: 'completed'
 					}
 				},
@@ -25,19 +25,19 @@ async function fixPendingDocuments() {
 					OR: [
 						{
 							processingStatus: {
-								path: ['summarize'],
+								path: 'summarize',
 								equals: 'pending'
 							}
 						},
 						{
 							processingStatus: {
-								path: ['summarize'],
+								path: 'summarize',
 								equals: Prisma.JsonNull
 							}
 						},
 						{
 							processingStatus: {
-								path: ['summarize'],
+								path: 'summarize',
 								equals: 'failed'
 							}
 						}
@@ -69,7 +69,7 @@ async function fixPendingDocuments() {
 				AND: [
 					{
 						processingStatus: {
-							path: ['summarize'],
+							path: 'summarize',
 							equals: 'completed'
 						}
 					},
@@ -77,13 +77,13 @@ async function fixPendingDocuments() {
 						OR: [
 							{
 								processingStatus: {
-									path: ['evaluate'],
+									path: 'evaluate',
 									equals: 'pending'
 								}
 							},
 							{
 								processingStatus: {
-									path: ['evaluate'],
+									path: 'evaluate',
 									equals: Prisma.JsonNull
 								}
 							}

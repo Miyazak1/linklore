@@ -54,7 +54,7 @@ async function checkEvaluation() {
 		const evaluatedDocs = await prisma.document.findMany({
 			where: {
 				processingStatus: {
-					path: ['evaluate'],
+					path: 'evaluate',
 					equals: 'completed'
 				}
 			}
@@ -69,7 +69,7 @@ async function checkEvaluation() {
 		const failedDocs = await prisma.document.findMany({
 			where: {
 				processingStatus: {
-					path: ['evaluate'],
+					path: 'evaluate',
 					equals: 'failed'
 				}
 			},
@@ -91,28 +91,28 @@ async function checkEvaluation() {
 		const pendingDocs = await prisma.document.findMany({
 			where: {
 				AND: [
-					{
-						processingStatus: {
-							path: ['summarize'],
-							equals: 'completed'
-						}
-					},
-					{
-						OR: [
-							{
-								processingStatus: {
-									path: ['evaluate'],
-									equals: 'pending'
-								}
-							},
-							{
-								processingStatus: {
-									path: ['evaluate'],
-									equals: Prisma.JsonNull
-								}
-							}
-						]
+				{
+					processingStatus: {
+						path: 'summarize',
+						equals: 'completed'
 					}
+				},
+				{
+					OR: [
+						{
+							processingStatus: {
+								path: 'evaluate',
+								equals: 'pending'
+							}
+						},
+						{
+							processingStatus: {
+								path: 'evaluate',
+								equals: Prisma.JsonNull
+							}
+						}
+					]
+				}
 				]
 			},
 			take: 5,

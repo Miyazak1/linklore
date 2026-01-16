@@ -88,7 +88,7 @@ async function diagnoseAIProcessing() {
 				AND: [
 					{
 						processingStatus: {
-							path: ['extract'],
+							path: 'extract',
 							equals: 'completed'
 						}
 					},
@@ -96,13 +96,13 @@ async function diagnoseAIProcessing() {
 						OR: [
 							{
 								processingStatus: {
-									path: ['summarize'],
+									path: 'summarize',
 									equals: 'pending'
 								}
 							},
 							{
 								processingStatus: {
-									path: ['summarize'],
+									path: 'summarize',
 									equals: Prisma.JsonNull
 								}
 							}
@@ -128,7 +128,7 @@ async function diagnoseAIProcessing() {
 				AND: [
 					{
 						processingStatus: {
-							path: ['summarize'],
+							path: 'summarize',
 							equals: 'completed'
 						}
 					},
@@ -136,13 +136,13 @@ async function diagnoseAIProcessing() {
 						OR: [
 							{
 								processingStatus: {
-									path: ['evaluate'],
+									path: 'evaluate',
 									equals: 'pending'
 								}
 							},
 							{
 								processingStatus: {
-									path: ['evaluate'],
+									path: 'evaluate',
 									equals: Prisma.JsonNull
 								}
 							}
@@ -169,19 +169,19 @@ async function diagnoseAIProcessing() {
 				OR: [
 					{
 						processingStatus: {
-							path: ['extract'],
+							path: 'extract',
 							equals: 'processing'
 						}
 					},
 					{
 						processingStatus: {
-							path: ['summarize'],
+							path: 'summarize',
 							equals: 'processing'
 						}
 					},
 					{
 						processingStatus: {
-							path: ['evaluate'],
+							path: 'evaluate',
 							equals: 'processing'
 						}
 					}

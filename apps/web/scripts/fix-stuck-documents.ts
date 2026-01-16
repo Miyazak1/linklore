@@ -21,7 +21,7 @@ async function fixStuckDocuments() {
 							{ summaries: { none: {} } },
 							{
 								processingStatus: {
-									path: ['summarize'],
+									path: 'summarize',
 									not: { equals: 'completed' }
 								}
 							}
@@ -74,7 +74,7 @@ async function fixStuckDocuments() {
 							{ evaluations: { none: {} } },
 							{
 								processingStatus: {
-									path: ['evaluate'],
+									path: 'evaluate',
 									not: { equals: 'completed' }
 								}
 							}
@@ -122,7 +122,7 @@ async function fixStuckDocuments() {
 		const failedDocs = await prisma.document.findMany({
 			where: {
 				processingStatus: {
-					path: [],
+					path: '',
 					array_contains: ['failed']
 				}
 			},

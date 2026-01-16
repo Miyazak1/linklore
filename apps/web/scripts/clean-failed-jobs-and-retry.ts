@@ -49,7 +49,7 @@ async function cleanAndRetry() {
 							{ summaries: { none: {} } },
 							{
 								processingStatus: {
-									path: ['summarize'],
+									path: 'summarize',
 									not: { equals: 'completed' }
 								}
 							}

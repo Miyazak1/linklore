@@ -84,7 +84,7 @@ async function diagnose() {
 							{ summaries: { none: {} } },
 							{
 								processingStatus: {
-									path: ['summarize'],
+									path: 'summarize',
 									not: { equals: 'completed' }
 								}
 							}
@@ -111,7 +111,7 @@ async function diagnose() {
 							{ evaluations: { none: {} } },
 							{
 								processingStatus: {
-									path: ['evaluate'],
+									path: 'evaluate',
 									not: { equals: 'completed' }
 								}
 							}
