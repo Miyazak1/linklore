@@ -19,9 +19,10 @@ export async function GET(req: Request) {
 		// 构建查询条件
 		const where: any = {};
 		if (search) {
+			// MySQL is case-insensitive by default with utf8mb4_unicode_ci
 			where.OR = [
-				{ email: { contains: search, mode: 'insensitive' } },
-				{ name: { contains: search, mode: 'insensitive' } }
+				{ email: { contains: search } },
+				{ name: { contains: search } }
 			];
 		}
 		if (roleFilter) {

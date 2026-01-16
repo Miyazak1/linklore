@@ -11,12 +11,11 @@ export async function GET(req: Request) {
 			return NextResponse.json({ items: [] });
 		}
 
-		// Search topics by title (case-insensitive)
+		// Search topics by title (MySQL is case-insensitive by default with utf8mb4_unicode_ci)
 		const topics = await prisma.topic.findMany({
 			where: {
 				title: {
-					contains: q,
-					mode: 'insensitive'
+					contains: q
 				}
 			},
 			orderBy: { createdAt: 'desc' },
