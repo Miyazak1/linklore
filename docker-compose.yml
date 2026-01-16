@@ -1,20 +1,23 @@
 services:
-  # PostgreSQL 数据库
-  postgres:
-    image: postgres:16-alpine
-    container_name: mooyu-postgres
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: mooyu-mysql
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-mooyu}
-      POSTGRES_USER: ${POSTGRES_USER:-mooyu}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fdn4jjKXGZ56LJLh}
-      PGDATA: /var/lib/postgresql/data/pgdata
-    # 端口映射已移除：PostgreSQL 仅通过 Docker 网络访问，提高安全性
-    # 如需从主机访问，可取消注释：ports: - "5432:5432"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mooyu}
+      MYSQL_USER: ${MYSQL_USER:-mooyu}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-fdn4jjKXGZ56LJLh}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-fdn4jjKXGZ56LJLh}
+    ports:
+      - "3316:3306"  # 主机端口3316映射到容器端口3306
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mooyu} -d ${POSTGRES_DB:-mooyu}"]
+      test: >
+        sh -c "
+        mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1
+        "
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,8 +28,8 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: mooyu-redis
-    # 端口映射已移除：Redis 仅通过 Docker 网络访问，提高安全性
-    # 如需从主机访问，可取消注释：ports: - "6379:6379"
+    ports:
+      - "6379:6379"  # 主机端口6379映射到容器端口6379
     volumes:
       - redis-data:/data
     # 如果设置了 REDIS_PASSWORD，则使用密码；否则不使用密码
@@ -67,7 +70,7 @@ services:
       - "3000:3000"
     environment:
       # 数据库配置
-      DATABASE_URL: postgresql://${POSTGRES_USER:-mooyu}:${POSTGRES_PASSWORD:-fdn4jjKXGZ56LJLh}@postgres:5432/${POSTGRES_DB:-mooyu}
+      DATABASE_URL: mysql://${MYSQL_USER:-mooyu}:${MYSQL_PASSWORD:-fdn4jjKXGZ56LJLh}@mysql:3306/${MYSQL_DATABASE:-mooyu}
       # 会话密钥（请修改为随机字符串）
       SESSION_SECRET: ${SESSION_SECRET:-mooyu-secret-change-this-to-random-32-chars-minimum}
       # Redis 配置
@@ -98,7 +101,7 @@ services:
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-20}
       ALLOWED_EXT: ${ALLOWED_EXT:-doc,docx,txt,md}
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -121,7 +124,7 @@ services:
     container_name: mooyu-worker
     environment:
       # 数据库配置
-      DATABASE_URL: postgresql://${POSTGRES_USER:-mooyu}:${POSTGRES_PASSWORD:-fdn4jjKXGZ56LJLh}@postgres:5432/${POSTGRES_DB:-mooyu}
+      DATABASE_URL: mysql://${MYSQL_USER:-mooyu}:${MYSQL_PASSWORD:-fdn4jjKXGZ56LJLh}@mysql:3306/${MYSQL_DATABASE:-mooyu}
       # Redis 配置
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -133,7 +136,7 @@ services:
       # 其他配置
       NODE_ENV: production
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -142,7 +145,7 @@ services:
       - mooyu-network
 
 volumes:
-  postgres-data:
+  mysql-data:
     driver: local
   redis-data:
     driver: local

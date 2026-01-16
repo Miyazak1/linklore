@@ -1,5 +1,3 @@
-version: '3.8'
-
 # 生产环境配置（覆盖 docker-compose.yml）
 # 使用方法: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
@@ -29,7 +27,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  postgres:
+  mysql:
     # 生产环境资源限制
     deploy:
       resources:
