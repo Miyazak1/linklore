@@ -89,7 +89,7 @@ model Summary {
   structure     Json
   claims        Json
   counterpoints Json
-  keywords      String[]
+  keywords      Json // MySQL 不支持 String[]，使用 JSON 存储字符串数组
 }
 
 model Evaluation {
@@ -157,7 +157,7 @@ model Book {
   overview    String?
   source      String? // openlibrary/google/manual
   category    String? // 分类：文学、科技、历史、哲学、艺术、教育、经济、心理学、小说、传记等
-  tags        String[]        @default([]) // 标签数组，支持多标签
+  tags        Json            @default("[]") // 标签数组，支持多标签（MySQL 使用 JSON 存储）
   language    String? // 语言：中文、英文、日文等
   isbn        String? // ISBN号
   publisher   String? // 出版社
@@ -195,7 +195,7 @@ model Disagreement {
   description     String? // AI 生成的详细描述
   status          String    @default("open") // open | researching | resolved | invalid
   ownerId         String?
-  docIds          String[] // 涉及的文档ID数组
+  docIds          Json      @default("[]") // 涉及的文档ID数组（MySQL 使用 JSON 存储）
   doc1Id          String? // 文档1 ID（主要分歧方）
   doc2Id          String? // 文档2 ID（主要分歧方）
   claim1          String? // 观点1
@@ -206,7 +206,7 @@ model Disagreement {
   verified        Boolean   @default(false) // 是否经过人工验证
   falsePositive   Boolean   @default(false) // 是否被标记为误判
   analysisHash    String? // 分析时的文档内容hash（用于缓存验证）
-  branchPath      String[] // 分歧发生的分支路径（树形结构）
+  branchPath      Json      @default("[]") // 分歧发生的分支路径（树形结构，MySQL 使用 JSON 存储）
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   lastValidatedAt DateTime? // 最后验证时间
@@ -245,7 +245,7 @@ model UserConsensus {
   consensusScore  Float? // 用户对之间的共识度（0-1）
   divergenceScore Float? // 用户对之间的分歧度（0-1）
 
-  docIds          String[] // 涉及的所有文档ID
+  docIds          Json      @default("[]") // 涉及的所有文档ID（MySQL 使用 JSON 存储）
   discussionPaths Json // 讨论路径数组：[{path: [docId1, docId2, ...], depth: number, direction: string}]
   lastAnalyzedAt  DateTime? // 最后分析时间
   createdAt       DateTime  @default(now())
@@ -481,7 +481,7 @@ model GameInstance {
   title       String // 游戏标题
   description String? // 游戏描述
   coverUrl    String? // 封面图片URL
-  tags        String[] // 标签数组
+  tags        Json    @default("[]") // 标签数组（MySQL 使用 JSON 存储）
 
   // 模块配置（JSON存储模块组合）
   modules Json // { questionTypes: [], displayMode: string, features: [], rules: [], settings: {} }
