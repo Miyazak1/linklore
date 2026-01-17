@@ -17,7 +17,7 @@ COPY apps/web/package.json ./apps/web/
 COPY prisma ./prisma/
 
 # 安装依赖
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # 复制所有源代码
 COPY . .

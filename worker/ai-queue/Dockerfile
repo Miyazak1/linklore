@@ -10,7 +10,7 @@ WORKDIR /app
 COPY . .
 
 # 安装依赖
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # 生成 Prisma Client
 RUN pnpm prisma:generate
