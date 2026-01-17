@@ -1,64 +1,64 @@
 services:
-  # MySQL 数据库
-  mysql:
-    image: mysql:8.0
-    container_name: mooyu-mysql
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-mooyu}
-      MYSQL_USER: ${MYSQL_USER:-mooyu}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-fdn4jjKXGZ56LJLh}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-fdn4jjKXGZ56LJLh}
-    ports:
-      - "3316:3306"  # 主机端口3316映射到容器端口3306
-    volumes:
-      - mysql-data:/var/lib/mysql
-    restart: unless-stopped
-    healthcheck:
-      test: >
-        sh -c "
-        mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1
-        "
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - mooyu-network
+  # # MySQL 数据库
+  # mysql:
+  #   image: mysql:8.0
+  #   container_name: mooyu-mysql
+  #   environment:
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-mooyu}
+  #     MYSQL_USER: ${MYSQL_USER:-mooyu}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD:-fdn4jjKXGZ56LJLh}
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-fdn4jjKXGZ56LJLh}
+  #   ports:
+  #     - "3316:3306"  # 主机端口3316映射到容器端口3306
+  #   volumes:
+  #     - mysql-data:/var/lib/mysql
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: >
+  #       sh -c "
+  #       mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1
+  #       "
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - mooyu-network
 
-  # Redis 缓存和队列
-  redis:
-    image: redis:7.2-alpine
-    container_name: mooyu-redis
-    ports:
-      - "6379:6379"  # 主机端口6379映射到容器端口6379
-    volumes:
-      - redis-data:/data
-    # 如果设置了 REDIS_PASSWORD，则使用密码；否则不使用密码
-    command: >
-      sh -c "
-      if [ -n \"$$REDIS_PASSWORD\" ]; then
-        redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\"
-      else
-        redis-server --appendonly yes
-      fi
-      "
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-    restart: unless-stopped
-    healthcheck:
-      # 健康检查：如果有密码则使用密码，否则直接 ping
-      test: >
-        sh -c "
-        if [ -n \"$$REDIS_PASSWORD\" ]; then
-          redis-cli -a \"$$REDIS_PASSWORD\" ping
-        else
-          redis-cli ping
-        fi
-        "
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    networks:
-      - mooyu-network
+  # # Redis 缓存和队列
+  # redis:
+  #   image: redis:7.2-alpine
+  #   container_name: mooyu-redis
+  #   ports:
+  #     - "6379:6379"  # 主机端口6379映射到容器端口6379
+  #   volumes:
+  #     - redis-data:/data
+  #   # 如果设置了 REDIS_PASSWORD，则使用密码；否则不使用密码
+  #   command: >
+  #     sh -c "
+  #     if [ -n \"$$REDIS_PASSWORD\" ]; then
+  #       redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\"
+  #     else
+  #       redis-server --appendonly yes
+  #     fi
+  #     "
+  #   environment:
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     # 健康检查：如果有密码则使用密码，否则直接 ping
+  #     test: >
+  #       sh -c "
+  #       if [ -n \"$$REDIS_PASSWORD\" ]; then
+  #         redis-cli -a \"$$REDIS_PASSWORD\" ping
+  #       else
+  #         redis-cli ping
+  #       fi
+  #       "
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+  #   networks:
+  #     - mooyu-network
 
   # Next.js 应用
   web:
@@ -69,14 +69,14 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # 数据库配置
-      DATABASE_URL: mysql://${MYSQL_USER:-mooyu}:${MYSQL_PASSWORD:-fdn4jjKXGZ56LJLh}@mysql:3306/${MYSQL_DATABASE:-mooyu}
+      # 数据库配置（使用云数据库，通过环境变量配置）
+      # 示例：DATABASE_URL=mysql://user:password@your-cloud-db-host:3306/database
+      DATABASE_URL: ${DATABASE_URL}
       # 会话密钥（请修改为随机字符串）
       SESSION_SECRET: ${SESSION_SECRET:-mooyu-secret-change-this-to-random-32-chars-minimum}
-      # Redis 配置
-      # 如果 Redis 设置了密码，请设置 REDIS_URL 为: redis://:密码@redis:6379
-      # 如果 Redis 没有密码，使用默认值: redis://redis:6379
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      # Redis 配置（使用云 Redis，通过环境变量配置）
+      # 示例：REDIS_URL=redis://:password@your-cloud-redis-host:6379
+      REDIS_URL: ${REDIS_URL}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       # Next.js 配置
       NODE_ENV: production
@@ -100,11 +100,6 @@ services:
       # 文件配置
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-20}
       ALLOWED_EXT: ${ALLOWED_EXT:-doc,docx,txt,md}
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     restart: unless-stopped
     networks:
       - mooyu-network
@@ -123,10 +118,10 @@ services:
       dockerfile: worker/ai-queue/Dockerfile
     container_name: mooyu-worker
     environment:
-      # 数据库配置
-      DATABASE_URL: mysql://${MYSQL_USER:-mooyu}:${MYSQL_PASSWORD:-fdn4jjKXGZ56LJLh}@mysql:3306/${MYSQL_DATABASE:-mooyu}
-      # Redis 配置
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      # 数据库配置（使用云数据库，通过环境变量配置）
+      DATABASE_URL: ${DATABASE_URL}
+      # Redis 配置（使用云 Redis，通过环境变量配置）
+      REDIS_URL: ${REDIS_URL}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       # AI 配置
       AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-openai}
@@ -135,20 +130,9 @@ services:
       QUEUE_CONCURRENCY: ${QUEUE_CONCURRENCY:-1}
       # 其他配置
       NODE_ENV: production
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     restart: unless-stopped
     networks:
       - mooyu-network
-
-volumes:
-  mysql-data:
-    driver: local
-  redis-data:
-    driver: local
 
 networks:
   mooyu-network:
