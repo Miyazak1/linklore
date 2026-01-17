@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node ./dist/index.js",
+    "start": "node ./dist/worker/ai-queue/index.js",
     "build": "tsc -p tsconfig.json",
     "dev": "tsx --watch --tsconfig ./tsconfig.json ./index.ts"
   },
