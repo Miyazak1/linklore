@@ -50,7 +50,14 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 # 安装必要的系统依赖和 pnpm
-RUN apk add --no-cache libc6-compat && \
+# 安装 OpenSSL 1.1 兼容库（Prisma 需要）
+# Prisma 需要 libssl.so.1.1，但 Alpine 3.18+ 默认是 OpenSSL 3.x
+RUN apk add --no-cache libc6-compat openssl && \
+    (apk add --no-cache openssl1.1-compat 2>/dev/null || \
+     (echo "OpenSSL 1.1 compat not available, creating symlink..." && \
+      mkdir -p /usr/lib && \
+      ln -s /usr/lib/libssl.so.3 /usr/lib/libssl.so.1.1 2>/dev/null || true && \
+      ln -s /usr/lib/libcrypto.so.3 /usr/lib/libcrypto.so.1.1 2>/dev/null || true)) && \
     corepack enable && \
     corepack prepare pnpm@9.0.0 --activate
 
