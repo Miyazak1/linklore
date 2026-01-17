@@ -25,9 +25,10 @@ COPY . .
 # 生成 Prisma Client
 RUN pnpm prisma generate
 
-# 构建 Next.js
+# 构建 Next.js（启用 standalone 模式）
 WORKDIR /app/apps/web
 ENV NODE_ENV=production
+ENV ENABLE_STANDALONE=true
 RUN pnpm build
 
 # 在 builder 阶段创建扁平的 node_modules（解决符号链接问题）
