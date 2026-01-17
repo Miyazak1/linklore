@@ -27,8 +27,8 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  mysql:
-    # 生产环境资源限制
+  worker:
+    # Worker 资源限制
     deploy:
       resources:
         limits:
@@ -37,28 +37,9 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    # 日志配置
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-
-  redis:
-    # 生产环境资源限制
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-
-
-
